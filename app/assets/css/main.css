@@ -1,0 +1,31 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+:root {
+  color-scheme: light;
+  font-family: 'Noto Sans Thai', ui-sans-serif, system-ui, sans-serif;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+html {
+  min-width: 320px;
+  background: var(--ui-bg);
+}
+
+body {
+  min-height: 100vh;
+  color: var(--ui-text);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--ui-primary);
+  outline-offset: 2px;
+}
+
+button, a, input, select, textarea {
+  -webkit-tap-highlight-color: transparent;
+}

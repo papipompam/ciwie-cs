@@ -1,0 +1,1313 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  STUDENT
+  LECTURER
+  ADMIN
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum TokenStatus {
+  ACTIVE
+  USED
+  REVOKED
+}
+
+enum ApplicationStatus {
+  SUBMITTED
+  WAITING_RESPONSE
+  INTERVIEW_PENDING
+  PRELIMINARY_ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+enum DocumentRequestStatus {
+  REQUESTED
+  IN_PROGRESS
+  READY_TO_SEND
+  CANCELLED
+}
+
+enum DocumentBatchStatus {
+  DRAFT
+  READY_TO_SEND
+  SENT
+  CLOSED
+  CANCELLED
+}
+
+enum DeliveryStatus {
+  ASSIGNED
+  SENT
+  WAITING_RESPONSE
+  RESPONSE_RECEIVED
+}
+
+enum DeliveryOwnerType {
+  STUDENT
+  LECTURER
+}
+
+enum ResponseStatus {
+  DRAFT
+  PENDING_REVIEW
+  CONFIRMED
+}
+
+enum ResponseResult {
+  ACCEPTED
+  DECLINED
+}
+
+enum PlacementStatus {
+  ACTIVE
+  REVERSED
+}
+
+enum VisitRound {
+  ROUND_1
+  ROUND_2
+}
+
+enum VisitPeriod {
+  MORNING
+  AFTERNOON
+  FULL_DAY
+}
+
+enum VisitStatus {
+  SCHEDULED
+  POSTPONED
+  COMPLETED
+  CANCELLED
+}
+
+enum AcknowledgementStatus {
+  PENDING
+  ACKNOWLEDGED
+}
+
+enum SupervisionOutcome {
+  COMPLETED
+  ABSENT
+  MAKEUP_REQUIRED
+}
+
+enum TemplateSubject {
+  STUDENT
+  ORGANIZATION
+}
+
+enum TemplateVersionStatus {
+  DRAFT
+  PUBLISHED
+  RETIRED
+}
+
+enum AnswerType {
+  SCORE
+  TEXT
+  BOOLEAN
+}
+
+enum EvaluationStatus {
+  DRAFT
+  SUBMITTED
+}
+
+enum FileScanStatus {
+  UPLOADED
+  PENDING_SCAN
+  CLEAN
+  REJECTED
+}
+
+enum FileVisibility {
+  PRIVATE
+  STUDENT_VISIBLE
+  STAFF_ONLY
+}
+
+enum ImportStatus {
+  UPLOADED
+  SCANNING
+  PREVIEW_READY
+  CONFIRMING
+  COMPLETED
+  FAILED
+}
+
+enum ImportRowStatus {
+  NEW
+  UNCHANGED
+  CONFLICT
+  INVALID
+  IMPORTED
+}
+
+enum ExportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  EXPIRED
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+}
+
+enum IdempotencyStatus {
+  IN_PROGRESS
+  SUCCEEDED
+  FAILED
+}
+
+model User {
+  id                   String               @id @default(uuid()) @db.Char(36)
+  identifier           String               @db.VarChar(191)
+  normalizedIdentifier String               @unique @map("normalized_identifier") @db.VarChar(191)
+  email                String               @db.VarChar(320)
+  normalizedEmail      String               @unique @map("normalized_email") @db.VarChar(320)
+  passwordHash         String               @map("password_hash") @db.VarChar(255)
+  role                 UserRole
+  status               UserStatus           @default(PENDING)
+  sessionVersion       Int                  @default(1) @map("session_version")
+  mustChangePassword   Boolean              @default(true) @map("must_change_password")
+  lastLoginAt          DateTime?            @map("last_login_at") @db.DateTime(3)
+  createdAt            DateTime             @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt            DateTime             @updatedAt @map("updated_at") @db.DateTime(3)
+  studentProfile       StudentProfile?
+  lecturerProfile      LecturerProfile?
+  activationCodes      ActivationCode[]
+  passwordResetTokens  PasswordResetToken[]
+  sessions             UserSession[]
+  notifications        Notification[]
+
+  @@index([role, status])
+  @@map("users")
+}
+
+model ActivationCode {
+  id        String      @id @default(uuid()) @db.Char(36)
+  userId    String      @map("user_id") @db.Char(36)
+  tokenHash String      @unique @map("token_hash") @db.Char(64)
+  status    TokenStatus @default(ACTIVE)
+  expiresAt DateTime    @map("expires_at") @db.DateTime(3)
+  usedAt    DateTime?   @map("used_at") @db.DateTime(3)
+  revokedAt DateTime?   @map("revoked_at") @db.DateTime(3)
+  createdAt DateTime    @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime    @updatedAt @map("updated_at") @db.DateTime(3)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, expiresAt])
+  @@map("activation_codes")
+}
+
+model PasswordResetToken {
+  id        String      @id @default(uuid()) @db.Char(36)
+  userId    String      @map("user_id") @db.Char(36)
+  tokenHash String      @unique @map("token_hash") @db.Char(64)
+  status    TokenStatus @default(ACTIVE)
+  expiresAt DateTime    @map("expires_at") @db.DateTime(3)
+  usedAt    DateTime?   @map("used_at") @db.DateTime(3)
+  revokedAt DateTime?   @map("revoked_at") @db.DateTime(3)
+  createdAt DateTime    @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime    @updatedAt @map("updated_at") @db.DateTime(3)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model UserSession {
+  id          String    @id @default(uuid()) @db.Char(36)
+  userId      String    @map("user_id") @db.Char(36)
+  sessionHash String    @unique @map("session_hash") @db.Char(64)
+  expiresAt   DateTime  @map("expires_at") @db.DateTime(3)
+  revokedAt   DateTime? @map("revoked_at") @db.DateTime(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, revokedAt, expiresAt])
+  @@map("user_sessions")
+}
+
+model StudentProfile {
+  id          String                  @id @default(uuid()) @db.Char(36)
+  userId      String                  @unique @map("user_id") @db.Char(36)
+  studentCode String                  @unique @map("student_code") @db.VarChar(32)
+  firstNameTh String                  @map("first_name_th") @db.VarChar(100)
+  lastNameTh  String                  @map("last_name_th") @db.VarChar(100)
+  phone       String?                 @db.VarChar(32)
+  createdAt   DateTime                @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime                @updatedAt @map("updated_at") @db.DateTime(3)
+  user        User                    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  enrollments StudentTermEnrollment[]
+
+  @@index([lastNameTh, firstNameTh])
+  @@map("student_profiles")
+}
+
+model LecturerProfile {
+  id               String          @id @default(uuid()) @db.Char(36)
+  userId           String          @unique @map("user_id") @db.Char(36)
+  employeeCode     String?         @unique @map("employee_code") @db.VarChar(32)
+  firstNameTh      String          @map("first_name_th") @db.VarChar(100)
+  lastNameTh       String          @map("last_name_th") @db.VarChar(100)
+  phone            String?         @db.VarChar(32)
+  createdAt        DateTime        @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt        DateTime        @updatedAt @map("updated_at") @db.DateTime(3)
+  user             User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  visitAssignments VisitLecturer[]
+
+  @@index([lastNameTh, firstNameTh])
+  @@map("lecturer_profiles")
+}
+
+model CoopTerm {
+  id           String                  @id @default(uuid()) @db.Char(36)
+  academicYear Int                     @map("academic_year")
+  semester     Int
+  name         String                  @db.VarChar(100)
+  startsOn     DateTime                @map("starts_on") @db.Date
+  endsOn       DateTime                @map("ends_on") @db.Date
+  isActive     Boolean                 @default(false) @map("is_active")
+  createdAt    DateTime                @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime                @updatedAt @map("updated_at") @db.DateTime(3)
+  enrollments  StudentTermEnrollment[]
+  applications Application[]
+  requests     DocumentRequest[]
+  batches      DocumentBatch[]
+  visits       SupervisionVisit[]
+
+  @@unique([academicYear, semester])
+  @@index([isActive, startsOn])
+  @@map("coop_terms")
+}
+
+model StudentTermEnrollment {
+  id            String                     @id @default(uuid()) @db.Char(36)
+  studentId     String                     @map("student_id") @db.Char(36)
+  coopTermId    String                     @map("coop_term_id") @db.Char(36)
+  version       Int                        @default(1)
+  createdAt     DateTime                   @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime                   @updatedAt @map("updated_at") @db.DateTime(3)
+  student       StudentProfile             @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  coopTerm      CoopTerm                   @relation(fields: [coopTermId], references: [id], onDelete: Restrict)
+  applications  Application[]
+  requests      DocumentRequest[]
+  batchMembers  DocumentBatchMember[]
+  batchSlots    DocumentBatchStudentSlot[]
+  placement     Placement?
+  visitStudents VisitStudent[]
+
+  @@unique([studentId, coopTermId])
+  @@unique([id, coopTermId])
+  @@index([coopTermId, createdAt])
+  @@map("student_term_enrollments")
+}
+
+model Organization {
+  id             String                     @id @default(uuid()) @db.Char(36)
+  nameTh         String                     @map("name_th") @db.VarChar(255)
+  nameEn         String?                    @map("name_en") @db.VarChar(255)
+  normalizedName String                     @map("normalized_name") @db.VarChar(255)
+  taxId          String?                    @unique @map("tax_id") @db.VarChar(32)
+  isActive       Boolean                    @default(true) @map("is_active")
+  createdById    String                     @map("created_by_id") @db.Char(36)
+  updatedById    String                     @map("updated_by_id") @db.Char(36)
+  createdAt      DateTime                   @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime                   @updatedAt @map("updated_at") @db.DateTime(3)
+  workSites      WorkSite[]
+  contacts       OrganizationContact[]
+  aliases        OrganizationAlias[]
+  mergeSources   OrganizationMergeHistory[] @relation("MergeSource")
+  mergeTargets   OrganizationMergeHistory[] @relation("MergeTarget")
+
+  @@index([normalizedName])
+  @@index([isActive, nameTh])
+  @@map("organizations")
+}
+
+model WorkSite {
+  id             String                @id @default(uuid()) @db.Char(36)
+  organizationId String                @map("organization_id") @db.Char(36)
+  name           String                @db.VarChar(255)
+  normalizedName String                @map("normalized_name") @db.VarChar(255)
+  addressLine    String                @map("address_line") @db.VarChar(500)
+  province       String                @db.VarChar(100)
+  region         String                @db.VarChar(100)
+  postalCode     String?               @map("postal_code") @db.VarChar(10)
+  isActive       Boolean               @default(true) @map("is_active")
+  createdAt      DateTime              @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime              @updatedAt @map("updated_at") @db.DateTime(3)
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  contacts       OrganizationContact[]
+  applications   Application[]
+  requests       DocumentRequest[]
+  batches        DocumentBatch[]
+  placements     Placement[]
+  visits         SupervisionVisit[]
+
+  @@unique([organizationId, normalizedName])
+  @@index([province, normalizedName])
+  @@index([region, province])
+  @@map("work_sites")
+}
+
+model OrganizationContact {
+  id             String        @id @default(uuid()) @db.Char(36)
+  organizationId String        @map("organization_id") @db.Char(36)
+  workSiteId     String?       @map("work_site_id") @db.Char(36)
+  name           String        @db.VarChar(200)
+  position       String?       @db.VarChar(150)
+  email          String?       @db.VarChar(320)
+  phone          String?       @db.VarChar(32)
+  isActive       Boolean       @default(true) @map("is_active")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.DateTime(3)
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  workSite       WorkSite?     @relation(fields: [workSiteId], references: [id], onDelete: Restrict)
+  applications   Application[]
+
+  @@index([organizationId, isActive])
+  @@index([workSiteId, isActive])
+  @@map("organization_contacts")
+}
+
+model OrganizationAlias {
+  id              String       @id @default(uuid()) @db.Char(36)
+  organizationId  String       @map("organization_id") @db.Char(36)
+  normalizedAlias String       @unique @map("normalized_alias") @db.VarChar(255)
+  displayAlias    String       @map("display_alias") @db.VarChar(255)
+  createdAt       DateTime     @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.DateTime(3)
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId])
+  @@map("organization_aliases")
+}
+
+model OrganizationMergeHistory {
+  id                   String       @id @default(uuid()) @db.Char(36)
+  sourceOrganizationId String       @map("source_organization_id") @db.Char(36)
+  targetOrganizationId String       @map("target_organization_id") @db.Char(36)
+  actorId              String       @map("actor_id") @db.Char(36)
+  reason               String       @db.VarChar(1000)
+  sourceSnapshot       Json         @map("source_snapshot")
+  createdAt            DateTime     @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt            DateTime     @updatedAt @map("updated_at") @db.DateTime(3)
+  sourceOrganization   Organization @relation("MergeSource", fields: [sourceOrganizationId], references: [id], onDelete: Restrict)
+  targetOrganization   Organization @relation("MergeTarget", fields: [targetOrganizationId], references: [id], onDelete: Restrict)
+
+  @@index([sourceOrganizationId, createdAt])
+  @@index([targetOrganizationId, createdAt])
+  @@map("organization_merge_history")
+}
+
+model Application {
+  id               String                     @id @default(uuid()) @db.Char(36)
+  studentTermId    String                     @map("student_term_id") @db.Char(36)
+  coopTermId       String                     @map("coop_term_id") @db.Char(36)
+  workSiteId       String                     @map("work_site_id") @db.Char(36)
+  contactId        String?                    @map("contact_id") @db.Char(36)
+  contactSnapshot  Json?                      @map("contact_snapshot")
+  status           ApplicationStatus          @default(SUBMITTED)
+  positionTitle    String?                    @map("position_title") @db.VarChar(255)
+  appliedAt        DateTime                   @default(now()) @map("applied_at") @db.DateTime(3)
+  version          Int                        @default(1)
+  createdById      String                     @map("created_by_id") @db.Char(36)
+  updatedById      String                     @map("updated_by_id") @db.Char(36)
+  createdAt        DateTime                   @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt        DateTime                   @updatedAt @map("updated_at") @db.DateTime(3)
+  studentTerm      StudentTermEnrollment      @relation(fields: [studentTermId], references: [id], onDelete: Restrict)
+  coopTerm         CoopTerm                   @relation(fields: [coopTermId], references: [id], onDelete: Restrict)
+  workSite         WorkSite                   @relation(fields: [workSiteId], references: [id], onDelete: Restrict)
+  contact          OrganizationContact?       @relation(fields: [contactId], references: [id], onDelete: Restrict)
+  histories        ApplicationStatusHistory[]
+  evidenceFiles    ApplicationEvidenceFile[]
+  documentRequests DocumentRequest[]
+
+  @@unique([id, coopTermId, workSiteId])
+  @@index([studentTermId, status])
+  @@index([workSiteId, status, appliedAt])
+  @@index([contactId])
+  @@map("applications")
+}
+
+model ApplicationStatusHistory {
+  id            String             @id @default(uuid()) @db.Char(36)
+  applicationId String             @map("application_id") @db.Char(36)
+  fromStatus    ApplicationStatus? @map("from_status")
+  toStatus      ApplicationStatus  @map("to_status")
+  actorId       String             @map("actor_id") @db.Char(36)
+  reason        String?            @db.VarChar(1000)
+  snapshot      Json?
+  createdAt     DateTime           @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime           @updatedAt @map("updated_at") @db.DateTime(3)
+  application   Application        @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+
+  @@index([applicationId, createdAt])
+  @@map("application_status_history")
+}
+
+model StoredFile {
+  id               String         @id @default(uuid()) @db.Char(36)
+  originalFilename String         @map("original_filename") @db.VarChar(255)
+  createdById      String         @map("created_by_id") @db.Char(36)
+  visibility       FileVisibility @default(PRIVATE)
+  createdAt        DateTime       @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt        DateTime       @updatedAt @map("updated_at") @db.DateTime(3)
+  versions         FileVersion[]
+
+  @@index([createdById, createdAt])
+  @@map("files")
+}
+
+model FileVersion {
+  id                  String                    @id @default(uuid()) @db.Char(36)
+  fileId              String                    @map("file_id") @db.Char(36)
+  revision            Int
+  objectKey           String                    @unique @map("object_key") @db.VarChar(512)
+  checksumSha256      String                    @map("checksum_sha256") @db.Char(64)
+  mimeType            String                    @map("mime_type") @db.VarChar(255)
+  extension           String                    @db.VarChar(16)
+  sizeBytes           BigInt                    @map("size_bytes") @db.UnsignedBigInt
+  scanStatus          FileScanStatus            @default(UPLOADED) @map("scan_status")
+  scanReason          String?                   @map("scan_reason") @db.VarChar(500)
+  createdById         String                    @map("created_by_id") @db.Char(36)
+  createdAt           DateTime                  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt           DateTime                  @updatedAt @map("updated_at") @db.DateTime(3)
+  file                StoredFile                @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  applicationEvidence ApplicationEvidenceFile[]
+  documentVersions    DocumentVersion[]
+  deliveryEvidence    DeliveryEvidenceFile[]
+  responseForms       ResponseForm[]
+  importJobs          ImportJob[]
+  exportJobs          ExportJob[]
+
+  @@unique([fileId, revision])
+  @@index([checksumSha256])
+  @@index([scanStatus, createdAt])
+  @@map("file_versions")
+}
+
+model ApplicationEvidenceFile {
+  id            String         @id @default(uuid()) @db.Char(36)
+  applicationId String         @map("application_id") @db.Char(36)
+  fileVersionId String         @map("file_version_id") @db.Char(36)
+  visibility    FileVisibility @default(STUDENT_VISIBLE)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.DateTime(3)
+  application   Application    @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  fileVersion   FileVersion    @relation(fields: [fileVersionId], references: [id], onDelete: Restrict)
+
+  @@unique([applicationId, fileVersionId])
+  @@map("application_evidence_files")
+}
+
+model DocumentRequest {
+  id            String                @id @default(uuid()) @db.Char(36)
+  studentTermId String                @map("student_term_id") @db.Char(36)
+  applicationId String                @map("application_id") @db.Char(36)
+  coopTermId    String                @map("coop_term_id") @db.Char(36)
+  workSiteId    String                @map("work_site_id") @db.Char(36)
+  status        DocumentRequestStatus @default(REQUESTED)
+  requestedAt   DateTime              @default(now()) @map("requested_at") @db.DateTime(3)
+  createdById   String                @map("created_by_id") @db.Char(36)
+  updatedById   String                @map("updated_by_id") @db.Char(36)
+  createdAt     DateTime              @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime              @updatedAt @map("updated_at") @db.DateTime(3)
+  studentTerm   StudentTermEnrollment @relation(fields: [studentTermId], references: [id], onDelete: Restrict)
+  application   Application           @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  coopTerm      CoopTerm              @relation(fields: [coopTermId], references: [id], onDelete: Restrict)
+  workSite      WorkSite              @relation(fields: [workSiteId], references: [id], onDelete: Restrict)
+  batchMember   DocumentBatchMember?
+
+  @@unique([id, studentTermId, coopTermId, workSiteId])
+  @@index([coopTermId, workSiteId, status])
+  @@index([studentTermId, status])
+  @@map("document_requests")
+}
+
+model DocumentBatch {
+  id              String                     @id @default(uuid()) @db.Char(36)
+  coopTermId      String                     @map("coop_term_id") @db.Char(36)
+  workSiteId      String                     @map("work_site_id") @db.Char(36)
+  status          DocumentBatchStatus        @default(DRAFT)
+  documentType    String                     @map("document_type") @db.VarChar(64)
+  documentNo      String?                    @map("document_no") @db.VarChar(100)
+  documentYear    Int?                       @map("document_year")
+  documentDate    DateTime?                  @map("document_date") @db.Date
+  lockVersion     Int                        @default(1) @map("lock_version")
+  createdById     String                     @map("created_by_id") @db.Char(36)
+  updatedById     String                     @map("updated_by_id") @db.Char(36)
+  createdAt       DateTime                   @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt       DateTime                   @updatedAt @map("updated_at") @db.DateTime(3)
+  coopTerm        CoopTerm                   @relation(fields: [coopTermId], references: [id], onDelete: Restrict)
+  workSite        WorkSite                   @relation(fields: [workSiteId], references: [id], onDelete: Restrict)
+  members         DocumentBatchMember[]
+  studentSlots    DocumentBatchStudentSlot[]
+  versions        DocumentVersion[]
+  deliveries      Delivery[]
+  responseForms   ResponseForm[]
+  responseResults ResponseStudentResult[]
+
+  @@unique([id, coopTermId, workSiteId])
+  @@unique([documentYear, documentType, documentNo])
+  @@index([coopTermId, workSiteId, status])
+  @@map("document_batches")
+}
+
+model DocumentBatchMember {
+  id              String                    @id @default(uuid()) @db.Char(36)
+  batchId         String                    @map("batch_id") @db.Char(36)
+  requestId       String                    @unique @map("request_id") @db.Char(36)
+  studentTermId   String                    @map("student_term_id") @db.Char(36)
+  coopTermId      String                    @map("coop_term_id") @db.Char(36)
+  workSiteId      String                    @map("work_site_id") @db.Char(36)
+  snapshot        Json
+  createdAt       DateTime                  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt       DateTime                  @updatedAt @map("updated_at") @db.DateTime(3)
+  batch           DocumentBatch             @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  request         DocumentRequest           @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  studentTerm     StudentTermEnrollment     @relation(fields: [studentTermId], references: [id], onDelete: Restrict)
+  responseResults ResponseStudentResult[]
+  activeSlot      DocumentBatchStudentSlot?
+
+  @@unique([batchId, studentTermId])
+  @@unique([id, batchId])
+  @@unique([id, batchId, studentTermId, coopTermId, workSiteId])
+  @@index([coopTermId, workSiteId, studentTermId])
+  @@map("document_batch_members")
+}
+
+model DocumentBatchStudentSlot {
+  id            String                @id @default(uuid()) @db.Char(36)
+  batchMemberId String                @unique @map("batch_member_id") @db.Char(36)
+  batchId       String                @map("batch_id") @db.Char(36)
+  studentTermId String                @map("student_term_id") @db.Char(36)
+  coopTermId    String                @map("coop_term_id") @db.Char(36)
+  workSiteId    String                @map("work_site_id") @db.Char(36)
+  createdAt     DateTime              @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime              @updatedAt @map("updated_at") @db.DateTime(3)
+  batchMember   DocumentBatchMember   @relation(fields: [batchMemberId], references: [id], onDelete: Restrict)
+  batch         DocumentBatch         @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  studentTerm   StudentTermEnrollment @relation(fields: [studentTermId], references: [id], onDelete: Restrict)
+
+  @@unique([studentTermId, coopTermId, workSiteId])
+  @@index([batchId, studentTermId])
+  @@map("document_batch_student_slots")
+}
+
+model DocumentVersion {
+  id            String        @id @default(uuid()) @db.Char(36)
+  batchId       String        @map("batch_id") @db.Char(36)
+  revision      Int
+  kind          String        @db.VarChar(64)
+  fileVersionId String        @map("file_version_id") @db.Char(36)
+  createdById   String        @map("created_by_id") @db.Char(36)
+  createdAt     DateTime      @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime      @updatedAt @map("updated_at") @db.DateTime(3)
+  batch         DocumentBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  fileVersion   FileVersion   @relation(fields: [fileVersionId], references: [id], onDelete: Restrict)
+
+  @@unique([batchId, kind, revision])
+  @@map("document_versions")
+}
+
+model Delivery {
+  id             String                 @id @default(uuid()) @db.Char(36)
+  batchId        String                 @map("batch_id") @db.Char(36)
+  status         DeliveryStatus         @default(ASSIGNED)
+  ownerType      DeliveryOwnerType      @map("owner_type")
+  ownerUserId    String                 @map("owner_user_id") @db.Char(36)
+  channel        String?                @db.VarChar(100)
+  recipient      String?                @db.VarChar(255)
+  sentAt         DateTime?              @map("sent_at") @db.DateTime(3)
+  acknowledgedAt DateTime?              @map("acknowledged_at") @db.DateTime(3)
+  note           String?                @db.VarChar(1000)
+  createdById    String                 @map("created_by_id") @db.Char(36)
+  updatedById    String                 @map("updated_by_id") @db.Char(36)
+  createdAt      DateTime               @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime               @updatedAt @map("updated_at") @db.DateTime(3)
+  batch          DocumentBatch          @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  histories      DeliveryHistory[]
+  evidenceFiles  DeliveryEvidenceFile[]
+
+  @@index([batchId, status, sentAt])
+  @@index([ownerUserId, status])
+  @@map("deliveries")
+}
+
+model DeliveryHistory {
+  id         String          @id @default(uuid()) @db.Char(36)
+  deliveryId String          @map("delivery_id") @db.Char(36)
+  fromStatus DeliveryStatus? @map("from_status")
+  toStatus   DeliveryStatus  @map("to_status")
+  actorId    String          @map("actor_id") @db.Char(36)
+  reason     String?         @db.VarChar(1000)
+  snapshot   Json?
+  createdAt  DateTime        @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt  DateTime        @updatedAt @map("updated_at") @db.DateTime(3)
+  delivery   Delivery        @relation(fields: [deliveryId], references: [id], onDelete: Restrict)
+
+  @@index([deliveryId, createdAt])
+  @@map("delivery_history")
+}
+
+model DeliveryEvidenceFile {
+  id            String      @id @default(uuid()) @db.Char(36)
+  deliveryId    String      @map("delivery_id") @db.Char(36)
+  fileVersionId String      @map("file_version_id") @db.Char(36)
+  createdAt     DateTime    @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime    @updatedAt @map("updated_at") @db.DateTime(3)
+  delivery      Delivery    @relation(fields: [deliveryId], references: [id], onDelete: Restrict)
+  fileVersion   FileVersion @relation(fields: [fileVersionId], references: [id], onDelete: Restrict)
+
+  @@unique([deliveryId, fileVersionId])
+  @@map("delivery_evidence_files")
+}
+
+model ResponseForm {
+  id            String                  @id @default(uuid()) @db.Char(36)
+  batchId       String                  @map("batch_id") @db.Char(36)
+  revision      Int
+  fileVersionId String                  @map("file_version_id") @db.Char(36)
+  status        ResponseStatus          @default(DRAFT)
+  uploadedById  String                  @map("uploaded_by_id") @db.Char(36)
+  submittedAt   DateTime?               @map("submitted_at") @db.DateTime(3)
+  confirmedAt   DateTime?               @map("confirmed_at") @db.DateTime(3)
+  confirmedById String?                 @map("confirmed_by_id") @db.Char(36)
+  lockVersion   Int                     @default(1) @map("lock_version")
+  createdAt     DateTime                @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime                @updatedAt @map("updated_at") @db.DateTime(3)
+  batch         DocumentBatch           @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  fileVersion   FileVersion             @relation(fields: [fileVersionId], references: [id], onDelete: Restrict)
+  results       ResponseStudentResult[]
+
+  @@unique([batchId, revision])
+  @@unique([id, batchId])
+  @@index([batchId, status])
+  @@map("response_forms")
+}
+
+model ResponseStudentResult {
+  id             String              @id @default(uuid()) @db.Char(36)
+  responseFormId String              @map("response_form_id") @db.Char(36)
+  batchMemberId  String              @map("batch_member_id") @db.Char(36)
+  batchId        String              @map("batch_id") @db.Char(36)
+  result         ResponseResult
+  note           String?             @db.VarChar(1000)
+  confirmedById  String?             @map("confirmed_by_id") @db.Char(36)
+  confirmedAt    DateTime?           @map("confirmed_at") @db.DateTime(3)
+  createdAt      DateTime            @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime            @updatedAt @map("updated_at") @db.DateTime(3)
+  responseForm   ResponseForm        @relation(fields: [responseFormId], references: [id], onDelete: Restrict)
+  batchMember    DocumentBatchMember @relation(fields: [batchMemberId], references: [id], onDelete: Restrict)
+  batch          DocumentBatch       @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  placement      Placement?
+
+  @@unique([responseFormId, batchMemberId])
+  @@index([batchId, result])
+  @@index([batchMemberId, result])
+  @@map("response_student_results")
+}
+
+model Placement {
+  id                     String                @id @default(uuid()) @db.Char(36)
+  studentTermId          String                @unique @map("student_term_id") @db.Char(36)
+  currentWorkSiteId      String                @map("current_work_site_id") @db.Char(36)
+  sourceResponseResultId String                @unique @map("source_response_result_id") @db.Char(36)
+  status                 PlacementStatus       @default(ACTIVE)
+  version                Int                   @default(1)
+  confirmedById          String                @map("confirmed_by_id") @db.Char(36)
+  confirmedAt            DateTime              @map("confirmed_at") @db.DateTime(3)
+  createdAt              DateTime              @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt              DateTime              @updatedAt @map("updated_at") @db.DateTime(3)
+  studentTerm            StudentTermEnrollment @relation(fields: [studentTermId], references: [id], onDelete: Restrict)
+  currentWorkSite        WorkSite              @relation(fields: [currentWorkSiteId], references: [id], onDelete: Restrict)
+  sourceResponseResult   ResponseStudentResult @relation(fields: [sourceResponseResultId], references: [id], onDelete: Restrict)
+  versions               PlacementVersion[]
+  requirements           CompanyRequirement[]
+
+  @@index([currentWorkSiteId, status])
+  @@map("placements")
+}
+
+model PlacementVersion {
+  id          String    @id @default(uuid()) @db.Char(36)
+  placementId String    @map("placement_id") @db.Char(36)
+  version     Int
+  snapshot    Json
+  reason      String    @db.VarChar(1000)
+  actorId     String    @map("actor_id") @db.Char(36)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+  placement   Placement @relation(fields: [placementId], references: [id], onDelete: Restrict)
+
+  @@unique([placementId, version])
+  @@map("placement_versions")
+}
+
+model SupervisionVisit {
+  id                      String                    @id @default(uuid()) @db.Char(36)
+  coopTermId              String                    @map("coop_term_id") @db.Char(36)
+  workSiteId              String                    @map("work_site_id") @db.Char(36)
+  round                   VisitRound
+  visitDate               DateTime                  @map("visit_date") @db.Date
+  period                  VisitPeriod
+  status                  VisitStatus               @default(SCHEDULED)
+  lockVersion             Int                       @default(1) @map("lock_version")
+  createdById             String                    @map("created_by_id") @db.Char(36)
+  updatedById             String                    @map("updated_by_id") @db.Char(36)
+  createdAt               DateTime                  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt               DateTime                  @updatedAt @map("updated_at") @db.DateTime(3)
+  coopTerm                CoopTerm                  @relation(fields: [coopTermId], references: [id], onDelete: Restrict)
+  workSite                WorkSite                  @relation(fields: [workSiteId], references: [id], onDelete: Restrict)
+  students                VisitStudent[]
+  lecturers               VisitLecturer[]
+  studentSlots            VisitStudentSlot[]
+  lecturerSlots           VisitLecturerSlot[]
+  workSiteSlot            VisitWorkSiteSlot?
+  histories               SupervisionVisitHistory[]
+  organizationEvaluations OrganizationEvaluation[]
+  internalNotes           InternalNote[]
+  requirements            CompanyRequirement[]
+  expenses                Expense[]
+
+  @@unique([id, coopTermId])
+  @@unique([id, visitDate, period])
+  @@unique([id, round, visitDate, period])
+  @@unique([id, workSiteId, visitDate, period])
+  @@index([coopTermId, round, visitDate, period, status])
+  @@index([workSiteId, visitDate, period])
+  @@map("supervision_visits")
+}
+
+model VisitStudent {
+  id                    String                @id @default(uuid()) @db.Char(36)
+  visitId               String                @map("visit_id") @db.Char(36)
+  studentTermId         String                @map("student_term_id") @db.Char(36)
+  coopTermId            String                @map("coop_term_id") @db.Char(36)
+  acknowledgementStatus AcknowledgementStatus @default(PENDING) @map("acknowledgement_status")
+  acknowledgedAt        DateTime?             @map("acknowledged_at") @db.DateTime(3)
+  createdAt             DateTime              @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt             DateTime              @updatedAt @map("updated_at") @db.DateTime(3)
+  visit                 SupervisionVisit      @relation(fields: [visitId], references: [id], onDelete: Restrict)
+  studentTerm           StudentTermEnrollment @relation(fields: [studentTermId], references: [id], onDelete: Restrict)
+  result                SupervisionResult?
+  evaluations           StudentEvaluation[]
+
+  @@unique([visitId, studentTermId])
+  @@index([studentTermId, coopTermId])
+  @@index([studentTermId, acknowledgementStatus])
+  @@map("visit_students")
+}
+
+model VisitLecturer {
+  id                    String                @id @default(uuid()) @db.Char(36)
+  visitId               String                @map("visit_id") @db.Char(36)
+  lecturerId            String                @map("lecturer_id") @db.Char(36)
+  acknowledgementStatus AcknowledgementStatus @default(PENDING) @map("acknowledgement_status")
+  acknowledgedAt        DateTime?             @map("acknowledged_at") @db.DateTime(3)
+  createdAt             DateTime              @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt             DateTime              @updatedAt @map("updated_at") @db.DateTime(3)
+  visit                 SupervisionVisit      @relation(fields: [visitId], references: [id], onDelete: Restrict)
+  lecturer              LecturerProfile       @relation(fields: [lecturerId], references: [id], onDelete: Restrict)
+
+  @@unique([visitId, lecturerId])
+  @@index([lecturerId, acknowledgementStatus])
+  @@map("visit_lecturers")
+}
+
+model VisitStudentSlot {
+  id            String           @id @default(uuid()) @db.Char(36)
+  visitId       String           @map("visit_id") @db.Char(36)
+  studentTermId String           @map("student_term_id") @db.Char(36)
+  round         VisitRound
+  visitDate     DateTime         @map("visit_date") @db.Date
+  period        VisitPeriod
+  createdAt     DateTime         @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime         @updatedAt @map("updated_at") @db.DateTime(3)
+  visit         SupervisionVisit @relation(fields: [visitId], references: [id], onDelete: Restrict)
+
+  @@unique([visitId, studentTermId])
+  @@unique([studentTermId, round])
+  @@unique([studentTermId, visitDate, period])
+  @@map("visit_student_slots")
+}
+
+model VisitLecturerSlot {
+  id         String           @id @default(uuid()) @db.Char(36)
+  visitId    String           @map("visit_id") @db.Char(36)
+  lecturerId String           @map("lecturer_id") @db.Char(36)
+  visitDate  DateTime         @map("visit_date") @db.Date
+  period     VisitPeriod
+  createdAt  DateTime         @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt  DateTime         @updatedAt @map("updated_at") @db.DateTime(3)
+  visit      SupervisionVisit @relation(fields: [visitId], references: [id], onDelete: Restrict)
+
+  @@unique([visitId, lecturerId])
+  @@unique([lecturerId, visitDate, period])
+  @@map("visit_lecturer_slots")
+}
+
+model VisitWorkSiteSlot {
+  id         String           @id @default(uuid()) @db.Char(36)
+  visitId    String           @unique @map("visit_id") @db.Char(36)
+  workSiteId String           @map("work_site_id") @db.Char(36)
+  visitDate  DateTime         @map("visit_date") @db.Date
+  period     VisitPeriod
+  createdAt  DateTime         @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt  DateTime         @updatedAt @map("updated_at") @db.DateTime(3)
+  visit      SupervisionVisit @relation(fields: [visitId], references: [id], onDelete: Restrict)
+
+  @@unique([workSiteId, visitDate, period])
+  @@map("visit_work_site_slots")
+}
+
+model SupervisionResult {
+  id             String                     @id @default(uuid()) @db.Char(36)
+  visitStudentId String                     @unique @map("visit_student_id") @db.Char(36)
+  outcome        SupervisionOutcome
+  summary        String?                    @db.Text
+  version        Int                        @default(1)
+  submittedById  String                     @map("submitted_by_id") @db.Char(36)
+  submittedAt    DateTime                   @map("submitted_at") @db.DateTime(3)
+  createdAt      DateTime                   @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime                   @updatedAt @map("updated_at") @db.DateTime(3)
+  visitStudent   VisitStudent               @relation(fields: [visitStudentId], references: [id], onDelete: Restrict)
+  versions       SupervisionResultVersion[]
+
+  @@index([outcome, submittedAt])
+  @@map("supervision_results")
+}
+
+model SupervisionResultVersion {
+  id                  String            @id @default(uuid()) @db.Char(36)
+  supervisionResultId String            @map("supervision_result_id") @db.Char(36)
+  version             Int
+  snapshot            Json
+  reason              String            @db.VarChar(1000)
+  actorId             String            @map("actor_id") @db.Char(36)
+  createdAt           DateTime          @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt           DateTime          @updatedAt @map("updated_at") @db.DateTime(3)
+  supervisionResult   SupervisionResult @relation(fields: [supervisionResultId], references: [id], onDelete: Restrict)
+
+  @@unique([supervisionResultId, version])
+  @@map("supervision_result_versions")
+}
+
+model SupervisionVisitHistory {
+  id        String           @id @default(uuid()) @db.Char(36)
+  visitId   String           @map("visit_id") @db.Char(36)
+  action    String           @db.VarChar(64)
+  snapshot  Json
+  actorId   String           @map("actor_id") @db.Char(36)
+  reason    String?          @db.VarChar(1000)
+  createdAt DateTime         @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime         @updatedAt @map("updated_at") @db.DateTime(3)
+  visit     SupervisionVisit @relation(fields: [visitId], references: [id], onDelete: Restrict)
+
+  @@index([visitId, createdAt])
+  @@map("supervision_visit_history")
+}
+
+model InternalNote {
+  id         String           @id @default(uuid()) @db.Char(36)
+  visitId    String           @map("visit_id") @db.Char(36)
+  authorId   String           @map("author_id") @db.Char(36)
+  visibility FileVisibility   @default(STAFF_ONLY)
+  content    String           @db.Text
+  createdAt  DateTime         @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt  DateTime         @updatedAt @map("updated_at") @db.DateTime(3)
+  visit      SupervisionVisit @relation(fields: [visitId], references: [id], onDelete: Restrict)
+
+  @@index([visitId, createdAt])
+  @@map("internal_notes")
+}
+
+model CompanyRequirement {
+  id          String           @id @default(uuid()) @db.Char(36)
+  visitId     String           @map("visit_id") @db.Char(36)
+  placementId String?          @map("placement_id") @db.Char(36)
+  category    String           @db.VarChar(100)
+  technology  String?          @db.VarChar(255)
+  detail      String           @db.Text
+  authorId    String           @map("author_id") @db.Char(36)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.DateTime(3)
+  visit       SupervisionVisit @relation(fields: [visitId], references: [id], onDelete: Restrict)
+  placement   Placement?       @relation(fields: [placementId], references: [id], onDelete: Restrict)
+
+  @@index([visitId, category])
+  @@index([placementId, createdAt])
+  @@map("company_requirements")
+}
+
+model EvaluationTemplate {
+  id                      String                      @id @default(uuid()) @db.Char(36)
+  code                    String                      @unique @db.VarChar(64)
+  subject                 TemplateSubject
+  name                    String                      @db.VarChar(255)
+  isActive                Boolean                     @default(true) @map("is_active")
+  createdById             String                      @map("created_by_id") @db.Char(36)
+  updatedById             String                      @map("updated_by_id") @db.Char(36)
+  createdAt               DateTime                    @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt               DateTime                    @updatedAt @map("updated_at") @db.DateTime(3)
+  versions                EvaluationTemplateVersion[]
+  studentEvaluations      StudentEvaluation[]
+  organizationEvaluations OrganizationEvaluation[]
+
+  @@index([subject, isActive])
+  @@map("evaluation_templates")
+}
+
+model EvaluationTemplateVersion {
+  id                      String                   @id @default(uuid()) @db.Char(36)
+  templateId              String                   @map("template_id") @db.Char(36)
+  version                 Int
+  status                  TemplateVersionStatus    @default(DRAFT)
+  contentHash             String                   @map("content_hash") @db.Char(64)
+  publishedAt             DateTime?                @map("published_at") @db.DateTime(3)
+  publishedById           String?                  @map("published_by_id") @db.Char(36)
+  createdAt               DateTime                 @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt               DateTime                 @updatedAt @map("updated_at") @db.DateTime(3)
+  template                EvaluationTemplate       @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  items                   EvaluationItem[]
+  studentEvaluations      StudentEvaluation[]
+  organizationEvaluations OrganizationEvaluation[]
+
+  @@unique([templateId, version])
+  @@index([templateId, status])
+  @@map("evaluation_template_versions")
+}
+
+model EvaluationItem {
+  id                  String                         @id @default(uuid()) @db.Char(36)
+  templateVersionId   String                         @map("template_version_id") @db.Char(36)
+  code                String                         @db.VarChar(64)
+  label               String                         @db.VarChar(500)
+  answerType          AnswerType                     @map("answer_type")
+  required            Boolean                        @default(true)
+  maxScore            Decimal?                       @map("max_score") @db.Decimal(8, 2)
+  weight              Decimal?                       @db.Decimal(8, 4)
+  sortOrder           Int                            @map("sort_order")
+  createdAt           DateTime                       @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt           DateTime                       @updatedAt @map("updated_at") @db.DateTime(3)
+  templateVersion     EvaluationTemplateVersion      @relation(fields: [templateVersionId], references: [id], onDelete: Restrict)
+  studentAnswers      StudentEvaluationAnswer[]
+  organizationAnswers OrganizationEvaluationAnswer[]
+
+  @@unique([templateVersionId, code])
+  @@unique([templateVersionId, sortOrder])
+  @@map("evaluation_items")
+}
+
+model StudentEvaluation {
+  id                String                     @id @default(uuid()) @db.Char(36)
+  visitStudentId    String                     @map("visit_student_id") @db.Char(36)
+  templateVersionId String                     @map("template_version_id") @db.Char(36)
+  templateId        String                     @map("template_id") @db.Char(36)
+  status            EvaluationStatus           @default(DRAFT)
+  version           Int                        @default(1)
+  submittedAt       DateTime?                  @map("submitted_at") @db.DateTime(3)
+  submittedById     String?                    @map("submitted_by_id") @db.Char(36)
+  createdById       String                     @map("created_by_id") @db.Char(36)
+  updatedById       String                     @map("updated_by_id") @db.Char(36)
+  createdAt         DateTime                   @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt         DateTime                   @updatedAt @map("updated_at") @db.DateTime(3)
+  visitStudent      VisitStudent               @relation(fields: [visitStudentId], references: [id], onDelete: Restrict)
+  templateVersion   EvaluationTemplateVersion  @relation(fields: [templateVersionId], references: [id], onDelete: Restrict)
+  template          EvaluationTemplate         @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  answers           StudentEvaluationAnswer[]
+  versions          StudentEvaluationVersion[]
+
+  @@unique([visitStudentId, templateId])
+  @@index([status, submittedAt])
+  @@map("student_evaluations")
+}
+
+model StudentEvaluationAnswer {
+  id           String            @id @default(uuid()) @db.Char(36)
+  evaluationId String            @map("evaluation_id") @db.Char(36)
+  itemId       String            @map("item_id") @db.Char(36)
+  itemSnapshot Json              @map("item_snapshot")
+  scoreValue   Decimal?          @map("score_value") @db.Decimal(8, 2)
+  textValue    String?           @map("text_value") @db.Text
+  booleanValue Boolean?          @map("boolean_value")
+  createdAt    DateTime          @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime          @updatedAt @map("updated_at") @db.DateTime(3)
+  evaluation   StudentEvaluation @relation(fields: [evaluationId], references: [id], onDelete: Restrict)
+  item         EvaluationItem    @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@unique([evaluationId, itemId])
+  @@map("student_evaluation_answers")
+}
+
+model StudentEvaluationVersion {
+  id           String            @id @default(uuid()) @db.Char(36)
+  evaluationId String            @map("evaluation_id") @db.Char(36)
+  version      Int
+  snapshot     Json
+  reason       String            @db.VarChar(1000)
+  actorId      String            @map("actor_id") @db.Char(36)
+  createdAt    DateTime          @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime          @updatedAt @map("updated_at") @db.DateTime(3)
+  evaluation   StudentEvaluation @relation(fields: [evaluationId], references: [id], onDelete: Restrict)
+
+  @@unique([evaluationId, version])
+  @@map("student_evaluation_versions")
+}
+
+model OrganizationEvaluation {
+  id                String                          @id @default(uuid()) @db.Char(36)
+  visitId           String                          @map("visit_id") @db.Char(36)
+  templateVersionId String                          @map("template_version_id") @db.Char(36)
+  templateId        String                          @map("template_id") @db.Char(36)
+  status            EvaluationStatus                @default(DRAFT)
+  version           Int                             @default(1)
+  submittedAt       DateTime?                       @map("submitted_at") @db.DateTime(3)
+  submittedById     String?                         @map("submitted_by_id") @db.Char(36)
+  createdById       String                          @map("created_by_id") @db.Char(36)
+  updatedById       String                          @map("updated_by_id") @db.Char(36)
+  createdAt         DateTime                        @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt         DateTime                        @updatedAt @map("updated_at") @db.DateTime(3)
+  visit             SupervisionVisit                @relation(fields: [visitId], references: [id], onDelete: Restrict)
+  templateVersion   EvaluationTemplateVersion       @relation(fields: [templateVersionId], references: [id], onDelete: Restrict)
+  template          EvaluationTemplate              @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  answers           OrganizationEvaluationAnswer[]
+  versions          OrganizationEvaluationVersion[]
+
+  @@unique([visitId, templateId])
+  @@index([status, submittedAt])
+  @@map("organization_evaluations")
+}
+
+model OrganizationEvaluationAnswer {
+  id           String                 @id @default(uuid()) @db.Char(36)
+  evaluationId String                 @map("evaluation_id") @db.Char(36)
+  itemId       String                 @map("item_id") @db.Char(36)
+  itemSnapshot Json                   @map("item_snapshot")
+  scoreValue   Decimal?               @map("score_value") @db.Decimal(8, 2)
+  textValue    String?                @map("text_value") @db.Text
+  booleanValue Boolean?               @map("boolean_value")
+  createdAt    DateTime               @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime               @updatedAt @map("updated_at") @db.DateTime(3)
+  evaluation   OrganizationEvaluation @relation(fields: [evaluationId], references: [id], onDelete: Restrict)
+  item         EvaluationItem         @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@unique([evaluationId, itemId])
+  @@map("organization_evaluation_answers")
+}
+
+model OrganizationEvaluationVersion {
+  id           String                 @id @default(uuid()) @db.Char(36)
+  evaluationId String                 @map("evaluation_id") @db.Char(36)
+  version      Int
+  snapshot     Json
+  reason       String                 @db.VarChar(1000)
+  actorId      String                 @map("actor_id") @db.Char(36)
+  createdAt    DateTime               @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime               @updatedAt @map("updated_at") @db.DateTime(3)
+  evaluation   OrganizationEvaluation @relation(fields: [evaluationId], references: [id], onDelete: Restrict)
+
+  @@unique([evaluationId, version])
+  @@map("organization_evaluation_versions")
+}
+
+model ImportJob {
+  id                  String       @id @default(uuid()) @db.Char(36)
+  requestedById       String       @map("requested_by_id") @db.Char(36)
+  sourceFileVersionId String       @map("source_file_version_id") @db.Char(36)
+  kind                String       @db.VarChar(64)
+  sourceChecksum      String       @map("source_checksum") @db.Char(64)
+  status              ImportStatus @default(UPLOADED)
+  totalRows           Int          @default(0) @map("total_rows")
+  processedRows       Int          @default(0) @map("processed_rows")
+  failureReason       String?      @map("failure_reason") @db.VarChar(1000)
+  confirmedAt         DateTime?    @map("confirmed_at") @db.DateTime(3)
+  createdAt           DateTime     @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt           DateTime     @updatedAt @map("updated_at") @db.DateTime(3)
+  sourceFileVersion   FileVersion  @relation(fields: [sourceFileVersionId], references: [id], onDelete: Restrict)
+  rows                ImportRow[]
+
+  @@unique([requestedById, kind, sourceChecksum])
+  @@index([requestedById, status, createdAt])
+  @@map("import_jobs")
+}
+
+model ImportRow {
+  id               String          @id @default(uuid()) @db.Char(36)
+  importJobId      String          @map("import_job_id") @db.Char(36)
+  rowNo            Int             @map("row_no")
+  status           ImportRowStatus
+  normalizedHash   String          @map("normalized_hash") @db.Char(64)
+  normalizedData   Json            @map("normalized_data")
+  observedVersion  Int?            @map("observed_version")
+  errors           Json?
+  importedEntityId String?         @map("imported_entity_id") @db.Char(36)
+  createdAt        DateTime        @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt        DateTime        @updatedAt @map("updated_at") @db.DateTime(3)
+  importJob        ImportJob       @relation(fields: [importJobId], references: [id], onDelete: Restrict)
+
+  @@unique([importJobId, rowNo])
+  @@index([importJobId, status])
+  @@map("import_rows")
+}
+
+model ExportJob {
+  id             String       @id @default(uuid()) @db.Char(36)
+  requestedById  String       @map("requested_by_id") @db.Char(36)
+  kind           String       @db.VarChar(64)
+  format         String       @db.VarChar(16)
+  filterSnapshot Json         @map("filter_snapshot")
+  status         ExportStatus @default(PENDING)
+  fileVersionId  String?      @map("file_version_id") @db.Char(36)
+  expiresAt      DateTime?    @map("expires_at") @db.DateTime(3)
+  failureReason  String?      @map("failure_reason") @db.VarChar(1000)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.DateTime(3)
+  fileVersion    FileVersion? @relation(fields: [fileVersionId], references: [id], onDelete: Restrict)
+
+  @@index([requestedById, status, createdAt])
+  @@index([expiresAt])
+  @@map("export_jobs")
+}
+
+model Notification {
+  id          String             @id @default(uuid()) @db.Char(36)
+  recipientId String             @map("recipient_id") @db.Char(36)
+  eventType   String             @map("event_type") @db.VarChar(100)
+  title       String             @db.VarChar(255)
+  body        String             @db.VarChar(1000)
+  entityType  String?            @map("entity_type") @db.VarChar(100)
+  entityId    String?            @map("entity_id") @db.Char(36)
+  status      NotificationStatus @default(UNREAD)
+  readAt      DateTime?          @map("read_at") @db.DateTime(3)
+  createdAt   DateTime           @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime           @updatedAt @map("updated_at") @db.DateTime(3)
+  recipient   User               @relation(fields: [recipientId], references: [id], onDelete: Restrict)
+
+  @@index([recipientId, status, createdAt])
+  @@map("notifications")
+}
+
+model OutboxMessage {
+  id            String       @id @default(uuid()) @db.Char(36)
+  eventType     String       @map("event_type") @db.VarChar(100)
+  aggregateType String       @map("aggregate_type") @db.VarChar(100)
+  aggregateId   String       @map("aggregate_id") @db.Char(36)
+  dedupeKey     String       @unique @map("dedupe_key") @db.VarChar(191)
+  payload       Json
+  status        OutboxStatus @default(PENDING)
+  attempts      Int          @default(0)
+  nextAttemptAt DateTime     @default(now()) @map("next_attempt_at") @db.DateTime(3)
+  processedAt   DateTime?    @map("processed_at") @db.DateTime(3)
+  lastError     String?      @map("last_error") @db.VarChar(2000)
+  createdAt     DateTime     @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime     @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([status, nextAttemptAt])
+  @@index([aggregateType, aggregateId, createdAt])
+  @@map("outbox_messages")
+}
+
+model IdempotencyRecord {
+  id             String            @id @default(uuid()) @db.Char(36)
+  actorId        String            @map("actor_id") @db.Char(36)
+  operation      String            @db.VarChar(100)
+  idempotencyKey String            @map("idempotency_key") @db.VarChar(191)
+  requestHash    String            @map("request_hash") @db.Char(64)
+  status         IdempotencyStatus @default(IN_PROGRESS)
+  responseStatus Int?              @map("response_status")
+  responseBody   Json?             @map("response_body")
+  expiresAt      DateTime          @map("expires_at") @db.DateTime(3)
+  createdAt      DateTime          @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@unique([actorId, operation, idempotencyKey])
+  @@index([expiresAt])
+  @@map("idempotency_records")
+}
+
+model Expense {
+  id            String           @id @default(uuid()) @db.Char(36)
+  visitId       String           @map("visit_id") @db.Char(36)
+  round         VisitRound
+  travelDays    Int              @map("travel_days") @db.UnsignedSmallInt
+  travelAmount  Decimal          @default(0) @map("travel_amount") @db.Decimal(12, 2)
+  lodgingAmount Decimal          @default(0) @map("lodging_amount") @db.Decimal(12, 2)
+  mealAmount    Decimal          @default(0) @map("meal_amount") @db.Decimal(12, 2)
+  totalAmount   Decimal          @default(0) @map("total_amount") @db.Decimal(12, 2)
+  note          String?          @db.VarChar(1000)
+  version       Int              @default(1)
+  createdById   String           @map("created_by_id") @db.Char(36)
+  updatedById   String           @map("updated_by_id") @db.Char(36)
+  createdAt     DateTime         @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt     DateTime         @updatedAt @map("updated_at") @db.DateTime(3)
+  visit         SupervisionVisit @relation(fields: [visitId], references: [id], onDelete: Restrict)
+  versions      ExpenseVersion[]
+
+  @@index([visitId, round, createdAt])
+  @@map("expenses")
+}
+
+model ExpenseVersion {
+  id        String   @id @default(uuid()) @db.Char(36)
+  expenseId String   @map("expense_id") @db.Char(36)
+  version   Int
+  snapshot  Json
+  reason    String   @db.VarChar(1000)
+  actorId   String   @map("actor_id") @db.Char(36)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  expense   Expense  @relation(fields: [expenseId], references: [id], onDelete: Restrict)
+
+  @@unique([expenseId, version])
+  @@map("expense_versions")
+}
+
+/// Append-only: the initial MySQL migration rejects UPDATE and DELETE with triggers.
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Char(36)
+  actorId    String?  @map("actor_id") @db.Char(36)
+  action     String   @db.VarChar(100)
+  entityType String   @map("entity_type") @db.VarChar(100)
+  entityId   String   @map("entity_id") @db.Char(36)
+  requestId  String   @map("request_id") @db.VarChar(100)
+  reason     String?  @db.VarChar(1000)
+  beforeData Json?    @map("before_data")
+  afterData  Json?    @map("after_data")
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([requestId])
+  @@map("audit_logs")
+}

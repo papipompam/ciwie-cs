@@ -1,0 +1,217 @@
+name: ciwie-cs
+
+x-app-env: &app-env
+  DATABASE_URL: ${DATABASE_URL_CONTAINER:-mysql://ciwie_app:change-me@db:3306/ciwie}
+  NUXT_SESSION_PASSWORD: ${NUXT_SESSION_PASSWORD:?NUXT_SESSION_PASSWORD is required}
+  S3_ENDPOINT: http://storage:9000
+  S3_REGION: ${S3_REGION:-us-east-1}
+  S3_BUCKET: ${S3_BUCKET:-ciwie-private}
+  S3_ACCESS_KEY_ID: ${S3_APP_ACCESS_KEY_ID:-ciwie_app}
+  S3_SECRET_ACCESS_KEY: ${S3_APP_SECRET_ACCESS_KEY:?S3_APP_SECRET_ACCESS_KEY is required}
+  NUXT_STORAGE_ENDPOINT: http://storage:9000
+  NUXT_STORAGE_REGION: ${S3_REGION:-us-east-1}
+  NUXT_STORAGE_BUCKET: ${S3_BUCKET:-ciwie-private}
+  NUXT_STORAGE_ACCESS_KEY_ID: ${S3_APP_ACCESS_KEY_ID:-ciwie_app}
+  NUXT_STORAGE_SECRET_ACCESS_KEY: ${S3_APP_SECRET_ACCESS_KEY:?S3_APP_SECRET_ACCESS_KEY is required}
+  SMTP_HOST: mailpit
+  SMTP_PORT: 1025
+  SMTP_SECURE: "false"
+  SMTP_FROM: ${SMTP_FROM:-ciwie@example.ac.th}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  CLAMAV_HOST: antivirus
+  CLAMAV_PORT: 3310
+  NUXT_ANTIVIRUS_HOST: antivirus
+  NUXT_ANTIVIRUS_PORT: 3310
+
+services:
+  db:
+    image: mysql:8.4@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ciwie}
+      MYSQL_USER: ${MYSQL_USER:-ciwie_app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_0900_ai_ci --log-bin-trust-function-creators=1
+    ports:
+      - "${MYSQL_PORT:-3307}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  storage:
+    image: minio/minio:RELEASE.2025-07-23T15-54-02Z@sha256:d249d1fb6966de4d8ad26c04754b545205ff15a62e4fd19ebd0f26fa5baacbc0
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-ciwie_root}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - object_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  storage-init:
+    image: minio/mc:RELEASE.2025-07-21T05-28-08Z@sha256:fb8f773eac8ef9d6da0486d5dec2f42f219358bcb8de579d1623d518c9ebd4cc
+    environment:
+      S3_ENDPOINT: http://storage:9000
+      S3_BUCKET: ${S3_BUCKET:-ciwie-private}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-ciwie_root}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+      S3_APP_ACCESS_KEY_ID: ${S3_APP_ACCESS_KEY_ID:-ciwie_app}
+      S3_APP_SECRET_ACCESS_KEY: ${S3_APP_SECRET_ACCESS_KEY:?S3_APP_SECRET_ACCESS_KEY is required}
+      S3_APP_POLICY_NAME: ${S3_APP_POLICY_NAME:-ciwie-app}
+      S3_BACKUP_ACCESS_KEY_ID: ${S3_BACKUP_ACCESS_KEY_ID:-ciwie_backup}
+      S3_BACKUP_SECRET_ACCESS_KEY: ${S3_BACKUP_SECRET_ACCESS_KEY:?S3_BACKUP_SECRET_ACCESS_KEY is required}
+      S3_BACKUP_POLICY_NAME: ${S3_BACKUP_POLICY_NAME:-ciwie-backup}
+    volumes:
+      - ./scripts/bootstrap-object-storage.sh:/scripts/bootstrap-object-storage.sh:ro
+    entrypoint: ["/bin/sh", "/scripts/bootstrap-object-storage.sh"]
+    depends_on:
+      storage:
+        condition: service_healthy
+    restart: "no"
+
+  mailpit:
+    image: axllent/mailpit:v1.27@sha256:e22dce5b36f93c77082e204a3942fb6b283b7896e057458400a4c88344c3df68
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  antivirus:
+    image: clamav/clamav:1.4.3@sha256:75fb5fd95fcbe1d7e6d240c369c1572b686ee2c95949d1042b5148de8eddebb4
+    volumes:
+      - clamav_data:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  init:
+    build:
+      context: .
+      target: initializer
+    environment:
+      <<: *app-env
+      DATABASE_URL: ${MIGRATION_DATABASE_URL_CONTAINER:?MIGRATION_DATABASE_URL_CONTAINER is required}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+      MYSQL_USER: ${MYSQL_USER:-ciwie_app}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ciwie}
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@example.ac.th}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:?INITIAL_ADMIN_PASSWORD is required}
+    depends_on:
+      db:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+      storage-init:
+        condition: service_completed_successfully
+      antivirus:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      target: runtime
+    environment: *app-env
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  worker:
+    build:
+      context: .
+      target: worker
+    environment: *app-env
+    depends_on:
+      init:
+        condition: service_completed_successfully
+
+  backup:
+    build:
+      context: .
+      target: backup
+    profiles: ["backup"]
+    environment:
+      MYSQL_PWD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+      MYSQL_USER: root
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ciwie}
+      BACKUP_ENCRYPTION_PASSWORD: ${BACKUP_ENCRYPTION_PASSWORD:?BACKUP_ENCRYPTION_PASSWORD is required}
+      S3_ENDPOINT: http://storage:9000
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:-ciwie-private}
+      S3_ACCESS_KEY_ID: ${S3_BACKUP_ACCESS_KEY_ID:-ciwie_backup}
+      S3_SECRET_ACCESS_KEY: ${S3_BACKUP_SECRET_ACCESS_KEY:?S3_BACKUP_SECRET_ACCESS_KEY is required}
+      BACKUP_OFFSITE_ENDPOINT: ${BACKUP_OFFSITE_ENDPOINT:-}
+      BACKUP_OFFSITE_REGION: ${BACKUP_OFFSITE_REGION:-}
+      BACKUP_OFFSITE_BUCKET: ${BACKUP_OFFSITE_BUCKET:-}
+      BACKUP_OFFSITE_ACCESS_KEY_ID: ${BACKUP_OFFSITE_ACCESS_KEY_ID:-}
+      BACKUP_OFFSITE_SECRET_ACCESS_KEY: ${BACKUP_OFFSITE_SECRET_ACCESS_KEY:-}
+      BACKUP_OFFSITE_PREFIX: ${BACKUP_OFFSITE_PREFIX:-ciwie}
+      BACKUP_OFFSITE_REQUIRED: ${BACKUP_OFFSITE_REQUIRED:-false}
+    volumes:
+      - ./backups:/backups
+    tmpfs:
+      - /work
+    entrypoint: ["sh", "/app/scripts/backup.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+      storage-init:
+        condition: service_completed_successfully
+
+  restore:
+    build:
+      context: .
+      target: backup
+    profiles: ["restore"]
+    environment:
+      MYSQL_PWD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+      MYSQL_USER: root
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ciwie}
+      BACKUP_ENCRYPTION_PASSWORD: ${BACKUP_ENCRYPTION_PASSWORD:?BACKUP_ENCRYPTION_PASSWORD is required}
+      RESTORE_FILE: ${RESTORE_FILE:-}
+      S3_ENDPOINT: http://storage:9000
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:-ciwie-private}
+      RESTORE_SOURCE_BUCKET: ${RESTORE_SOURCE_BUCKET:-}
+      S3_ACCESS_KEY_ID: ${S3_BACKUP_ACCESS_KEY_ID:-ciwie_backup}
+      S3_SECRET_ACCESS_KEY: ${S3_BACKUP_SECRET_ACCESS_KEY:?S3_BACKUP_SECRET_ACCESS_KEY is required}
+    volumes:
+      - ./backups:/backups:ro
+    tmpfs:
+      - /tmp
+    entrypoint: ["sh", "/app/scripts/restore.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+      storage-init:
+        condition: service_completed_successfully
+
+volumes:
+  mysql_data:
+  object_data:
+  clamav_data:

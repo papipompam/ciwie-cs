@@ -1,0 +1,13 @@
+node_modules
+.nuxt
+.output
+.data
+coverage
+playwright-report
+test-results
+.env
+uploads
+backups
+.mysql-test
+.mysql-runtime-test
+*.log

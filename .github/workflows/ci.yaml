@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb
+        env:
+          MYSQL_DATABASE: ciwie_test
+          MYSQL_USER: ciwie
+          MYSQL_PASSWORD: ciwie_test
+          MYSQL_ROOT_PASSWORD: root_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot_test"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DATABASE_URL: mysql://ciwie:ciwie_test@127.0.0.1:3306/ciwie_test
+      TEST_DATABASE_URL: mysql://ciwie:ciwie_test@127.0.0.1:3306/ciwie_test
+      NUXT_SESSION_PASSWORD: ci-test-session-password-at-least-32-characters
+      SKIP_INITIAL_ADMIN: "true"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 11.7.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma:validate
+      - run: pnpm prisma:migrate
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e --project=chromium
+      - run: docker build -t ciwie-cs:test .
+      - run: docker build --target initializer -t ciwie-cs:init-test .
+      - run: docker build --target backup -t ciwie-cs:backup-test .
+      - name: Build and verify non-root worker
+        run: |
+          docker build --target worker -t ciwie-cs:worker-test .
+          test "$(docker image inspect ciwie-cs:worker-test --format '{{.Config.User}}')" = node
+      - run: docker compose --env-file .env.example config --quiet
+      - run: docker compose --env-file .env.example --profile backup --profile restore -f compose.yaml -f compose.production.yaml config --quiet
+
+  operations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 11.7.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: docker compose --env-file .env.example up -d --wait db storage
+      - run: |
+          docker compose --env-file .env.example up -d storage-init
+          docker compose --env-file .env.example wait storage-init
+      - run: pnpm prisma:migrate
+        env:
+          DATABASE_URL: mysql://root:change-root-me@127.0.0.1:3306/ciwie
+      - name: Add database and object restore markers
+        run: |
+          docker compose --env-file .env.example exec -T db mysql -uroot -pchange-root-me ciwie -e "CREATE TABLE operations_restore_marker (id INT PRIMARY KEY); INSERT INTO operations_restore_marker VALUES (1);"
+          docker compose --env-file .env.example run --rm --no-deps --entrypoint /bin/sh storage-init -c 'mc alias set local "$S3_ENDPOINT" "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && printf restore-marker | mc pipe "local/$S3_BUCKET/ci/restore-marker.txt" && printf source-app-marker | mc pipe "local/$S3_BUCKET/uploads/ci/source-app-marker.txt"'
+      - name: Verify source object identities before restore drill
+        run: |
+          docker compose --env-file .env.example run --rm --no-deps --entrypoint /bin/sh storage-init -c 'mc alias set source-app "$S3_ENDPOINT" "$S3_APP_ACCESS_KEY_ID" "$S3_APP_SECRET_ACCESS_KEY" >/dev/null && mc cat "source-app/$S3_BUCKET/uploads/ci/source-app-marker.txt"' | grep -qx source-app-marker
+          docker compose --env-file .env.example run --rm --no-deps --entrypoint /bin/sh storage-init -c 'mc alias set source-backup "$S3_ENDPOINT" "$S3_BACKUP_ACCESS_KEY_ID" "$S3_BACKUP_SECRET_ACCESS_KEY" >/dev/null && mc cat "source-backup/$S3_BUCKET/ci/restore-marker.txt"' | grep -qx restore-marker
+      - run: docker compose --env-file .env.example --profile backup run --rm backup
+      - name: Restore encrypted backup into an empty database
+        run: |
+          restore_name=$(basename "$(find backups -maxdepth 1 -name 'ciwie-*.sql.gz.enc' -print -quit)")
+          test -n "$restore_name"
+          test -z "$(find backups -maxdepth 1 -type f ! -name '*.enc' ! -name '*.enc.sha256' -print -quit)"
+          docker compose --env-file .env.example exec -T db mysql -uroot -pchange-root-me -e "CREATE DATABASE ciwie_restore CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
+          S3_BUCKET=ciwie-restore S3_APP_ACCESS_KEY_ID=ciwie_restore_app S3_APP_SECRET_ACCESS_KEY=restore-app-secret S3_APP_POLICY_NAME=ciwie-restore-app S3_BACKUP_ACCESS_KEY_ID=ciwie_restore_backup S3_BACKUP_SECRET_ACCESS_KEY=restore-backup-secret S3_BACKUP_POLICY_NAME=ciwie-restore-backup docker compose --env-file .env.example run --rm --no-deps storage-init
+          MYSQL_DATABASE=ciwie_restore S3_BUCKET=ciwie-restore RESTORE_SOURCE_BUCKET=ciwie-private S3_BACKUP_ACCESS_KEY_ID=ciwie_restore_backup S3_BACKUP_SECRET_ACCESS_KEY=restore-backup-secret RESTORE_FILE="/backups/$restore_name" docker compose --env-file .env.example --profile restore run --rm --no-deps restore
+          docker compose --env-file .env.example exec -T db mysql -uroot -pchange-root-me ciwie_restore -Nse "SELECT COUNT(*) FROM operations_restore_marker WHERE id=1" | grep -qx 1
+          S3_BUCKET=ciwie-restore S3_BACKUP_ACCESS_KEY_ID=ciwie_restore_backup S3_BACKUP_SECRET_ACCESS_KEY=restore-backup-secret docker compose --env-file .env.example run --rm --no-deps --entrypoint /bin/sh storage-init -c 'mc alias set restore-backup "$S3_ENDPOINT" "$S3_BACKUP_ACCESS_KEY_ID" "$S3_BACKUP_SECRET_ACCESS_KEY" >/dev/null && mc cat "restore-backup/$S3_BUCKET/ci/restore-marker.txt"' | grep -qx restore-marker
+          docker compose --env-file .env.example run --rm --no-deps --entrypoint /bin/sh storage-init -c 'mc alias set source-app "$S3_ENDPOINT" "$S3_APP_ACCESS_KEY_ID" "$S3_APP_SECRET_ACCESS_KEY" >/dev/null && mc cat "source-app/$S3_BUCKET/uploads/ci/source-app-marker.txt"' | grep -qx source-app-marker
+          docker compose --env-file .env.example run --rm --no-deps --entrypoint /bin/sh storage-init -c 'mc alias set source-backup "$S3_ENDPOINT" "$S3_BACKUP_ACCESS_KEY_ID" "$S3_BACKUP_SECRET_ACCESS_KEY" >/dev/null && mc cat "source-backup/$S3_BUCKET/ci/restore-marker.txt"' | grep -qx restore-marker
+      - name: Stop operations dependencies
+        if: always()
+        run: docker compose --env-file .env.example down --volumes --remove-orphans

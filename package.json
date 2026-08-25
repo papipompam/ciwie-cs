@@ -1,0 +1,51 @@
+{
+  "name": "ciwie-cs",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare && prisma generate",
+    "lint": "eslint .",
+    "typecheck": "nuxt typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "nuxt build && playwright test",
+    "prisma:validate": "prisma validate",
+    "prisma:migrate": "prisma migrate deploy",
+    "prisma:seed": "tsx --env-file=.env prisma/seed.ts",
+    "prisma:seed:demo": "tsx --env-file=.env prisma/demo-seed.ts",
+    "worker": "tsx server/jobs/worker.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.888.0",
+    "@aws-sdk/s3-request-presigner": "^3.888.0",
+    "@iconify-json/lucide": "^1.2.123",
+    "@nuxt/ui": "^4.10.0",
+    "@prisma/client": "6.19.0",
+    "bcryptjs": "^3.0.2",
+    "exceljs": "^4.4.0",
+    "h3": "^1.15.11",
+    "nodemailer": "^9.0.5",
+    "nuxt": "^4.5.2",
+    "nuxt-auth-utils": "^0.5.30",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "^1.9.0",
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^24.3.1",
+    "@types/nodemailer": "^7.0.1",
+    "eslint": "^9.35.0",
+    "prisma": "6.19.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vitest": "^4.1.10",
+    "vue-tsc": "^3.0.6"
+  }
+}

@@ -1,0 +1,6 @@
+import { defineEventHandler, getRouterParam } from 'h3'
+import { DomainError } from '../../domain/errors'
+import { getCorrelationId, getSessionActor, toHttpError } from '../../utils/http'
+import { prisma } from '../../utils/prisma'
+
+export default defineEventHandler(async (event) => { const correlationId = getCorrelationId(event); try { const actor = await getSessionActor(event); const id = getRouterParam(event, 'id'); if (actor.role === 'STUDENT') throw new DomainError('FORBIDDEN', 'Organization evaluations are staff-only'); const item = id ? await prisma.organizationEvaluation.findFirst({ where: { id, ...(actor.role === 'LECTURER' ? { visit: { coopTerm: { isActive: true } } } : {}) }, include: { answers: true, template: true, templateVersion: { include: { items: { orderBy: { sortOrder: 'asc' } } } }, visit: { include: { lecturers: true } } } }) : null; if (!item) throw new DomainError('NOT_FOUND', 'Organization evaluation was not found'); const assigned = actor.role === 'LECTURER' && item.visit.lecturers.some(member => member.lecturerId === actor.lecturerId); return { ...item, items: item.templateVersion.items, capabilities: { edit: assigned && item.status === 'DRAFT', submit: assigned && item.status === 'DRAFT', correct: actor.role === 'LECTURER' && item.status === 'SUBMITTED' } } } catch (error) { return toHttpError(error, correlationId) } })
