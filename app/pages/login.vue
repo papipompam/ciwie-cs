@@ -8,6 +8,8 @@ const loading = ref(false)
 const errorMessage = ref('')
 const { request } = useApiClient()
 const session = useSession()
+const route = useRoute()
+const successMessage = computed(() => route.query.passwordChanged === '1' ? 'เปลี่ยนรหัสผ่านแล้ว กรุณาเข้าสู่ระบบอีกครั้ง' : '')
 
 async function submit() {
   errorMessage.value = ''
@@ -19,7 +21,7 @@ async function submit() {
   try {
     await request('/api/auth/login', { method: 'POST', body: { email: email.value.trim(), password: password.value } })
     await session.refresh()
-    await navigateTo('/')
+    await navigateTo(session.user.value?.mustChangePassword ? '/change-password' : '/')
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'เข้าสู่ระบบไม่สำเร็จ'
   } finally {
@@ -47,6 +49,7 @@ async function submit() {
           <button type="button" class="absolute right-0 top-0 flex size-11 items-center justify-center" :aria-label="showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'" @click="showPassword = !showPassword"><UIcon :name="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'" /></button>
         </span>
       </label>
+      <div v-if="successMessage" role="status" class="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">{{ successMessage }}</div>
       <div v-if="errorMessage" role="alert" class="rounded-lg bg-rose-50 p-3 text-sm text-rose-700 dark:bg-rose-950 dark:text-rose-300">{{ errorMessage }}</div>
       <UButton type="submit" block :loading="loading" label="เข้าสู่ระบบ" />
     </form>

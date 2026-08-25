@@ -57,6 +57,21 @@ test('login validates required credentials without calling the API', async ({ pa
   expect(requested).toBe(false)
 })
 
+test('first login requires a password change before opening protected data', async ({ page }) => {
+  await page.route('**/api/auth/login', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }))
+  await page.route('**/api/auth/session', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ user: { userId: 'admin-1', role: 'ADMIN', active: true, sessionVersion: 1, mustChangePassword: true } })
+  }))
+  await page.goto('/login')
+  await page.getByLabel('อีเมล').fill('admin@example.test')
+  await page.getByLabel('รหัสผ่าน', { exact: true }).fill('InitialPassphrase123!')
+  await page.getByRole('button', { name: 'เข้าสู่ระบบ' }).click()
+  await expect(page).toHaveURL(/\/change-password$/)
+  await expect(page.getByRole('heading', { name: 'เปลี่ยนรหัสผ่านครั้งแรก' })).toBeVisible()
+})
+
 test('student sees only student navigation and is blocked from admin expense', async ({ page }) => {
   await loginAs(page, 'STUDENT')
   const navigation = await openNavigation(page)

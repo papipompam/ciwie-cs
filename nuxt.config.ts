@@ -12,7 +12,11 @@ export default defineNuxtConfig({
   runtimeConfig: {
     session: {
       password: sessionPassword || 'development-only-session-password-change-me',
-      maxAge: 60 * 60 * 8
+      maxAge: 60 * 60 * 8,
+      cookie: {
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production'
+      }
     },
     storage: {
       endpoint: process.env.S3_ENDPOINT,
