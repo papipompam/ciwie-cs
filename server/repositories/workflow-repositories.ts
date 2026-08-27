@@ -179,6 +179,14 @@ export class PrismaDocumentBatchRepository implements DocumentBatchRepository {
       workSiteId: input.request.workSiteId,
     } })
   }
+  async findMemberForUpdate(id: string): Promise<{ id: string, batchId: string, requestId: string } | null> {
+    await this.db.$queryRaw`SELECT id FROM document_batch_members WHERE id = ${id} FOR UPDATE`
+    return await this.db.documentBatchMember.findUnique({ where: { id }, select: { id: true, batchId: true, requestId: true } })
+  }
+  async removeMember(id: string): Promise<void> {
+    await this.db.documentBatchStudentSlot.deleteMany({ where: { batchMemberId: id } })
+    await this.db.documentBatchMember.delete({ where: { id } })
+  }
   async incrementBatchVersion(id: string, expectedVersion: number, actorId: string): Promise<boolean> {
     const result = await this.db.documentBatch.updateMany({ where: { id, lockVersion: expectedVersion }, data: { lockVersion: { increment: 1 }, updatedById: actorId } })
     return result.count === 1

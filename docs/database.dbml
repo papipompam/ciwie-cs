@@ -1,0 +1,1288 @@
+// Generated from prisma/schema.prisma by scripts/prisma-to-dbml.mjs
+// Import this file at https://dbdiagram.io
+
+Project ciwie_cs {
+  database_type: 'MySQL'
+  Note: 'Application-managed UUID defaults are omitted. Database-only triggers and CHECK constraints remain in Prisma migrations.'
+}
+
+Enum UserRole {
+  STUDENT
+  LECTURER
+  ADMIN
+}
+
+Enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+Enum TokenStatus {
+  ACTIVE
+  USED
+  REVOKED
+}
+
+Enum ApplicationStatus {
+  SUBMITTED
+  WAITING_RESPONSE
+  INTERVIEW_PENDING
+  PRELIMINARY_ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+Enum DocumentRequestStatus {
+  REQUESTED
+  IN_PROGRESS
+  READY_TO_SEND
+  CANCELLED
+}
+
+Enum DocumentBatchStatus {
+  DRAFT
+  READY_TO_SEND
+  SENT
+  CLOSED
+  CANCELLED
+}
+
+Enum DeliveryStatus {
+  ASSIGNED
+  SENT
+  WAITING_RESPONSE
+  RESPONSE_RECEIVED
+}
+
+Enum DeliveryOwnerType {
+  STUDENT
+  LECTURER
+}
+
+Enum ResponseStatus {
+  DRAFT
+  PENDING_REVIEW
+  CONFIRMED
+}
+
+Enum ResponseResult {
+  ACCEPTED
+  DECLINED
+}
+
+Enum PlacementStatus {
+  ACTIVE
+  REVERSED
+}
+
+Enum VisitRound {
+  ROUND_1
+  ROUND_2
+}
+
+Enum VisitPeriod {
+  MORNING
+  AFTERNOON
+  FULL_DAY
+}
+
+Enum VisitStatus {
+  SCHEDULED
+  POSTPONED
+  COMPLETED
+  CANCELLED
+}
+
+Enum AcknowledgementStatus {
+  PENDING
+  ACKNOWLEDGED
+}
+
+Enum SupervisionOutcome {
+  COMPLETED
+  ABSENT
+  MAKEUP_REQUIRED
+}
+
+Enum TemplateSubject {
+  STUDENT
+  ORGANIZATION
+}
+
+Enum TemplateVersionStatus {
+  DRAFT
+  PUBLISHED
+  RETIRED
+}
+
+Enum AnswerType {
+  SCORE
+  TEXT
+  BOOLEAN
+}
+
+Enum EvaluationStatus {
+  DRAFT
+  SUBMITTED
+}
+
+Enum FileScanStatus {
+  UPLOADED
+  PENDING_SCAN
+  CLEAN
+  REJECTED
+}
+
+Enum FileVisibility {
+  PRIVATE
+  STUDENT_VISIBLE
+  STAFF_ONLY
+}
+
+Enum ImportStatus {
+  UPLOADED
+  SCANNING
+  PREVIEW_READY
+  CONFIRMING
+  COMPLETED
+  FAILED
+}
+
+Enum ImportRowStatus {
+  NEW
+  UNCHANGED
+  CONFLICT
+  INVALID
+  IMPORTED
+}
+
+Enum ExportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  EXPIRED
+}
+
+Enum NotificationStatus {
+  UNREAD
+  READ
+}
+
+Enum OutboxStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+}
+
+Enum IdempotencyStatus {
+  IN_PROGRESS
+  SUCCEEDED
+  FAILED
+}
+
+Table users {
+  id char(36) [pk, not null]
+  identifier varchar(191) [not null]
+  normalized_identifier varchar(191) [not null, unique]
+  email varchar(320) [not null]
+  normalized_email varchar(320) [not null, unique]
+  password_hash varchar(255) [not null]
+  role UserRole [not null]
+  status UserStatus [not null, default: PENDING]
+  session_version int [not null, default: 1]
+  must_change_password boolean [not null, default: true]
+  last_login_at datetime(3)
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (role, status)
+  }
+}
+
+Table activation_codes {
+  id char(36) [pk, not null]
+  user_id char(36) [not null]
+  token_hash char(64) [not null, unique]
+  status TokenStatus [not null, default: ACTIVE]
+  expires_at datetime(3) [not null]
+  used_at datetime(3)
+  revoked_at datetime(3)
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (user_id, expires_at)
+  }
+}
+
+Table password_reset_tokens {
+  id char(36) [pk, not null]
+  user_id char(36) [not null]
+  token_hash char(64) [not null, unique]
+  status TokenStatus [not null, default: ACTIVE]
+  expires_at datetime(3) [not null]
+  used_at datetime(3)
+  revoked_at datetime(3)
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (user_id, expires_at)
+  }
+}
+
+Table user_sessions {
+  id char(36) [pk, not null]
+  user_id char(36) [not null]
+  session_hash char(64) [not null, unique]
+  expires_at datetime(3) [not null]
+  revoked_at datetime(3)
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (user_id, revoked_at, expires_at)
+  }
+}
+
+Table student_profiles {
+  id char(36) [pk, not null]
+  user_id char(36) [not null, unique]
+  student_code varchar(32) [not null, unique]
+  first_name_th varchar(100) [not null]
+  last_name_th varchar(100) [not null]
+  phone varchar(32)
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (last_name_th, first_name_th)
+  }
+}
+
+Table lecturer_profiles {
+  id char(36) [pk, not null]
+  user_id char(36) [not null, unique]
+  employee_code varchar(32) [unique]
+  first_name_th varchar(100) [not null]
+  last_name_th varchar(100) [not null]
+  phone varchar(32)
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (last_name_th, first_name_th)
+  }
+}
+
+Table coop_terms {
+  id char(36) [pk, not null]
+  academic_year int [not null]
+  semester int [not null]
+  name varchar(100) [not null]
+  starts_on date [not null]
+  ends_on date [not null]
+  is_active boolean [not null, default: false]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (academic_year, semester) [unique]
+    (is_active, starts_on)
+  }
+}
+
+Table student_term_enrollments {
+  id char(36) [pk, not null]
+  student_id char(36) [not null]
+  coop_term_id char(36) [not null]
+  version int [not null, default: 1]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (student_id, coop_term_id) [unique]
+    (id, coop_term_id) [unique]
+    (coop_term_id, created_at)
+  }
+}
+
+Table organizations {
+  id char(36) [pk, not null]
+  name_th varchar(255) [not null]
+  name_en varchar(255)
+  normalized_name varchar(255) [not null]
+  tax_id varchar(32) [unique]
+  is_active boolean [not null, default: true]
+  created_by_id char(36) [not null]
+  updated_by_id char(36) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (normalized_name)
+    (is_active, name_th)
+  }
+}
+
+Table work_sites {
+  id char(36) [pk, not null]
+  organization_id char(36) [not null]
+  name varchar(255) [not null]
+  normalized_name varchar(255) [not null]
+  address_line varchar(500) [not null]
+  province varchar(100) [not null]
+  region varchar(100) [not null]
+  postal_code varchar(10)
+  is_active boolean [not null, default: true]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (organization_id, normalized_name) [unique]
+    (province, normalized_name)
+    (region, province)
+  }
+}
+
+Table organization_contacts {
+  id char(36) [pk, not null]
+  organization_id char(36) [not null]
+  work_site_id char(36)
+  name varchar(200) [not null]
+  position varchar(150)
+  email varchar(320)
+  phone varchar(32)
+  is_active boolean [not null, default: true]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (organization_id, is_active)
+    (work_site_id, is_active)
+  }
+}
+
+Table organization_aliases {
+  id char(36) [pk, not null]
+  organization_id char(36) [not null]
+  normalized_alias varchar(255) [not null, unique]
+  display_alias varchar(255) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (organization_id)
+  }
+}
+
+Table organization_merge_history {
+  id char(36) [pk, not null]
+  source_organization_id char(36) [not null]
+  target_organization_id char(36) [not null]
+  actor_id char(36) [not null]
+  reason varchar(1000) [not null]
+  source_snapshot json [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (source_organization_id, created_at)
+    (target_organization_id, created_at)
+  }
+}
+
+Table applications {
+  id char(36) [pk, not null]
+  student_term_id char(36) [not null]
+  coop_term_id char(36) [not null]
+  work_site_id char(36) [not null]
+  contact_id char(36)
+  contact_snapshot json
+  status ApplicationStatus [not null, default: SUBMITTED]
+  position_title varchar(255)
+  applied_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  version int [not null, default: 1]
+  created_by_id char(36) [not null]
+  updated_by_id char(36) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (id, coop_term_id, work_site_id) [unique]
+    (student_term_id, status)
+    (work_site_id, status, applied_at)
+    (contact_id)
+  }
+}
+
+Table application_status_history {
+  id char(36) [pk, not null]
+  application_id char(36) [not null]
+  from_status ApplicationStatus
+  to_status ApplicationStatus [not null]
+  actor_id char(36) [not null]
+  reason varchar(1000)
+  snapshot json
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (application_id, created_at)
+  }
+}
+
+Table files {
+  id char(36) [pk, not null]
+  original_filename varchar(255) [not null]
+  created_by_id char(36) [not null]
+  visibility FileVisibility [not null, default: PRIVATE]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (created_by_id, created_at)
+  }
+}
+
+Table file_versions {
+  id char(36) [pk, not null]
+  file_id char(36) [not null]
+  revision int [not null]
+  object_key varchar(512) [not null, unique]
+  checksum_sha256 char(64) [not null]
+  mime_type varchar(255) [not null]
+  extension varchar(16) [not null]
+  size_bytes bigint unsigned [not null]
+  scan_status FileScanStatus [not null, default: UPLOADED]
+  scan_reason varchar(500)
+  created_by_id char(36) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (file_id, revision) [unique]
+    (checksum_sha256)
+    (scan_status, created_at)
+  }
+}
+
+Table application_evidence_files {
+  id char(36) [pk, not null]
+  application_id char(36) [not null]
+  file_version_id char(36) [not null]
+  visibility FileVisibility [not null, default: STUDENT_VISIBLE]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (application_id, file_version_id) [unique]
+  }
+}
+
+Table document_requests {
+  id char(36) [pk, not null]
+  student_term_id char(36) [not null]
+  application_id char(36) [not null]
+  coop_term_id char(36) [not null]
+  work_site_id char(36) [not null]
+  status DocumentRequestStatus [not null, default: REQUESTED]
+  requested_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  created_by_id char(36) [not null]
+  updated_by_id char(36) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (id, student_term_id, coop_term_id, work_site_id) [unique]
+    (coop_term_id, work_site_id, status)
+    (student_term_id, status)
+  }
+}
+
+Table document_batches {
+  id char(36) [pk, not null]
+  coop_term_id char(36) [not null]
+  work_site_id char(36) [not null]
+  status DocumentBatchStatus [not null, default: DRAFT]
+  document_type varchar(64) [not null]
+  document_no varchar(100)
+  document_year int
+  document_date date
+  lock_version int [not null, default: 1]
+  created_by_id char(36) [not null]
+  updated_by_id char(36) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (id, coop_term_id, work_site_id) [unique]
+    (document_year, document_type, document_no) [unique]
+    (coop_term_id, work_site_id, status)
+  }
+}
+
+Table document_batch_members {
+  id char(36) [pk, not null]
+  batch_id char(36) [not null]
+  request_id char(36) [not null, unique]
+  student_term_id char(36) [not null]
+  coop_term_id char(36) [not null]
+  work_site_id char(36) [not null]
+  snapshot json [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (batch_id, student_term_id) [unique]
+    (id, batch_id) [unique]
+    (id, batch_id, student_term_id, coop_term_id, work_site_id) [unique]
+    (coop_term_id, work_site_id, student_term_id)
+  }
+}
+
+Table document_batch_student_slots {
+  id char(36) [pk, not null]
+  batch_member_id char(36) [not null, unique]
+  batch_id char(36) [not null]
+  student_term_id char(36) [not null]
+  coop_term_id char(36) [not null]
+  work_site_id char(36) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (student_term_id, coop_term_id, work_site_id) [unique]
+    (batch_id, student_term_id)
+  }
+}
+
+Table document_versions {
+  id char(36) [pk, not null]
+  batch_id char(36) [not null]
+  revision int [not null]
+  kind varchar(64) [not null]
+  file_version_id char(36) [not null]
+  created_by_id char(36) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (batch_id, kind, revision) [unique]
+  }
+}
+
+Table deliveries {
+  id char(36) [pk, not null]
+  batch_id char(36) [not null]
+  status DeliveryStatus [not null, default: ASSIGNED]
+  owner_type DeliveryOwnerType [not null]
+  owner_user_id char(36) [not null]
+  channel varchar(100)
+  recipient varchar(255)
+  sent_at datetime(3)
+  acknowledged_at datetime(3)
+  note varchar(1000)
+  created_by_id char(36) [not null]
+  updated_by_id char(36) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (batch_id, status, sent_at)
+    (owner_user_id, status)
+  }
+}
+
+Table delivery_history {
+  id char(36) [pk, not null]
+  delivery_id char(36) [not null]
+  from_status DeliveryStatus
+  to_status DeliveryStatus [not null]
+  actor_id char(36) [not null]
+  reason varchar(1000)
+  snapshot json
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (delivery_id, created_at)
+  }
+}
+
+Table delivery_evidence_files {
+  id char(36) [pk, not null]
+  delivery_id char(36) [not null]
+  file_version_id char(36) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (delivery_id, file_version_id) [unique]
+  }
+}
+
+Table response_forms {
+  id char(36) [pk, not null]
+  batch_id char(36) [not null]
+  revision int [not null]
+  file_version_id char(36) [not null]
+  status ResponseStatus [not null, default: DRAFT]
+  uploaded_by_id char(36) [not null]
+  submitted_at datetime(3)
+  confirmed_at datetime(3)
+  confirmed_by_id char(36)
+  lock_version int [not null, default: 1]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (batch_id, revision) [unique]
+    (id, batch_id) [unique]
+    (batch_id, status)
+  }
+}
+
+Table response_student_results {
+  id char(36) [pk, not null]
+  response_form_id char(36) [not null]
+  batch_member_id char(36) [not null]
+  batch_id char(36) [not null]
+  result ResponseResult [not null]
+  note varchar(1000)
+  confirmed_by_id char(36)
+  confirmed_at datetime(3)
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (response_form_id, batch_member_id) [unique]
+    (batch_id, result)
+    (batch_member_id, result)
+  }
+}
+
+Table placements {
+  id char(36) [pk, not null]
+  student_term_id char(36) [not null, unique]
+  current_work_site_id char(36) [not null]
+  source_response_result_id char(36) [not null, unique]
+  status PlacementStatus [not null, default: ACTIVE]
+  version int [not null, default: 1]
+  confirmed_by_id char(36) [not null]
+  confirmed_at datetime(3) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (current_work_site_id, status)
+  }
+}
+
+Table placement_versions {
+  id char(36) [pk, not null]
+  placement_id char(36) [not null]
+  version int [not null]
+  snapshot json [not null]
+  reason varchar(1000) [not null]
+  actor_id char(36) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (placement_id, version) [unique]
+  }
+}
+
+Table supervision_visits {
+  id char(36) [pk, not null]
+  coop_term_id char(36) [not null]
+  work_site_id char(36) [not null]
+  round VisitRound [not null]
+  visit_date date [not null]
+  period VisitPeriod [not null]
+  status VisitStatus [not null, default: SCHEDULED]
+  lock_version int [not null, default: 1]
+  created_by_id char(36) [not null]
+  updated_by_id char(36) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (id, coop_term_id) [unique]
+    (id, visit_date, period) [unique]
+    (id, round, visit_date, period) [unique]
+    (id, work_site_id, visit_date, period) [unique]
+    (coop_term_id, round, visit_date, period, status)
+    (work_site_id, visit_date, period)
+  }
+}
+
+Table visit_students {
+  id char(36) [pk, not null]
+  visit_id char(36) [not null]
+  student_term_id char(36) [not null]
+  coop_term_id char(36) [not null]
+  acknowledgement_status AcknowledgementStatus [not null, default: PENDING]
+  acknowledged_at datetime(3)
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (visit_id, student_term_id) [unique]
+    (student_term_id, coop_term_id)
+    (student_term_id, acknowledgement_status)
+  }
+}
+
+Table visit_lecturers {
+  id char(36) [pk, not null]
+  visit_id char(36) [not null]
+  lecturer_id char(36) [not null]
+  acknowledgement_status AcknowledgementStatus [not null, default: PENDING]
+  acknowledged_at datetime(3)
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (visit_id, lecturer_id) [unique]
+    (lecturer_id, acknowledgement_status)
+  }
+}
+
+Table visit_student_slots {
+  id char(36) [pk, not null]
+  visit_id char(36) [not null]
+  student_term_id char(36) [not null]
+  round VisitRound [not null]
+  visit_date date [not null]
+  period VisitPeriod [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (visit_id, student_term_id) [unique]
+    (student_term_id, round) [unique]
+    (student_term_id, visit_date, period) [unique]
+  }
+}
+
+Table visit_lecturer_slots {
+  id char(36) [pk, not null]
+  visit_id char(36) [not null]
+  lecturer_id char(36) [not null]
+  visit_date date [not null]
+  period VisitPeriod [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (visit_id, lecturer_id) [unique]
+    (lecturer_id, visit_date, period) [unique]
+  }
+}
+
+Table visit_work_site_slots {
+  id char(36) [pk, not null]
+  visit_id char(36) [not null, unique]
+  work_site_id char(36) [not null]
+  visit_date date [not null]
+  period VisitPeriod [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (work_site_id, visit_date, period) [unique]
+  }
+}
+
+Table supervision_results {
+  id char(36) [pk, not null]
+  visit_student_id char(36) [not null, unique]
+  outcome SupervisionOutcome [not null]
+  summary text
+  version int [not null, default: 1]
+  submitted_by_id char(36) [not null]
+  submitted_at datetime(3) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (outcome, submitted_at)
+  }
+}
+
+Table supervision_result_versions {
+  id char(36) [pk, not null]
+  supervision_result_id char(36) [not null]
+  version int [not null]
+  snapshot json [not null]
+  reason varchar(1000) [not null]
+  actor_id char(36) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (supervision_result_id, version) [unique]
+  }
+}
+
+Table supervision_visit_history {
+  id char(36) [pk, not null]
+  visit_id char(36) [not null]
+  action varchar(64) [not null]
+  snapshot json [not null]
+  actor_id char(36) [not null]
+  reason varchar(1000)
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (visit_id, created_at)
+  }
+}
+
+Table internal_notes {
+  id char(36) [pk, not null]
+  visit_id char(36) [not null]
+  author_id char(36) [not null]
+  visibility FileVisibility [not null, default: STAFF_ONLY]
+  content text [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (visit_id, created_at)
+  }
+}
+
+Table company_requirements {
+  id char(36) [pk, not null]
+  visit_id char(36) [not null]
+  placement_id char(36)
+  category varchar(100) [not null]
+  technology varchar(255)
+  detail text [not null]
+  author_id char(36) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (visit_id, category)
+    (placement_id, created_at)
+  }
+}
+
+Table evaluation_templates {
+  id char(36) [pk, not null]
+  code varchar(64) [not null, unique]
+  subject TemplateSubject [not null]
+  name varchar(255) [not null]
+  is_active boolean [not null, default: true]
+  created_by_id char(36) [not null]
+  updated_by_id char(36) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (subject, is_active)
+  }
+}
+
+Table evaluation_template_versions {
+  id char(36) [pk, not null]
+  template_id char(36) [not null]
+  version int [not null]
+  status TemplateVersionStatus [not null, default: DRAFT]
+  content_hash char(64) [not null]
+  published_at datetime(3)
+  published_by_id char(36)
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (template_id, version) [unique]
+    (template_id, status)
+  }
+}
+
+Table evaluation_items {
+  id char(36) [pk, not null]
+  template_version_id char(36) [not null]
+  code varchar(64) [not null]
+  label varchar(500) [not null]
+  answer_type AnswerType [not null]
+  required boolean [not null, default: true]
+  max_score decimal(8, 2)
+  weight decimal(8, 4)
+  sort_order int [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (template_version_id, code) [unique]
+    (template_version_id, sort_order) [unique]
+  }
+}
+
+Table student_evaluations {
+  id char(36) [pk, not null]
+  visit_student_id char(36) [not null]
+  template_version_id char(36) [not null]
+  template_id char(36) [not null]
+  status EvaluationStatus [not null, default: DRAFT]
+  version int [not null, default: 1]
+  submitted_at datetime(3)
+  submitted_by_id char(36)
+  created_by_id char(36) [not null]
+  updated_by_id char(36) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (visit_student_id, template_id) [unique]
+    (status, submitted_at)
+  }
+}
+
+Table student_evaluation_answers {
+  id char(36) [pk, not null]
+  evaluation_id char(36) [not null]
+  item_id char(36) [not null]
+  item_snapshot json [not null]
+  score_value decimal(8, 2)
+  text_value text
+  boolean_value boolean
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (evaluation_id, item_id) [unique]
+  }
+}
+
+Table student_evaluation_versions {
+  id char(36) [pk, not null]
+  evaluation_id char(36) [not null]
+  version int [not null]
+  snapshot json [not null]
+  reason varchar(1000) [not null]
+  actor_id char(36) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (evaluation_id, version) [unique]
+  }
+}
+
+Table organization_evaluations {
+  id char(36) [pk, not null]
+  visit_id char(36) [not null]
+  template_version_id char(36) [not null]
+  template_id char(36) [not null]
+  status EvaluationStatus [not null, default: DRAFT]
+  version int [not null, default: 1]
+  submitted_at datetime(3)
+  submitted_by_id char(36)
+  created_by_id char(36) [not null]
+  updated_by_id char(36) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (visit_id, template_id) [unique]
+    (status, submitted_at)
+  }
+}
+
+Table organization_evaluation_answers {
+  id char(36) [pk, not null]
+  evaluation_id char(36) [not null]
+  item_id char(36) [not null]
+  item_snapshot json [not null]
+  score_value decimal(8, 2)
+  text_value text
+  boolean_value boolean
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (evaluation_id, item_id) [unique]
+  }
+}
+
+Table organization_evaluation_versions {
+  id char(36) [pk, not null]
+  evaluation_id char(36) [not null]
+  version int [not null]
+  snapshot json [not null]
+  reason varchar(1000) [not null]
+  actor_id char(36) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (evaluation_id, version) [unique]
+  }
+}
+
+Table import_jobs {
+  id char(36) [pk, not null]
+  requested_by_id char(36) [not null]
+  source_file_version_id char(36) [not null]
+  kind varchar(64) [not null]
+  source_checksum char(64) [not null]
+  status ImportStatus [not null, default: UPLOADED]
+  total_rows int [not null, default: 0]
+  processed_rows int [not null, default: 0]
+  failure_reason varchar(1000)
+  confirmed_at datetime(3)
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (requested_by_id, kind, source_checksum) [unique]
+    (requested_by_id, status, created_at)
+  }
+}
+
+Table import_rows {
+  id char(36) [pk, not null]
+  import_job_id char(36) [not null]
+  row_no int [not null]
+  status ImportRowStatus [not null]
+  normalized_hash char(64) [not null]
+  normalized_data json [not null]
+  observed_version int
+  errors json
+  imported_entity_id char(36)
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (import_job_id, row_no) [unique]
+    (import_job_id, status)
+  }
+}
+
+Table export_jobs {
+  id char(36) [pk, not null]
+  requested_by_id char(36) [not null]
+  kind varchar(64) [not null]
+  format varchar(16) [not null]
+  filter_snapshot json [not null]
+  status ExportStatus [not null, default: PENDING]
+  file_version_id char(36)
+  expires_at datetime(3)
+  failure_reason varchar(1000)
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (requested_by_id, status, created_at)
+    (expires_at)
+  }
+}
+
+Table notifications {
+  id char(36) [pk, not null]
+  recipient_id char(36) [not null]
+  event_type varchar(100) [not null]
+  title varchar(255) [not null]
+  body varchar(1000) [not null]
+  entity_type varchar(100)
+  entity_id char(36)
+  status NotificationStatus [not null, default: UNREAD]
+  read_at datetime(3)
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (recipient_id, status, created_at)
+  }
+}
+
+Table outbox_messages {
+  id char(36) [pk, not null]
+  event_type varchar(100) [not null]
+  aggregate_type varchar(100) [not null]
+  aggregate_id char(36) [not null]
+  dedupe_key varchar(191) [not null, unique]
+  payload json [not null]
+  status OutboxStatus [not null, default: PENDING]
+  attempts int [not null, default: 0]
+  next_attempt_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  processed_at datetime(3)
+  last_error varchar(2000)
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (status, next_attempt_at)
+    (aggregate_type, aggregate_id, created_at)
+  }
+}
+
+Table idempotency_records {
+  id char(36) [pk, not null]
+  actor_id char(36) [not null]
+  operation varchar(100) [not null]
+  idempotency_key varchar(191) [not null]
+  request_hash char(64) [not null]
+  status IdempotencyStatus [not null, default: IN_PROGRESS]
+  response_status int
+  response_body json
+  expires_at datetime(3) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (actor_id, operation, idempotency_key) [unique]
+    (expires_at)
+  }
+}
+
+Table expenses {
+  id char(36) [pk, not null]
+  visit_id char(36) [not null]
+  round VisitRound [not null]
+  travel_days smallint unsigned [not null]
+  travel_amount decimal(12, 2) [not null, default: 0]
+  lodging_amount decimal(12, 2) [not null, default: 0]
+  meal_amount decimal(12, 2) [not null, default: 0]
+  total_amount decimal(12, 2) [not null, default: 0]
+  note varchar(1000)
+  version int [not null, default: 1]
+  created_by_id char(36) [not null]
+  updated_by_id char(36) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (visit_id, round, created_at)
+  }
+}
+
+Table expense_versions {
+  id char(36) [pk, not null]
+  expense_id char(36) [not null]
+  version int [not null]
+  snapshot json [not null]
+  reason varchar(1000) [not null]
+  actor_id char(36) [not null]
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+  updated_at datetime(3) [not null]
+
+  indexes {
+    (expense_id, version) [unique]
+  }
+}
+
+Table audit_logs {
+  id char(36) [pk, not null]
+  actor_id char(36)
+  action varchar(100) [not null]
+  entity_type varchar(100) [not null]
+  entity_id char(36) [not null]
+  request_id varchar(100) [not null]
+  reason varchar(1000)
+  before_data json
+  after_data json
+  ip_address varchar(45)
+  created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
+
+  indexes {
+    (entity_type, entity_id, created_at)
+    (actor_id, created_at)
+    (request_id)
+  }
+}
+
+Ref: activation_codes.user_id > users.id [delete: restrict]
+Ref: password_reset_tokens.user_id > users.id [delete: restrict]
+Ref: user_sessions.user_id > users.id [delete: restrict]
+Ref: student_profiles.user_id > users.id [delete: restrict]
+Ref: lecturer_profiles.user_id > users.id [delete: restrict]
+Ref: student_term_enrollments.student_id > student_profiles.id [delete: restrict]
+Ref: student_term_enrollments.coop_term_id > coop_terms.id [delete: restrict]
+Ref: work_sites.organization_id > organizations.id [delete: restrict]
+Ref: organization_contacts.organization_id > organizations.id [delete: restrict]
+Ref: organization_contacts.work_site_id > work_sites.id [delete: restrict]
+Ref: organization_aliases.organization_id > organizations.id [delete: restrict]
+Ref: organization_merge_history.source_organization_id > organizations.id [delete: restrict]
+Ref: organization_merge_history.target_organization_id > organizations.id [delete: restrict]
+Ref: applications.student_term_id > student_term_enrollments.id [delete: restrict]
+Ref: applications.coop_term_id > coop_terms.id [delete: restrict]
+Ref: applications.work_site_id > work_sites.id [delete: restrict]
+Ref: applications.contact_id > organization_contacts.id [delete: restrict]
+Ref: application_status_history.application_id > applications.id [delete: restrict]
+Ref: file_versions.file_id > files.id [delete: restrict]
+Ref: application_evidence_files.application_id > applications.id [delete: restrict]
+Ref: application_evidence_files.file_version_id > file_versions.id [delete: restrict]
+Ref: document_requests.student_term_id > student_term_enrollments.id [delete: restrict]
+Ref: document_requests.application_id > applications.id [delete: restrict]
+Ref: document_requests.coop_term_id > coop_terms.id [delete: restrict]
+Ref: document_requests.work_site_id > work_sites.id [delete: restrict]
+Ref: document_batches.coop_term_id > coop_terms.id [delete: restrict]
+Ref: document_batches.work_site_id > work_sites.id [delete: restrict]
+Ref: document_batch_members.batch_id > document_batches.id [delete: restrict]
+Ref: document_batch_members.request_id > document_requests.id [delete: restrict]
+Ref: document_batch_members.student_term_id > student_term_enrollments.id [delete: restrict]
+Ref: document_batch_student_slots.batch_member_id > document_batch_members.id [delete: restrict]
+Ref: document_batch_student_slots.batch_id > document_batches.id [delete: restrict]
+Ref: document_batch_student_slots.student_term_id > student_term_enrollments.id [delete: restrict]
+Ref: document_versions.batch_id > document_batches.id [delete: restrict]
+Ref: document_versions.file_version_id > file_versions.id [delete: restrict]
+Ref: deliveries.batch_id > document_batches.id [delete: restrict]
+Ref: delivery_history.delivery_id > deliveries.id [delete: restrict]
+Ref: delivery_evidence_files.delivery_id > deliveries.id [delete: restrict]
+Ref: delivery_evidence_files.file_version_id > file_versions.id [delete: restrict]
+Ref: response_forms.batch_id > document_batches.id [delete: restrict]
+Ref: response_forms.file_version_id > file_versions.id [delete: restrict]
+Ref: response_student_results.response_form_id > response_forms.id [delete: restrict]
+Ref: response_student_results.batch_member_id > document_batch_members.id [delete: restrict]
+Ref: response_student_results.batch_id > document_batches.id [delete: restrict]
+Ref: placements.student_term_id > student_term_enrollments.id [delete: restrict]
+Ref: placements.current_work_site_id > work_sites.id [delete: restrict]
+Ref: placements.source_response_result_id > response_student_results.id [delete: restrict]
+Ref: placement_versions.placement_id > placements.id [delete: restrict]
+Ref: supervision_visits.coop_term_id > coop_terms.id [delete: restrict]
+Ref: supervision_visits.work_site_id > work_sites.id [delete: restrict]
+Ref: visit_students.visit_id > supervision_visits.id [delete: restrict]
+Ref: visit_students.student_term_id > student_term_enrollments.id [delete: restrict]
+Ref: visit_lecturers.visit_id > supervision_visits.id [delete: restrict]
+Ref: visit_lecturers.lecturer_id > lecturer_profiles.id [delete: restrict]
+Ref: visit_student_slots.visit_id > supervision_visits.id [delete: restrict]
+Ref: visit_lecturer_slots.visit_id > supervision_visits.id [delete: restrict]
+Ref: visit_work_site_slots.visit_id > supervision_visits.id [delete: restrict]
+Ref: supervision_results.visit_student_id > visit_students.id [delete: restrict]
+Ref: supervision_result_versions.supervision_result_id > supervision_results.id [delete: restrict]
+Ref: supervision_visit_history.visit_id > supervision_visits.id [delete: restrict]
+Ref: internal_notes.visit_id > supervision_visits.id [delete: restrict]
+Ref: company_requirements.visit_id > supervision_visits.id [delete: restrict]
+Ref: company_requirements.placement_id > placements.id [delete: restrict]
+Ref: evaluation_template_versions.template_id > evaluation_templates.id [delete: restrict]
+Ref: evaluation_items.template_version_id > evaluation_template_versions.id [delete: restrict]
+Ref: student_evaluations.visit_student_id > visit_students.id [delete: restrict]
+Ref: student_evaluations.template_version_id > evaluation_template_versions.id [delete: restrict]
+Ref: student_evaluations.template_id > evaluation_templates.id [delete: restrict]
+Ref: student_evaluation_answers.evaluation_id > student_evaluations.id [delete: restrict]
+Ref: student_evaluation_answers.item_id > evaluation_items.id [delete: restrict]
+Ref: student_evaluation_versions.evaluation_id > student_evaluations.id [delete: restrict]
+Ref: organization_evaluations.visit_id > supervision_visits.id [delete: restrict]
+Ref: organization_evaluations.template_version_id > evaluation_template_versions.id [delete: restrict]
+Ref: organization_evaluations.template_id > evaluation_templates.id [delete: restrict]
+Ref: organization_evaluation_answers.evaluation_id > organization_evaluations.id [delete: restrict]
+Ref: organization_evaluation_answers.item_id > evaluation_items.id [delete: restrict]
+Ref: organization_evaluation_versions.evaluation_id > organization_evaluations.id [delete: restrict]
+Ref: import_jobs.source_file_version_id > file_versions.id [delete: restrict]
+Ref: import_rows.import_job_id > import_jobs.id [delete: restrict]
+Ref: export_jobs.file_version_id > file_versions.id [delete: restrict]
+Ref: notifications.recipient_id > users.id [delete: restrict]
+Ref: expenses.visit_id > supervision_visits.id [delete: restrict]
+Ref: expense_versions.expense_id > expenses.id [delete: restrict]

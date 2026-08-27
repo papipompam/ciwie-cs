@@ -26,6 +26,7 @@ export interface ExportFilters {
   region?: string
   category?: string
   technology?: string
+  organizationId?: string
 }
 
 function optionalText(value: unknown, name: string): string | undefined {
@@ -38,7 +39,7 @@ function optionalText(value: unknown, name: string): string | undefined {
 
 export function normalizeExportFilters(kind: ExportKind, raw: Record<string, unknown>): ExportFilters {
   const ignoredTableKeys = new Set(['page', 'pageSize', 'sort', 'order'])
-  const allowed = new Set(['search', 'province', 'region'])
+  const allowed = new Set(['search', 'province', 'region', 'organizationId'])
   if (kind === 'STUDENT_ROSTER' || kind === 'INTERNSHIP') allowed.add('status')
   if (kind === 'COVERAGE') { allowed.add('coverage'); allowed.add('round') }
   if (kind === 'REQUIREMENT') { allowed.add('category'); allowed.add('technology') }
@@ -47,7 +48,7 @@ export function normalizeExportFilters(kind: ExportKind, raw: Record<string, unk
   if (unsupported.length) throw new DomainError('VALIDATION_FAILED', `Unsupported export filters: ${unsupported.join(', ')}`)
 
   const filters: ExportFilters = {}
-  for (const key of ['search', 'status', 'province', 'region', 'category', 'technology'] as const) {
+  for (const key of ['search', 'status', 'province', 'region', 'category', 'technology', 'organizationId'] as const) {
     const value = optionalText(raw[key], key)
     if (value) filters[key] = value
   }
@@ -85,8 +86,8 @@ export async function generateExport(db: PrismaClient, actor: SessionActor, inpu
     if (filters.status && input.kind === 'INTERNSHIP' && !['ACTIVE', 'REVERSED', 'WITHOUT_PLACEMENT'].includes(filters.status)) throw new DomainError('VALIDATION_FAILED', 'Placement status filter is invalid')
     const placementFilter: Prisma.StudentTermEnrollmentWhereInput = input.kind !== 'INTERNSHIP' || !filters.status ? {}
       : filters.status === 'WITHOUT_PLACEMENT' ? { placement: null } : { placement: { status: filters.status as 'ACTIVE' | 'REVERSED' } }
-    const workSiteFilter: Prisma.StudentTermEnrollmentWhereInput = filters.province || filters.region ? {
-      placement: { currentWorkSite: { ...(filters.province ? { province: filters.province } : {}), ...(filters.region ? { region: filters.region } : {}) } },
+    const workSiteFilter: Prisma.StudentTermEnrollmentWhereInput = filters.province || filters.region || filters.organizationId ? {
+      placement: { currentWorkSite: { ...(filters.province ? { province: filters.province } : {}), ...(filters.region ? { region: filters.region } : {}), ...(filters.organizationId ? { organizationId: filters.organizationId } : {}) } },
     } : {}
     const enrollments = await db.studentTermEnrollment.findMany({
       where: {
@@ -108,6 +109,7 @@ export async function generateExport(db: PrismaClient, actor: SessionActor, inpu
         studentTerm: { coopTermId: input.coopTermId },
         currentWorkSite: {
           ...(filters.province ? { province: filters.province } : {}), ...(filters.region ? { region: filters.region } : {}),
+          ...(filters.organizationId ? { organizationId: filters.organizationId } : {}),
         },
         ...(filters.search ? { OR: [
           { studentTerm: studentSearch(filters.search) },
@@ -126,7 +128,7 @@ export async function generateExport(db: PrismaClient, actor: SessionActor, inpu
   } else if (input.kind === 'REQUIREMENT') {
     const requirements = await db.companyRequirement.findMany({
       where: {
-        visit: { coopTermId: input.coopTermId, workSite: { ...(filters.province ? { province: filters.province } : {}), ...(filters.region ? { region: filters.region } : {}) } },
+        visit: { coopTermId: input.coopTermId, workSite: { ...(filters.province ? { province: filters.province } : {}), ...(filters.region ? { region: filters.region } : {}), ...(filters.organizationId ? { organizationId: filters.organizationId } : {}) } },
         ...(filters.category ? { category: filters.category } : {}), ...(filters.technology ? { technology: { contains: filters.technology } } : {}),
         ...(filters.search ? { OR: [{ detail: { contains: filters.search } }, { category: { contains: filters.search } }, { technology: { contains: filters.search } }] } : {}),
       },
@@ -143,6 +145,7 @@ export async function generateExport(db: PrismaClient, actor: SessionActor, inpu
         ...(round ? { round } : {}),
         visit: { coopTermId: input.coopTermId, workSite: {
           ...(filters.province ? { province: filters.province } : {}), ...(filters.region ? { region: filters.region } : {}),
+          ...(filters.organizationId ? { organizationId: filters.organizationId } : {}),
           ...(filters.search ? { OR: [{ name: { contains: filters.search } }, { organization: { nameTh: { contains: filters.search } } }] } : {}),
         } },
       },

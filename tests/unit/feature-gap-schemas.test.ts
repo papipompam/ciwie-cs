@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { applicationTransitionSchema, createApplicationSchema } from '../../shared/schemas/application'
-import { profileUpdateSchema } from '../../shared/schemas/admin-identity'
+import { profileUpdateSchema, studentAccountCreateSchema, studentProfileAdminUpdateSchema } from '../../shared/schemas/admin-identity'
+import { documentRequestTransitionSchema, removeBatchMemberSchema } from '../../shared/schemas/document'
+import { adminNotificationCreateSchema } from '../../shared/schemas/notification'
 import { evaluationTemplateCreateSchema } from '../../shared/schemas/evaluation-template'
 import { organizationCreateSchema, workSiteCreateSchema } from '../../shared/schemas/organization'
 import { normalizeOrganizationName } from '../../server/services/organization-service'
@@ -41,5 +43,14 @@ describe('feature-gap strict schemas', () => {
 
   it('normalizes Unicode and repeated whitespace for duplicate suggestions', () => {
     expect(normalizeOrganizationName('  บริษัท   ทดสอบ  จำกัด ')).toBe(normalizeOrganizationName('บริษัท ทดสอบ จำกัด'))
+  })
+
+  it('validates new admin student, document, and notification commands strictly', () => {
+    const coopTermId = '123e4567-e89b-12d3-a456-426614174000'
+    expect(studentAccountCreateSchema.safeParse({ studentCode: '65000001', email: 'student@example.com', firstNameTh: 'สมชาย', lastNameTh: 'ใจดี', coopTermId }).success).toBe(true)
+    expect(studentProfileAdminUpdateSchema.safeParse({ email: 'student@example.com', firstNameTh: 'สมชาย', lastNameTh: 'ใจดี', reason: 'แก้ตามหลักฐาน', role: 'ADMIN' }).success).toBe(false)
+    expect(documentRequestTransitionSchema.safeParse({ to: 'READY_TO_SEND', reason: 'ตรวจแล้ว' }).success).toBe(true)
+    expect(removeBatchMemberSchema.safeParse({ memberId: 'member-1', expectedBatchVersion: 2, reason: 'คำขอผิดชุด' }).success).toBe(true)
+    expect(adminNotificationCreateSchema.safeParse({ recipientId: 'user-1', eventType: 'VISIT_REMINDER', title: 'ใกล้ถึงวันนิเทศ', body: 'กรุณาตรวจกำหนดการ' }).success).toBe(true)
   })
 })

@@ -42,6 +42,44 @@ export async function createLecturerAccount(db: PrismaClient, actor: SessionActo
   }
 }
 
+export async function createStudentAccount(db: PrismaClient, actor: SessionActor, input: { studentCode: string, email: string, firstNameTh: string, lastNameTh: string, phone?: string, coopTermId: string }, now = new Date()): Promise<{ id: string, studentId: string, activationCode: string, expiresAt: string }> {
+  requireRole(actor, 'ADMIN')
+  const activationCode = randomBytes(32).toString('base64url')
+  const expiresAt = new Date(now.getTime() + 24 * 60 * 60_000)
+  const passwordHash = await bcrypt.hash(randomBytes(32).toString('base64url'), 12)
+  try {
+    return await db.$transaction(async (tx) => {
+      const term = await tx.coopTerm.findUnique({ where: { id: input.coopTermId }, select: { id: true } })
+      if (!term) throw new DomainError('NOT_FOUND', 'Coop term was not found')
+      const email = normalizeEmail(input.email)
+      const user = await tx.user.create({ data: {
+        identifier: email, normalizedIdentifier: email, email, normalizedEmail: email, passwordHash, role: 'STUDENT', status: 'PENDING',
+        studentProfile: { create: { studentCode: input.studentCode, firstNameTh: input.firstNameTh, lastNameTh: input.lastNameTh, phone: input.phone } },
+      }, include: { studentProfile: { select: { id: true } } } })
+      await tx.studentTermEnrollment.create({ data: { studentId: user.studentProfile!.id, coopTermId: input.coopTermId } })
+      await tx.activationCode.create({ data: { userId: user.id, tokenHash: hashToken(activationCode), expiresAt } })
+      await audit(tx, actor.userId, 'STUDENT_ACCOUNT_CREATED', user.id, null, { role: 'STUDENT', status: 'PENDING', studentCode: input.studentCode, coopTermId: input.coopTermId, email, expiresAt })
+      return { id: user.id, studentId: user.studentProfile!.id, activationCode, expiresAt: expiresAt.toISOString() }
+    })
+  } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') throw new DomainError('CONFLICT', 'Email or student code already exists')
+    throw error
+  }
+}
+
+export async function updateStudentProfileByAdmin(db: PrismaClient, actor: SessionActor, studentId: string, input: { email: string, firstNameTh: string, lastNameTh: string, phone?: string | null, reason: string }) {
+  requireRole(actor, 'ADMIN')
+  return await db.$transaction(async (tx) => {
+    const current = await tx.studentProfile.findUnique({ where: { id: studentId }, include: { user: true } })
+    if (!current) throw new DomainError('NOT_FOUND', 'Student was not found')
+    const email = normalizeEmail(input.email)
+    await tx.user.update({ where: { id: current.userId }, data: { identifier: email, normalizedIdentifier: email, email, normalizedEmail: email } })
+    const updated = await tx.studentProfile.update({ where: { id: studentId }, data: { firstNameTh: input.firstNameTh, lastNameTh: input.lastNameTh, phone: input.phone } })
+    await audit(tx, actor.userId, 'STUDENT_PROFILE_UPDATED', current.userId, { email: current.user.email, firstNameTh: current.firstNameTh, lastNameTh: current.lastNameTh, phone: current.phone }, { email, firstNameTh: updated.firstNameTh, lastNameTh: updated.lastNameTh, phone: updated.phone }, input.reason)
+    return updated
+  })
+}
+
 export async function createActivationCode(db: PrismaClient, actor: SessionActor, userId: string, reason: string, now = new Date()): Promise<{ code: string, expiresAt: string }> {
   requireRole(actor, 'ADMIN')
   const code = randomBytes(32).toString('base64url')

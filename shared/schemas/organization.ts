@@ -36,6 +36,9 @@ export const organizationMergeSchema = z.object({
 
 export const organizationMergePreviewSchema = organizationMergeSchema.pick({ targetOrganizationId: true }).strict()
 
+export const organizationUpdateSchema = organizationCreateSchema.extend({
+  reason: reasonSchema,
+}).strict()
+
 export type OrganizationCreateInput = z.infer<typeof organizationCreateSchema>
 export type WorkSiteCreateInput = z.infer<typeof workSiteCreateSchema>
-

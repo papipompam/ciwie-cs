@@ -15,11 +15,14 @@ const transitionNote = ref('')
 const transitionEvidence = ref<File[]>([])
 const workSiteId = ref('')
 const expense = reactive({ visitId: '', round: 1, travelDays: 1, travelAmount: 0, lodgingAmount: 0, mealAmount: 0, note: '' })
+const studentForm = reactive({ email: '', firstNameTh: '', lastNameTh: '', phone: '' })
+const organizationForm = reactive({ nameTh: '', nameEn: '', taxId: '', targetOrganizationId: '' })
+const mergePreview = ref<Record<string, unknown> | null>(null)
 
 const resource = computed(() => String(route.params.resource))
 const id = computed(() => String(route.params.id))
 const endpointResource = computed(() => ({ documents: 'document-requests' }[resource.value] || resource.value))
-const title = computed(() => ({ applications: 'รายละเอียดใบสมัคร', documents: 'รายละเอียดคำขอเอกสาร', responses: 'รายละเอียดแบบตอบรับ', placements: 'รายละเอียดสถานที่ฝึกงาน', visits: 'รายละเอียดการนิเทศ', evaluations: 'รายละเอียดการประเมิน', expenses: 'รายละเอียดค่าใช้จ่าย', students: 'ข้อมูลนักศึกษา', audit: 'รายละเอียดประวัติระบบ' }[resource.value] || 'รายละเอียด'))
+const title = computed(() => ({ applications: 'รายละเอียดใบสมัคร', documents: 'รายละเอียดคำขอเอกสาร', responses: 'รายละเอียดแบบตอบรับ', placements: 'รายละเอียดสถานที่ฝึกงาน', visits: 'รายละเอียดการนิเทศ', evaluations: 'รายละเอียดการประเมิน', expenses: 'รายละเอียดค่าใช้จ่าย', students: 'ข้อมูลนักศึกษา', organizations: 'ข้อมูลสถานประกอบการ', audit: 'รายละเอียดประวัติระบบ' }[resource.value] || 'รายละเอียด'))
 const capabilities = computed(() => item.value.capabilities && typeof item.value.capabilities === 'object' ? item.value.capabilities as Record<string, boolean> : {})
 
 async function load() {
@@ -35,6 +38,13 @@ async function load() {
     expense.lodgingAmount = Number(item.value.lodgingAmount || 0)
     expense.mealAmount = Number(item.value.mealAmount || 0)
     expense.note = String(item.value.note || '')
+    if (resource.value === 'students') {
+      const studentUser = item.value.user as Record<string, unknown> | undefined
+      studentForm.email = String(studentUser?.email || ''); studentForm.firstNameTh = String(item.value.firstNameTh || ''); studentForm.lastNameTh = String(item.value.lastNameTh || ''); studentForm.phone = String(item.value.phone || '')
+    }
+    if (resource.value === 'organizations') {
+      organizationForm.nameTh = String(item.value.nameTh || ''); organizationForm.nameEn = String(item.value.nameEn || ''); organizationForm.taxId = String(item.value.taxId || '')
+    }
   } catch (cause) { error.value = cause instanceof Error ? cause.message : 'โหลดข้อมูลไม่สำเร็จ' } finally { loading.value = false }
 }
 
@@ -66,8 +76,9 @@ async function command(name: string, needsReason = false) {
       }
       const body = resource.value === 'applications'
         ? { to: targetStatus.value, reason: reason.value.trim() || undefined, occurredAt: occurredAt.value || undefined, note: transitionNote.value.trim() || undefined, ...(evidenceFileVersionIds.length ? { evidenceFileVersionIds } : {}), expectedVersion }
-        : { expectedVersion, ...(name === 'correct' && resource.value === 'placements' ? { workSiteId: workSiteId.value.trim() } : {}), ...(needsReason ? { reason: reason.value.trim() } : {}) }
-      await request(`/api/${endpointResource.value}/${id.value}/${name}`, { method: 'POST', body })
+        : resource.value === 'documents' ? { to: name, reason: reason.value.trim() }
+          : { expectedVersion, ...(name === 'correct' && resource.value === 'placements' ? { workSiteId: workSiteId.value.trim() } : {}), ...(needsReason ? { reason: reason.value.trim() } : {}) }
+      await request(`/api/${endpointResource.value}/${id.value}/${resource.value === 'documents' ? 'transition' : name}`, { method: 'POST', body })
     }
     toast.add({ title: 'ดำเนินการสำเร็จ', color: 'primary' })
     reason.value = ''; targetStatus.value = ''; occurredAt.value = ''; transitionNote.value = ''; transitionEvidence.value = []; await load()
@@ -78,6 +89,10 @@ const commands = computed(() => {
   if (resource.value === 'applications') return [{ key: 'transition', label: 'ยืนยันเปลี่ยนสถานะ', icon: 'i-lucide-git-branch', reason: user.value?.role !== 'STUDENT' }]
   if (resource.value === 'placements') return [{ key: 'correct', label: 'แก้ไขข้อมูล', icon: 'i-lucide-file-pen-line', reason: true }, { key: 'reverse', label: 'ย้อนรายการ', icon: 'i-lucide-undo-2', reason: true }]
   if (resource.value === 'expenses') return [{ key: 'correct', label: 'บันทึก Correction', icon: 'i-lucide-file-pen-line', reason: true }]
+  if (resource.value === 'documents' && user.value?.role !== 'STUDENT') {
+    const status = String(item.value.status || '')
+    return status === 'REQUESTED' ? [{ key: 'IN_PROGRESS', label: 'รับคำขอ', icon: 'i-lucide-play', reason: true }, { key: 'CANCELLED', label: 'ยกเลิกคำขอ', icon: 'i-lucide-ban', reason: true }] : status === 'IN_PROGRESS' ? [{ key: 'READY_TO_SEND', label: 'เอกสารพร้อมส่ง', icon: 'i-lucide-check', reason: true }, { key: 'CANCELLED', label: 'ยกเลิกคำขอ', icon: 'i-lucide-ban', reason: true }] : []
+  }
   return []
 })
 const allowedTransitions = computed(() => Array.isArray(item.value.allowedTransitions) ? item.value.allowedTransitions.map(String) : [])
@@ -87,6 +102,11 @@ async function downloadEvidence(fileVersionId: string) {
   const result = await request<{ url: string }>(`/api/files/${fileVersionId}/download`)
   window.open(result.url, '_blank', 'noopener,noreferrer')
 }
+async function saveStudent() { await request(`/api/admin/students/${id.value}`, { method: 'PUT', body: { ...studentForm, phone: studentForm.phone.trim() || null, reason: reason.value.trim() } }); toast.add({ title: 'แก้ไขข้อมูลนักศึกษาแล้ว', color: 'primary' }); await load() }
+async function studentAccountAction(action: string) { const studentUser = item.value.user as Record<string, unknown>; await request(`/api/admin/users/${String(studentUser.id)}/${action}`, { method: 'POST', body: { reason: reason.value.trim() } }); toast.add({ title: 'ดำเนินการบัญชีแล้ว', color: 'primary' }); await load() }
+async function saveOrganization() { await request(`/api/organizations/${id.value}`, { method: 'PUT', body: { nameTh: organizationForm.nameTh, ...(organizationForm.nameEn ? { nameEn: organizationForm.nameEn } : {}), ...(organizationForm.taxId ? { taxId: organizationForm.taxId } : {}), reason: reason.value.trim() } }); toast.add({ title: 'แก้ไขสถานประกอบการแล้ว', color: 'primary' }); await load() }
+async function previewMerge() { mergePreview.value = await request(`/api/organizations/${id.value}/merge-preview`, { method: 'POST', body: { targetOrganizationId: organizationForm.targetOrganizationId } }) }
+async function mergeOrganization() { await request(`/api/organizations/${id.value}/merge`, { method: 'POST', body: { targetOrganizationId: organizationForm.targetOrganizationId, reason: reason.value.trim() } }); toast.add({ title: 'รวมสถานประกอบการแล้ว', color: 'primary' }); await navigateTo('/organizations') }
 onMounted(load)
 </script>
 
@@ -101,6 +121,8 @@ onMounted(load)
       </dl>
       <section v-if="evidenceFiles.length" class="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"><h2 class="font-semibold">หลักฐานแนบ</h2><ul class="mt-3 divide-y divide-slate-200 dark:divide-slate-800"><li v-for="evidence in evidenceFiles" :key="evidence.fileVersionId" class="flex flex-wrap items-center justify-between gap-3 py-3"><span><span class="block text-sm font-medium">{{ evidence.filename || evidence.fileVersionId }}</span><span class="text-xs text-slate-500">{{ evidence.sizeBytes || '—' }} bytes</span></span><UButton color="neutral" variant="outline" icon="i-lucide-download" label="ดาวน์โหลด" @click="downloadEvidence(evidence.fileVersionId)" /></li></ul></section>
       <section v-if="resource === 'documents' && user?.role !== 'STUDENT'" class="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900"><h2 class="font-semibold">ดำเนินการเอกสาร</h2><p class="mt-1 text-sm text-slate-500">ระบบจะนำรหัสคำขอนี้ไปกรอกให้โดยอัตโนมัติ</p><UButton class="mt-3" icon="i-lucide-folder-cog" label="เปิดหน้าจัดการชุดเอกสาร" :to="`/documents/manage?mode=member&requestId=${encodeURIComponent(id)}`" /></section>
+      <form v-if="resource === 'students' && user?.role === 'ADMIN'" class="grid gap-4 rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-2" @submit.prevent="saveStudent"><h2 class="font-semibold sm:col-span-2">แก้ไขข้อมูลนักศึกษา</h2><label v-for="field in ['email','firstNameTh','lastNameTh','phone']" :key="field"><span class="mb-1 block text-sm">{{ field }}</span><input v-model="studentForm[field as keyof typeof studentForm]" :type="field === 'email' ? 'email' : 'text'" class="min-h-11 w-full rounded-lg border border-slate-300 bg-transparent px-3 dark:border-slate-700"></label><label class="sm:col-span-2"><span class="mb-1 block text-sm">เหตุผล</span><textarea v-model="reason" required minlength="3" class="w-full rounded-lg border border-slate-300 bg-transparent p-3 dark:border-slate-700" /></label><div class="flex flex-wrap gap-2 sm:col-span-2"><UButton type="submit" label="บันทึกข้อมูล" /><UButton color="neutral" variant="outline" label="Activation Code" @click="studentAccountAction('activation-code')" /><UButton color="neutral" variant="outline" label="Password Reset" @click="studentAccountAction('password-reset')" /><UButton color="error" variant="outline" label="ระงับบัญชี" @click="studentAccountAction('suspend')" /><UButton color="neutral" variant="outline" label="เปิดใช้งาน" @click="studentAccountAction('reactivate')" /></div></form>
+      <form v-if="resource === 'organizations' && user?.role === 'ADMIN'" class="grid gap-4 rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-2" @submit.prevent="saveOrganization"><h2 class="font-semibold sm:col-span-2">แก้ไขและรวมสถานประกอบการ</h2><label v-for="field in ['nameTh','nameEn','taxId']" :key="field"><span class="mb-1 block text-sm">{{ field }}</span><input v-model="organizationForm[field as 'nameTh'|'nameEn'|'taxId']" class="min-h-11 w-full rounded-lg border border-slate-300 bg-transparent px-3 dark:border-slate-700"></label><LookupSelect v-model="organizationForm.targetOrganizationId" resource="ORGANIZATIONS" label="รวมเข้ากับสถานประกอบการ" /><label class="sm:col-span-2"><span class="mb-1 block text-sm">เหตุผล</span><textarea v-model="reason" required minlength="3" class="w-full rounded-lg border border-slate-300 bg-transparent p-3 dark:border-slate-700" /></label><pre v-if="mergePreview" class="overflow-auto rounded-lg bg-slate-100 p-3 text-xs dark:bg-slate-950 sm:col-span-2">{{ JSON.stringify(mergePreview, null, 2) }}</pre><div class="flex gap-2 sm:col-span-2"><UButton type="submit" label="บันทึก" /><UButton type="button" color="warning" variant="outline" label="ตรวจผลกระทบก่อนรวม" :disabled="!organizationForm.targetOrganizationId" @click="previewMerge" /><UButton v-if="mergePreview" type="button" color="error" label="ยืนยันรวมรายการ" @click="mergeOrganization" /></div></form>
       <ResponseDraftEditor v-if="resource === 'responses'" :record="item" @reload="load" />
       <EvaluationRubricEditor v-else-if="resource === 'evaluations'" :record="item" @reload="load" />
       <VisitWorkflowEditor v-else-if="resource === 'visits'" :record="item" @reload="load" />

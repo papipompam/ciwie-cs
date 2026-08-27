@@ -13,6 +13,23 @@ export const lecturerAccountCreateSchema = z.object({
   phone: z.string().trim().min(6).max(32).optional(),
 }).strict()
 
+export const studentAccountCreateSchema = z.object({
+  studentCode: z.string().trim().min(4).max(32),
+  email: z.string().trim().email().max(320),
+  firstNameTh: z.string().trim().min(1).max(100),
+  lastNameTh: z.string().trim().min(1).max(100),
+  phone: z.string().trim().min(6).max(32).optional(),
+  coopTermId: idSchema,
+}).strict()
+
+export const studentProfileAdminUpdateSchema = z.object({
+  email: z.string().trim().email().max(320),
+  firstNameTh: z.string().trim().min(1).max(100),
+  lastNameTh: z.string().trim().min(1).max(100),
+  phone: z.string().trim().min(6).max(32).nullable().optional(),
+  reason: reasonSchema,
+}).strict()
+
 export const adminUserIdParamsSchema = z.object({ userId: idSchema }).strict()
 
 export const profileUpdateSchema = z.object({

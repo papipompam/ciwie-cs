@@ -24,10 +24,14 @@ interface ResourceForm {
   note: string
   positionTitle: string
   appliedAt: string
+  nameTh: string
+  nameEn: string
+  taxId: string
 }
 const form = reactive<ResourceForm>({
   coopTermId: '', studentTermId: '', organizationId: '', workSiteId: '', contactId: '', applicationId: '', visitId: '', round: '1', travelDays: '1',
   travelAmount: '0.00', lodgingAmount: '0.00', mealAmount: '0.00', note: '', positionTitle: '', appliedAt: new Date().toISOString().slice(0, 10)
+  , nameTh: '', nameEn: '', taxId: ''
 })
 const companyEditorVisible = ref(false)
 const duplicateSuggestions = ref<Array<{ id: string, nameTh: string, taxId?: string | null }>>([])
@@ -41,6 +45,7 @@ const config = computed(() => {
     documents: { title: 'สร้างคำขอเอกสาร', description: 'คำขอนี้เป็นของนักศึกษารายคน และสามารถถูกรวมเป็นชุดเอกสารภายหลัง', endpoint: '/api/document-requests', fields: [{ key: 'applicationId', label: 'รหัสใบสมัคร', required: true }, { key: 'note', label: 'หมายเหตุ' }] },
     visits: { title: 'จัดตารางนิเทศ', description: 'ระบบจะตรวจ conflict ของนักศึกษา อาจารย์ และสถานที่ใน transaction', endpoint: '/api/visits', fields: [{ key: 'round', label: 'รอบนิเทศ', type: 'number', required: true }, { key: 'visitDate', label: 'วันที่นิเทศ', type: 'date', required: true }, { key: 'period', label: 'ช่วงเวลา', required: true }, { key: 'workSiteId', label: 'รหัสสถานที่', required: true }] },
     expenses: { title: 'เพิ่มค่าใช้จ่าย', description: 'เพิ่มได้หลายรายการต่อรอบ และยอดรวมคำนวณฝั่ง Server', endpoint: '/api/expenses', fields: [{ key: 'visitId', label: 'รหัสการนิเทศ', required: true }, { key: 'round', label: 'รอบนิเทศ', type: 'number', required: true }, { key: 'travelDays', label: 'จำนวนวันเดินทาง', type: 'number', required: true }, { key: 'travelAmount', label: 'ค่าเดินทาง', type: 'number', required: true }, { key: 'lodgingAmount', label: 'ค่าที่พัก', type: 'number', required: true }, { key: 'mealAmount', label: 'ค่าอาหาร', type: 'number', required: true }, { key: 'note', label: 'หมายเหตุ' }] }
+    ,organizations: { title: 'เพิ่มสถานประกอบการ', description: 'ระบบจะตรวจรายการซ้ำก่อนสร้าง', endpoint: '/api/organizations', fields: [{ key: 'nameTh', label: 'ชื่อภาษาไทย', required: true }, { key: 'nameEn', label: 'ชื่อภาษาอังกฤษ' }, { key: 'taxId', label: 'เลขประจำตัวผู้เสียภาษี' }] }
   }
   return configs[resource.value]
 })
@@ -65,6 +70,7 @@ function requestBody(evidenceFileVersionIds: string[] = []): Record<string, unkn
     visitId: form.visitId.trim(), round: Number(form.round), travelDays: Number(form.travelDays), travelAmount: Number(form.travelAmount),
     lodgingAmount: Number(form.lodgingAmount), mealAmount: Number(form.mealAmount), ...(form.note.trim() ? { note: form.note.trim() } : {})
   }
+  if (resource.value === 'organizations') return { nameTh: form.nameTh.trim(), ...(form.nameEn.trim() ? { nameEn: form.nameEn.trim() } : {}), ...(form.taxId.trim() ? { taxId: form.taxId.trim() } : {}) }
   return {}
 }
 

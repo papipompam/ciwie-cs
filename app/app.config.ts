@@ -1,12 +1,16 @@
 export default defineAppConfig({
   ui: {
     colors: {
-      primary: 'teal',
-      neutral: 'slate'
+      primary: 'indigo',
+      neutral: 'slate',
+      success: 'emerald',
+      warning: 'amber',
+      error: 'rose',
+      info: 'blue'
     },
     button: {
       slots: {
-        base: 'min-h-11 cursor-pointer justify-center font-medium'
+        base: 'min-h-10 cursor-pointer justify-center rounded-lg font-semibold'
       }
     },
     input: {
@@ -23,4 +27,3 @@ export default defineAppConfig({
     }
   }
 })
-

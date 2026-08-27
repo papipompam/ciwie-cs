@@ -7,7 +7,7 @@ import { prisma } from '../utils/prisma'
 const lookupQuerySchema = z.object({
   resource: z.enum([
     'COOP_TERMS', 'ORGANIZATIONS', 'WORK_SITES', 'CONTACTS', 'LECTURERS',
-    'STUDENT_TERMS', 'EVALUATION_TEMPLATES', 'DOCUMENT_BATCHES', 'DELIVERIES',
+    'STUDENT_TERMS', 'EVALUATION_TEMPLATES', 'DOCUMENT_BATCHES', 'DELIVERIES', 'USERS',
   ]),
   search: z.string().trim().max(100).optional(),
   coopTermId: z.string().uuid().optional(),
@@ -74,6 +74,12 @@ export default defineEventHandler(async (event) => {
     }
 
     staffOnly(actor.role)
+
+    if (query.resource === 'USERS') {
+      if (actor.role !== 'ADMIN') throw new DomainError('FORBIDDEN', 'User lookup is restricted to admins')
+      const rows = await prisma.user.findMany({ where: { status: { in: ['PENDING', 'ACTIVE'] }, ...(search ? { OR: [{ email: { contains: search } }, { studentProfile: { is: { OR: [{ studentCode: { contains: search } }, { firstNameTh: { contains: search } }, { lastNameTh: { contains: search } }] } } }, { lecturerProfile: { is: { OR: [{ firstNameTh: { contains: search } }, { lastNameTh: { contains: search } }] } } }] } : {}) }, include: { studentProfile: true, lecturerProfile: true }, take: 100, orderBy: { email: 'asc' } })
+      return { items: rows.map(row => ({ id: row.id, label: row.studentProfile ? `${row.studentProfile.studentCode} — ${row.studentProfile.firstNameTh} ${row.studentProfile.lastNameTh}` : row.lecturerProfile ? `${row.lecturerProfile.firstNameTh} ${row.lecturerProfile.lastNameTh}` : row.email, description: `${row.role} · ${row.email}` })) }
+    }
 
     if (query.resource === 'LECTURERS') {
       const rows = await prisma.lecturerProfile.findMany({

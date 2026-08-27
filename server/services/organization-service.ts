@@ -45,6 +45,17 @@ export async function createOrganization(db: PrismaClient, actor: SessionActor, 
   }
 }
 
+export async function updateOrganization(db: PrismaClient, actor: SessionActor, id: string, input: OrganizationCreateInput & { reason: string }) {
+  requireRole(actor, 'ADMIN')
+  return await db.$transaction(async (tx) => {
+    const current = await tx.organization.findUnique({ where: { id } })
+    if (!current || !current.isActive) throw new DomainError('NOT_FOUND', 'Organization was not found')
+    const updated = await tx.organization.update({ where: { id }, data: { nameTh: input.nameTh, nameEn: input.nameEn, taxId: input.taxId, normalizedName: normalizeOrganizationName(input.nameTh), updatedById: actor.userId } })
+    await audit(tx, actor.userId, 'ORGANIZATION_UPDATED', id, current, updated, input.reason)
+    return updated
+  })
+}
+
 export async function createWorkSite(db: PrismaClient, actor: SessionActor, input: WorkSiteCreateInput): Promise<{ id: string, contactId?: string }> {
   requireRole(actor, 'STUDENT', 'LECTURER', 'ADMIN')
   const normalizedName = normalizeOrganizationName(input.name)

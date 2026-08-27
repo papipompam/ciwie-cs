@@ -17,6 +17,10 @@ export const paginationSchema = z.object({
   order: z.enum(['asc', 'desc']).optional(),
   status: z.string().trim().max(64).optional(),
   coverage: z.enum(['UNSCHEDULED', 'SCHEDULED', 'OVERDUE', 'MISSING_RESULT', 'COMPLETED']).optional(),
+  coopTermId: idSchema.optional(),
+  organizationId: idSchema.optional(),
+  province: z.string().trim().max(100).optional(),
+  region: z.string().trim().max(100).optional(),
 }).strict().refine(value => Boolean(value.sort) === Boolean(value.order), {
   message: 'sort and order must be provided together',
   path: ['sort'],

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import type { Prisma, PrismaClient } from '@prisma/client'
 import type { SessionActor } from '../../shared/types/api'
 import { DomainError } from '../domain/errors'
@@ -14,6 +15,22 @@ export async function createDocumentRequest(db: PrismaClient, actor: SessionActo
     const request = await tx.documentRequest.create({ data: { studentTermId: application.studentTermId, applicationId: application.id, coopTermId: application.coopTermId, workSiteId: application.workSiteId, createdById: actor.userId, updatedById: actor.userId } })
     await enqueueNotificationEvent(tx, { eventType: 'DOCUMENT_REQUESTED', aggregateType: 'DocumentRequest', aggregateId: request.id, dedupeKey: `DocumentRequest:${request.id}:requested`, payload: { documentRequestId: request.id } })
     return request
+  })
+}
+
+export async function transitionDocumentRequest(db: PrismaClient, actor: SessionActor, id: string, to: 'IN_PROGRESS' | 'READY_TO_SEND' | 'CANCELLED', reason: string) {
+  requireRole(actor, 'LECTURER', 'ADMIN')
+  return await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM document_requests WHERE id = ${id} FOR UPDATE`
+    const current = await tx.documentRequest.findUnique({ where: { id }, include: { coopTerm: { select: { isActive: true } }, batchMember: true } })
+    if (!current) throw new DomainError('NOT_FOUND', 'Document request was not found')
+    if (actor.role === 'LECTURER' && !current.coopTerm.isActive) throw new DomainError('FORBIDDEN', 'Lecturers can update requests only in the active term')
+    const allowed: Record<string, string[]> = { REQUESTED: ['IN_PROGRESS', 'CANCELLED'], IN_PROGRESS: ['READY_TO_SEND', 'CANCELLED'], READY_TO_SEND: ['CANCELLED'], CANCELLED: [] }
+    if (!allowed[current.status]?.includes(to)) throw new DomainError('INVALID_STATE', 'Document request transition is not allowed')
+    if (to === 'CANCELLED' && current.batchMember) throw new DomainError('INVALID_STATE', 'Remove the request from its document batch before cancelling it')
+    const changed = await tx.documentRequest.update({ where: { id }, data: { status: to, updatedById: actor.userId } })
+    await tx.auditLog.create({ data: { actorId: actor.userId, action: 'DOCUMENT_REQUEST_STATUS_CHANGED', entityType: 'DocumentRequest', entityId: id, requestId: randomUUID(), reason, beforeData: { status: current.status } as Prisma.InputJsonValue, afterData: { status: to } as Prisma.InputJsonValue } })
+    return changed
   })
 }
 

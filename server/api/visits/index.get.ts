@@ -40,7 +40,17 @@ export default defineEventHandler(async (event) => {
     }
     const scope: Prisma.SupervisionVisitWhereInput = actor.role === 'ADMIN' ? {} : actor.role === 'LECTURER' ? { lecturers: { some: { lecturerId: actor.lecturerId } } } : { students: { some: { studentTermId: actor.studentTermId } } }
     const status = query.status && visitStatuses.has(query.status) ? query.status as VisitStatus : undefined
-    const where: Prisma.SupervisionVisitWhereInput = { ...scope, ...(status ? { status } : {}), ...(query.search ? { OR: [{ workSite: { name: { contains: query.search } } }, { workSite: { organization: { nameTh: { contains: query.search } } } }, { lecturers: { some: { lecturer: { OR: [{ firstNameTh: { contains: query.search } }, { lastNameTh: { contains: query.search } }] } } } }] } : {}) }
+    const where: Prisma.SupervisionVisitWhereInput = {
+      ...scope,
+      ...(status ? { status } : {}),
+      ...(query.region ? { workSite: { region: query.region } } : {}),
+      ...(query.province ? { workSite: { province: query.province } } : {}),
+      ...(query.search ? { OR: [
+        { workSite: { name: { contains: query.search } } },
+        { workSite: { organization: { nameTh: { contains: query.search } } } },
+        { lecturers: { some: { lecturer: { OR: [{ firstNameTh: { contains: query.search } }, { lastNameTh: { contains: query.search } }] } } } },
+      ] } : {}),
+    }
     const direction = query.order ?? 'asc'
     const orderBy: Prisma.SupervisionVisitOrderByWithRelationInput[] = !query.sort ? [{ visitDate: 'desc' }, { id: 'desc' }]
       : query.sort === 'round' ? [{ round: direction }, { id: 'asc' }]

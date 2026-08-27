@@ -41,11 +41,10 @@ async function openExport(item: Record<string, unknown>) {
     toast.add({ title: 'ดาวน์โหลดไม่สำเร็จ', description: cause instanceof Error ? cause.message : 'โปรดลองอีกครั้ง', color: 'error' })
   }
 }
-
 onMounted(load)
 </script>
 <template>
-  <div><PageHeader title="การแจ้งเตือน" description="เหตุการณ์สำคัญในระบบ โดยอีเมลเป็นช่องทางเสริม" icon="i-lucide-bell" />
+  <div><PageHeader title="การแจ้งเตือน" description="ติดตามข่าวสาร งานที่ต้องดำเนินการ และเหตุการณ์สำคัญจากระบบ" icon="i-lucide-bell" />
     <section class="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
       <div v-if="loading" class="space-y-3 p-5"><div v-for="i in 4" :key="i" class="h-16 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" /></div>
       <div v-else-if="error" class="grid min-h-64 place-items-center p-5 text-center text-rose-700"><div><p>{{ error }}</p><UButton class="mt-4" icon="i-lucide-refresh-cw" label="ลองอีกครั้ง" @click="load" /></div></div>

@@ -5,6 +5,17 @@
 :root {
   color-scheme: light;
   font-family: 'Noto Sans Thai', ui-sans-serif, system-ui, sans-serif;
+  --brand-50: #eef2ff;
+  --brand-100: #e0e7ff;
+  --brand-200: #c7d2fe;
+  --brand-600: #465fff;
+  --brand-700: #3d4ed8;
+  --brand-800: #303fad;
+  --brand-900: #28368a;
+  --surface-warm: #eef2f7;
+  --surface-panel: #ffffff;
+  --line-subtle: #e6eaf2;
+  --shadow-panel: 0 8px 24px rgb(15 23 42 / 5%);
 }
 
 .dark {
@@ -13,12 +24,58 @@
 
 html {
   min-width: 320px;
-  background: var(--ui-bg);
+  background: var(--surface-warm);
+  scroll-behavior: smooth;
 }
 
 body {
   min-height: 100vh;
   color: var(--ui-text);
+  font-variant-numeric: tabular-nums;
+}
+
+@theme inline {
+  --color-brand-50: var(--brand-50);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+}
+
+.app-panel {
+  border-radius: 0.875rem;
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-panel);
+}
+
+.dark .app-panel {
+  border-color: var(--ui-border);
+  background: var(--ui-bg);
+  box-shadow: none;
+}
+
+.admin-navigation a[aria-current='page'] {
+  background: var(--brand-600);
+  color: white;
+}
+
+.admin-navigation a[aria-current='page'] svg,
+.admin-navigation a[aria-current='page'] [class*='i-lucide-'] {
+  color: white !important;
+  background-color: white !important;
+}
+
+.admin-navigation a[aria-current='page'] [class*='i-lucide-']::before {
+  background-color: white !important;
+}
+
+.admin-navigation [data-active='true'] [class*='i-lucide-'],
+.admin-navigation [data-active='true'] [class*='i-lucide-']::before {
+  color: white !important;
+  background-color: white !important;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
 }
 
 *:focus-visible {
@@ -28,4 +85,62 @@ body {
 
 button, a, input, select, textarea {
   -webkit-tap-highlight-color: transparent;
+}
+
+input, select, textarea {
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+:where(input:not([type='checkbox']):not([type='radio']):not([type='file']), select, textarea) {
+  border-radius: 0.625rem;
+  color: #1d2939;
+}
+
+:where(input:not([type='checkbox']):not([type='radio']):not([type='file']), select, textarea)::placeholder {
+  color: #98a2b3;
+}
+
+:where(input:not([type='checkbox']):not([type='radio']):not([type='file']), select, textarea):focus {
+  border-color: var(--brand-600);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-600) 14%, transparent);
+  outline: none;
+}
+
+:where(input[aria-invalid='true'], textarea[aria-invalid='true'], select[aria-invalid='true']) {
+  border-color: #f04438;
+}
+
+:where(input[aria-invalid='true'], textarea[aria-invalid='true'], select[aria-invalid='true']):focus {
+  box-shadow: 0 0 0 3px rgb(240 68 56 / 12%);
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--brand-600);
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+button:not(:disabled),
+[role='button']:not([aria-disabled='true']) {
+  cursor: pointer;
+}
+
+::selection {
+  background: var(--brand-200);
+  color: var(--brand-900);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

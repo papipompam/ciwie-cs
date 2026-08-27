@@ -3,17 +3,18 @@ defineProps<{ title: string, description?: string, icon?: string }>()
 </script>
 
 <template>
-  <header class="mb-6 flex flex-wrap items-start justify-between gap-4">
+  <header class="mb-5 flex flex-wrap items-end justify-between gap-4">
     <div class="flex min-w-0 items-start gap-3">
-      <div v-if="icon" class="mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300">
-        <UIcon :name="icon" class="size-6" aria-hidden="true" />
-      </div>
       <div>
-        <h1 class="text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">{{ title }}</h1>
-        <p v-if="description" class="mt-1 max-w-3xl text-sm text-slate-500 dark:text-slate-400">{{ description }}</p>
+        <nav class="mb-1 flex items-center gap-1.5 text-xs text-slate-400" aria-label="เส้นทางนำทาง">
+          <NuxtLink to="/" class="transition hover:text-indigo-600">หน้าหลัก</NuxtLink>
+          <UIcon name="i-lucide-chevron-right" class="size-3" />
+          <span aria-current="page">{{ title }}</span>
+        </nav>
+        <h1 class="text-[1.65rem] font-bold tracking-[-0.02em] text-slate-950 dark:text-white">{{ title }}</h1>
+        <p v-if="description" class="mt-1 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">{{ description }}</p>
       </div>
     </div>
     <div class="flex flex-wrap gap-2"><slot /></div>
   </header>
 </template>
-

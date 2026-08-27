@@ -6,10 +6,19 @@ const commonActions = [
 
 const definitions: Record<string, ListPageDefinition> = {
   students: {
-    title: 'นักศึกษา', description: 'ค้นหา ตรวจสอบประวัติ และนำเข้ารายชื่อนักศึกษา', endpoint: '/api/students', icon: 'i-lucide-users', roles: ['LECTURER', 'ADMIN'], exportable: true, exportKind: 'STUDENT_ROSTER', exportRoles: ['LECTURER', 'ADMIN'],
-    columns: [{ key: 'studentCode', label: 'รหัสนักศึกษา', sortable: true }, { key: 'displayName', label: 'ชื่อ–นามสกุล', sortable: true }, { key: 'coopTerm', label: 'ภาคสหกิจ', sortable: true }, { key: 'status', label: 'สถานะ', sortable: true }],
-    filters: [{ key: 'status', label: 'สถานะ', options: [{ label: 'ใช้งาน', value: 'ACTIVE' }, { label: 'ระงับ', value: 'SUSPENDED' }] }], actions: commonActions,
+    title: 'จัดการข้อมูลนักศึกษา', description: 'ค้นหา ตรวจสอบประวัติ และนำเข้ารายชื่อนักศึกษา', endpoint: '/api/students', icon: 'i-lucide-users', roles: ['LECTURER', 'ADMIN'], exportable: true, exportKind: 'STUDENT_ROSTER', exportRoles: ['LECTURER', 'ADMIN'],
+    columns: [{ key: 'studentCode', label: 'รหัสนักศึกษา', sortable: true }, { key: 'displayName', label: 'ชื่อ–นามสกุล', sortable: true }, { key: 'coopTerm', label: 'รอบสหกิจ', sortable: true }, { key: 'email', label: 'อีเมล' }, { key: 'phone', label: 'เบอร์โทร' }, { key: 'status', label: 'สถานะบัญชี', sortable: true }, { key: 'lastLoginAt', label: 'เข้าใช้งานล่าสุด' }],
+    filters: [{ key: 'status', label: 'สถานะบัญชี', options: [{ label: 'เปิดใช้งานแล้ว', value: 'ACTIVE' }, { label: 'รอเปิดใช้งาน', value: 'PENDING' }, { label: 'ระงับบัญชี', value: 'SUSPENDED' }] }], actions: commonActions,
     primaryAction: { label: 'นำเข้ารายชื่อ', icon: 'i-lucide-file-up' }
+  },
+  organizations: {
+    title: 'สถานประกอบการ', description: 'ตรวจสอบสถานที่ ผู้ติดต่อ รายการซ้ำ และนักศึกษาที่สมัคร', endpoint: '/api/organizations', icon: 'i-lucide-building-2', roles: ['LECTURER', 'ADMIN'],
+    columns: [{ key: 'nameTh', label: 'ชื่อสถานประกอบการ', sortable: true }, { key: 'taxId', label: 'เลขผู้เสียภาษี' }, { key: 'workSiteCount', label: 'จำนวนสาขา' }, { key: 'provinces', label: 'จังหวัด' }, { key: 'regions', label: 'ภูมิภาค' }], actions: commonActions,
+    primaryAction: { label: 'เพิ่มสถานประกอบการ', icon: 'i-lucide-plus', roles: ['ADMIN'] }
+  },
+  lecturers: {
+    title: 'ข้อมูลอาจารย์', description: 'ค้นหาและตรวจสอบบัญชีอาจารย์นิเทศ', endpoint: '/api/lecturers', icon: 'i-lucide-graduation-cap', roles: ['LECTURER', 'ADMIN'],
+    columns: [{ key: 'employeeCode', label: 'รหัสพนักงาน', sortable: true }, { key: 'displayName', label: 'ชื่อ–นามสกุล', sortable: true }, { key: 'email', label: 'อีเมล' }, { key: 'phone', label: 'โทรศัพท์' }, { key: 'status', label: 'สถานะ', sortable: true }]
   },
   applications: {
     title: 'ใบสมัครงาน', description: 'ติดตามสถานะการสมัครและหลักฐาน โดยทุกการแก้สถานะมีประวัติ', endpoint: '/api/applications', icon: 'i-lucide-briefcase-business', roles: ['STUDENT', 'LECTURER', 'ADMIN'],
@@ -55,6 +64,6 @@ const definitions: Record<string, ListPageDefinition> = {
   }
 }
 
-export function useWorkflowDefinition(key: 'students' | 'applications' | 'documents' | 'responses' | 'placements' | 'visits' | 'evaluations' | 'expenses' | 'audit'): ListPageDefinition {
+export function useWorkflowDefinition(key: 'students' | 'organizations' | 'lecturers' | 'applications' | 'documents' | 'responses' | 'placements' | 'visits' | 'evaluations' | 'expenses' | 'audit'): ListPageDefinition {
   return definitions[key]!
 }

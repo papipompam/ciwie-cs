@@ -28,8 +28,12 @@ export default defineEventHandler(async (event) => {
         + (visit.organizationEvaluations.some(evaluation => evaluation.status === 'SUBMITTED') ? 0 : 1), 0)
       return { pendingResponses, assignedVisits, pendingEvaluations }
     }
-    const [students, pendingResponses, recentAudit, placements] = await prisma.$transaction([
+    const [students, organizations, applications, documents, applicationStatuses, pendingResponses, recentAudit, placements] = await prisma.$transaction([
       prisma.studentTermEnrollment.count({ where: { coopTerm: { isActive: true } } }),
+      prisma.organization.count({ where: { isActive: true } }),
+      prisma.application.count({ where: { coopTerm: { isActive: true } } }),
+      prisma.documentRequest.count({ where: { coopTerm: { isActive: true } } }),
+      prisma.application.groupBy({ by: ['status'], where: { coopTerm: { isActive: true } }, orderBy: { status: 'asc' }, _count: { id: true } }),
       prisma.responseForm.count({ where: { status: 'PENDING_REVIEW', batch: { coopTerm: { isActive: true } } } }),
       prisma.auditLog.count({ where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60_000) } } }),
       prisma.placement.findMany({ where: { status: 'ACTIVE', studentTerm: { coopTerm: { isActive: true } } }, select: { currentWorkSiteId: true, studentTerm: { select: { visitStudents: { where: { visit: { status: { notIn: ['CANCELLED', 'POSTPONED'] } } }, select: { visit: { select: { round: true, workSiteId: true } } } } } } } }),
@@ -38,7 +42,9 @@ export default defineEventHandler(async (event) => {
       currentWorkSiteId: placement.currentWorkSiteId,
       visits: placement.studentTerm.visitStudents.map(member => member.visit),
     }), 0)
-    return { students, unscheduled, pendingResponses, recentAudit }
+    const expenseSummary = await prisma.expense.aggregate({ where: { visit: { coopTerm: { isActive: true } } }, _sum: { totalAmount: true } })
+    const statusCount = Object.fromEntries(applicationStatuses.map(item => [item.status, typeof item._count === 'object' ? item._count.id ?? 0 : 0]))
+    return { students, organizations, applications, documents, placements: placements.length, expenses: Number(expenseSummary._sum.totalAmount ?? 0), unscheduled, pendingResponses, recentAudit, submitted: statusCount.SUBMITTED ?? 0, waitingResponse: statusCount.WAITING_RESPONSE ?? 0, interviewPending: statusCount.INTERVIEW_PENDING ?? 0, preliminaryAccepted: statusCount.PRELIMINARY_ACCEPTED ?? 0, rejected: statusCount.REJECTED ?? 0, cancelled: statusCount.CANCELLED ?? 0 }
   } catch (error) {
     return toHttpError(error, correlationId)
   }
