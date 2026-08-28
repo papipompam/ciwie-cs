@@ -191,7 +191,7 @@ Table users {
   normalized_email varchar(320) [not null, unique]
   password_hash varchar(255) [not null]
   role UserRole [not null]
-  status UserStatus [not null, default: PENDING]
+  status UserStatus [not null, default: 'PENDING']
   session_version int [not null, default: 1]
   must_change_password boolean [not null, default: true]
   last_login_at datetime(3)
@@ -207,7 +207,7 @@ Table activation_codes {
   id char(36) [pk, not null]
   user_id char(36) [not null]
   token_hash char(64) [not null, unique]
-  status TokenStatus [not null, default: ACTIVE]
+  status TokenStatus [not null, default: 'ACTIVE']
   expires_at datetime(3) [not null]
   used_at datetime(3)
   revoked_at datetime(3)
@@ -223,7 +223,7 @@ Table password_reset_tokens {
   id char(36) [pk, not null]
   user_id char(36) [not null]
   token_hash char(64) [not null, unique]
-  status TokenStatus [not null, default: ACTIVE]
+  status TokenStatus [not null, default: 'ACTIVE']
   expires_at datetime(3) [not null]
   used_at datetime(3)
   revoked_at datetime(3)
@@ -403,7 +403,7 @@ Table applications {
   work_site_id char(36) [not null]
   contact_id char(36)
   contact_snapshot json
-  status ApplicationStatus [not null, default: SUBMITTED]
+  status ApplicationStatus [not null, default: 'SUBMITTED']
   position_title varchar(255)
   applied_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
   version int [not null, default: 1]
@@ -440,7 +440,7 @@ Table files {
   id char(36) [pk, not null]
   original_filename varchar(255) [not null]
   created_by_id char(36) [not null]
-  visibility FileVisibility [not null, default: PRIVATE]
+  visibility FileVisibility [not null, default: 'PRIVATE']
   created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
   updated_at datetime(3) [not null]
 
@@ -457,8 +457,8 @@ Table file_versions {
   checksum_sha256 char(64) [not null]
   mime_type varchar(255) [not null]
   extension varchar(16) [not null]
-  size_bytes bigint unsigned [not null]
-  scan_status FileScanStatus [not null, default: UPLOADED]
+  size_bytes "bigint unsigned" [not null]
+  scan_status FileScanStatus [not null, default: 'UPLOADED']
   scan_reason varchar(500)
   created_by_id char(36) [not null]
   created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
@@ -475,7 +475,7 @@ Table application_evidence_files {
   id char(36) [pk, not null]
   application_id char(36) [not null]
   file_version_id char(36) [not null]
-  visibility FileVisibility [not null, default: STUDENT_VISIBLE]
+  visibility FileVisibility [not null, default: 'STUDENT_VISIBLE']
   created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
   updated_at datetime(3) [not null]
 
@@ -490,7 +490,7 @@ Table document_requests {
   application_id char(36) [not null]
   coop_term_id char(36) [not null]
   work_site_id char(36) [not null]
-  status DocumentRequestStatus [not null, default: REQUESTED]
+  status DocumentRequestStatus [not null, default: 'REQUESTED']
   requested_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
   created_by_id char(36) [not null]
   updated_by_id char(36) [not null]
@@ -508,7 +508,7 @@ Table document_batches {
   id char(36) [pk, not null]
   coop_term_id char(36) [not null]
   work_site_id char(36) [not null]
-  status DocumentBatchStatus [not null, default: DRAFT]
+  status DocumentBatchStatus [not null, default: 'DRAFT']
   document_type varchar(64) [not null]
   document_no varchar(100)
   document_year int
@@ -579,7 +579,7 @@ Table document_versions {
 Table deliveries {
   id char(36) [pk, not null]
   batch_id char(36) [not null]
-  status DeliveryStatus [not null, default: ASSIGNED]
+  status DeliveryStatus [not null, default: 'ASSIGNED']
   owner_type DeliveryOwnerType [not null]
   owner_user_id char(36) [not null]
   channel varchar(100)
@@ -631,7 +631,7 @@ Table response_forms {
   batch_id char(36) [not null]
   revision int [not null]
   file_version_id char(36) [not null]
-  status ResponseStatus [not null, default: DRAFT]
+  status ResponseStatus [not null, default: 'DRAFT']
   uploaded_by_id char(36) [not null]
   submitted_at datetime(3)
   confirmed_at datetime(3)
@@ -671,7 +671,7 @@ Table placements {
   student_term_id char(36) [not null, unique]
   current_work_site_id char(36) [not null]
   source_response_result_id char(36) [not null, unique]
-  status PlacementStatus [not null, default: ACTIVE]
+  status PlacementStatus [not null, default: 'ACTIVE']
   version int [not null, default: 1]
   confirmed_by_id char(36) [not null]
   confirmed_at datetime(3) [not null]
@@ -705,7 +705,7 @@ Table supervision_visits {
   round VisitRound [not null]
   visit_date date [not null]
   period VisitPeriod [not null]
-  status VisitStatus [not null, default: SCHEDULED]
+  status VisitStatus [not null, default: 'SCHEDULED']
   lock_version int [not null, default: 1]
   created_by_id char(36) [not null]
   updated_by_id char(36) [not null]
@@ -727,7 +727,7 @@ Table visit_students {
   visit_id char(36) [not null]
   student_term_id char(36) [not null]
   coop_term_id char(36) [not null]
-  acknowledgement_status AcknowledgementStatus [not null, default: PENDING]
+  acknowledgement_status AcknowledgementStatus [not null, default: 'PENDING']
   acknowledged_at datetime(3)
   created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
   updated_at datetime(3) [not null]
@@ -743,7 +743,7 @@ Table visit_lecturers {
   id char(36) [pk, not null]
   visit_id char(36) [not null]
   lecturer_id char(36) [not null]
-  acknowledgement_status AcknowledgementStatus [not null, default: PENDING]
+  acknowledgement_status AcknowledgementStatus [not null, default: 'PENDING']
   acknowledged_at datetime(3)
   created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
   updated_at datetime(3) [not null]
@@ -850,7 +850,7 @@ Table internal_notes {
   id char(36) [pk, not null]
   visit_id char(36) [not null]
   author_id char(36) [not null]
-  visibility FileVisibility [not null, default: STAFF_ONLY]
+  visibility FileVisibility [not null, default: 'STAFF_ONLY']
   content text [not null]
   created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
   updated_at datetime(3) [not null]
@@ -897,7 +897,7 @@ Table evaluation_template_versions {
   id char(36) [pk, not null]
   template_id char(36) [not null]
   version int [not null]
-  status TemplateVersionStatus [not null, default: DRAFT]
+  status TemplateVersionStatus [not null, default: 'DRAFT']
   content_hash char(64) [not null]
   published_at datetime(3)
   published_by_id char(36)
@@ -917,8 +917,8 @@ Table evaluation_items {
   label varchar(500) [not null]
   answer_type AnswerType [not null]
   required boolean [not null, default: true]
-  max_score decimal(8, 2)
-  weight decimal(8, 4)
+  max_score "decimal(8, 2)"
+  weight "decimal(8, 4)"
   sort_order int [not null]
   created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
   updated_at datetime(3) [not null]
@@ -934,7 +934,7 @@ Table student_evaluations {
   visit_student_id char(36) [not null]
   template_version_id char(36) [not null]
   template_id char(36) [not null]
-  status EvaluationStatus [not null, default: DRAFT]
+  status EvaluationStatus [not null, default: 'DRAFT']
   version int [not null, default: 1]
   submitted_at datetime(3)
   submitted_by_id char(36)
@@ -954,7 +954,7 @@ Table student_evaluation_answers {
   evaluation_id char(36) [not null]
   item_id char(36) [not null]
   item_snapshot json [not null]
-  score_value decimal(8, 2)
+  score_value "decimal(8, 2)"
   text_value text
   boolean_value boolean
   created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
@@ -985,7 +985,7 @@ Table organization_evaluations {
   visit_id char(36) [not null]
   template_version_id char(36) [not null]
   template_id char(36) [not null]
-  status EvaluationStatus [not null, default: DRAFT]
+  status EvaluationStatus [not null, default: 'DRAFT']
   version int [not null, default: 1]
   submitted_at datetime(3)
   submitted_by_id char(36)
@@ -1005,7 +1005,7 @@ Table organization_evaluation_answers {
   evaluation_id char(36) [not null]
   item_id char(36) [not null]
   item_snapshot json [not null]
-  score_value decimal(8, 2)
+  score_value "decimal(8, 2)"
   text_value text
   boolean_value boolean
   created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
@@ -1037,7 +1037,7 @@ Table import_jobs {
   source_file_version_id char(36) [not null]
   kind varchar(64) [not null]
   source_checksum char(64) [not null]
-  status ImportStatus [not null, default: UPLOADED]
+  status ImportStatus [not null, default: 'UPLOADED']
   total_rows int [not null, default: 0]
   processed_rows int [not null, default: 0]
   failure_reason varchar(1000)
@@ -1076,7 +1076,7 @@ Table export_jobs {
   kind varchar(64) [not null]
   format varchar(16) [not null]
   filter_snapshot json [not null]
-  status ExportStatus [not null, default: PENDING]
+  status ExportStatus [not null, default: 'PENDING']
   file_version_id char(36)
   expires_at datetime(3)
   failure_reason varchar(1000)
@@ -1097,7 +1097,7 @@ Table notifications {
   body varchar(1000) [not null]
   entity_type varchar(100)
   entity_id char(36)
-  status NotificationStatus [not null, default: UNREAD]
+  status NotificationStatus [not null, default: 'UNREAD']
   read_at datetime(3)
   created_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
   updated_at datetime(3) [not null]
@@ -1114,7 +1114,7 @@ Table outbox_messages {
   aggregate_id char(36) [not null]
   dedupe_key varchar(191) [not null, unique]
   payload json [not null]
-  status OutboxStatus [not null, default: PENDING]
+  status OutboxStatus [not null, default: 'PENDING']
   attempts int [not null, default: 0]
   next_attempt_at datetime(3) [not null, default: `CURRENT_TIMESTAMP(3)`]
   processed_at datetime(3)
@@ -1134,7 +1134,7 @@ Table idempotency_records {
   operation varchar(100) [not null]
   idempotency_key varchar(191) [not null]
   request_hash char(64) [not null]
-  status IdempotencyStatus [not null, default: IN_PROGRESS]
+  status IdempotencyStatus [not null, default: 'IN_PROGRESS']
   response_status int
   response_body json
   expires_at datetime(3) [not null]
@@ -1151,11 +1151,11 @@ Table expenses {
   id char(36) [pk, not null]
   visit_id char(36) [not null]
   round VisitRound [not null]
-  travel_days smallint unsigned [not null]
-  travel_amount decimal(12, 2) [not null, default: 0]
-  lodging_amount decimal(12, 2) [not null, default: 0]
-  meal_amount decimal(12, 2) [not null, default: 0]
-  total_amount decimal(12, 2) [not null, default: 0]
+  travel_days "smallint unsigned" [not null]
+  travel_amount "decimal(12, 2)" [not null, default: 0]
+  lodging_amount "decimal(12, 2)" [not null, default: 0]
+  meal_amount "decimal(12, 2)" [not null, default: 0]
+  total_amount "decimal(12, 2)" [not null, default: 0]
   note varchar(1000)
   version int [not null, default: 1]
   created_by_id char(36) [not null]

@@ -49,7 +49,8 @@ function dbType(type, attributes) {
       Float: 'float', Double: 'double', Bit: 'bit', Binary: 'binary', VarBinary: 'varbinary',
       TinyBlob: 'tinyblob', Blob: 'blob', MediumBlob: 'mediumblob', LongBlob: 'longblob', Json: 'json',
     }
-    return `${names[name] ?? name.toLowerCase()}${args ? `(${args})` : ''}`
+    const resolved = `${names[name] ?? name.toLowerCase()}${args ? `(${args})` : ''}`
+    return resolved.includes(' ') ? `"${resolved}"` : resolved
   }
 
   return ({
@@ -63,7 +64,7 @@ function defaultValue(raw, type) {
   if (raw === 'now()') return '`CURRENT_TIMESTAMP(3)`'
   if (raw === 'uuid()' || raw === 'cuid()') return null
   if (/^-?\d+(?:\.\d+)?$/.test(raw) || /^(true|false|null)$/i.test(raw)) return raw
-  if (enumNames.has(type)) return raw
+  if (enumNames.has(type)) return `'${raw}'`
   if (raw.startsWith('dbgenerated(')) return `\`${raw.slice(12, -1).replace(/^"|"$/g, '')}\``
   return `'${raw.replace(/^"|"$/g, '').replaceAll("'", "\\'")}'`
 }
