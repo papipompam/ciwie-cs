@@ -1,0 +1,119 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Prompt", "Noto Sans Thai", "Leelawadee UI", Tahoma, system-ui, sans-serif;
+
+  --color-primary: #f5b32b;
+  --color-primary-hover: #e7a51d;
+  --color-canvas: #ffffff;
+  --color-surface: #f7f7f7;
+  --color-sidebar: #1d1e20;
+  --color-divider: #e5e7e9;
+  --color-ink: #1d1e20;
+  --color-muted: #656a72;
+
+  --color-success: #17834b;
+  --color-success-soft: #eaf7ef;
+  --color-warning: #99620c;
+  --color-warning-soft: #fff6df;
+  --color-danger: #c33232;
+  --color-danger-soft: #fff0f0;
+  --color-info: #2563a9;
+  --color-info-soft: #edf5ff;
+  --color-interview: #7152a3;
+  --color-interview-soft: #f3effb;
+
+  --radius-control: 0.625rem;
+  --radius-panel: 0.875rem;
+  --shadow-panel: 0 1px 2px rgb(29 30 32 / 0.05), 0 8px 24px rgb(29 30 32 / 0.04);
+}
+
+@layer base {
+  html {
+    color: var(--color-ink);
+    background: var(--color-surface);
+    font-family: var(--font-sans);
+  }
+
+  body {
+    min-width: 320px;
+    margin: 0;
+    background: var(--color-surface);
+    font-weight: 300;
+    text-rendering: optimizeLegibility;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  select {
+    min-height: 2.75rem;
+  }
+
+  :is(
+    button,
+    [role="button"],
+    [role="menuitem"],
+    [role="tab"],
+    [role="checkbox"],
+    [role="radio"],
+    a[href],
+    select,
+    summary,
+    input[type="checkbox"],
+    input[type="radio"]
+  ):not(:disabled):not([aria-disabled="true"]):not([data-disabled]) {
+    cursor: pointer;
+  }
+
+  :is(button, [role="button"], [role="menuitem"], select):is(:disabled, [aria-disabled="true"], [data-disabled]) {
+    cursor: not-allowed;
+  }
+
+  :focus-visible {
+    outline: 3px solid rgb(245 179 43 / 0.45);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    color: var(--color-ink);
+    background: rgb(245 179 43 / 0.42);
+  }
+}
+
+@layer components {
+  :is(
+    .mobile-card-list,
+    .divide-y.divide-divider.md\:hidden,
+    .divide-y.divide-divider.sm\:hidden
+  ) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-block: 0.75rem;
+    background: var(--color-surface);
+  }
+
+  :is(
+    .mobile-card-list,
+    .divide-y.divide-divider.md\:hidden,
+    .divide-y.divide-divider.sm\:hidden
+  ) > :where(article, div) {
+    background: var(--color-canvas);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

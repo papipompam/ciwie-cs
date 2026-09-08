@@ -1,0 +1,63 @@
+name: cowier-demo
+
+services:
+  # ==============================================================================
+  # MySQL 8.4 LTS Database Service
+  # ==============================================================================
+  mysql:
+    image: mysql:8.4
+    container_name: cowier-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ciwie_db}
+      MYSQL_USER: ${MYSQL_USER:-ciwie}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-ciwie}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-ciwie_root}
+    ports:
+      - "${MYSQL_PORT:-3307}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u$${MYSQL_USER} -p$${MYSQL_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - cowier-network
+
+  # ==============================================================================
+  # Nuxt 4 Application Service
+  # ==============================================================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cowier-demo-app:local
+    container_name: cowier-app
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: mysql://${MYSQL_USER:-ciwie}:${MYSQL_PASSWORD:-ciwie}@mysql:3306/${MYSQL_DATABASE:-ciwie_db}
+      NUXT_SESSION_PASSWORD: ${NUXT_SESSION_PASSWORD:-change_this_to_at_least_32_characters_long_secret_key}
+      PORT: 3000
+      HOST: 0.0.0.0
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - cowier-network
+
+# ==============================================================================
+# Volumes & Networks
+# ==============================================================================
+volumes:
+  mysql_data:
+    name: cowier-demo_mysql_data
+    driver: local
+
+networks:
+  cowier-network:
+    driver: bridge

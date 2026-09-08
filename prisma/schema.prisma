@@ -1,0 +1,853 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// =============================================================================
+// Enumerations
+// =============================================================================
+
+enum UserRole {
+  STAFF
+  LECTURER
+  STUDENT
+}
+
+enum AccountStatus {
+  FIRST_LOGIN
+  ACTIVE
+  SUSPENDED
+  TERMINATED
+}
+
+enum RecordStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AcademicTerm {
+  FIRST
+  SECOND
+  SUMMER
+  OTHER
+}
+
+enum CoopCycleStatus {
+  DRAFT
+  OPEN_FOR_REQUESTS
+  CLOSED_TO_REQUESTS
+  TRAINING
+  CLOSED
+}
+
+enum CycleEnrollmentStatus {
+  ACTIVE
+  TRANSFERRED_OUT
+  COMPLETED
+  TERMINATED
+}
+
+enum StudentWorkStatus {
+  NOT_STARTED
+  TRAINING
+  COMPLETED
+  TERMINATED
+}
+
+enum CompanyStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+}
+
+enum RegionCode {
+  NORTH
+  NORTHEAST
+  CENTRAL
+  EAST
+  WEST
+  SOUTH
+}
+
+enum TrackedApplicationStatus {
+  SUBMITTED
+  WAITING_RESPONSE
+  RESPONDED
+  WAITING_INTERVIEW
+  ACCEPTED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}
+
+enum PlacementRequestStatus {
+  DRAFT
+  SUBMITTED
+  RETURNED
+  BATCHED
+  WAITING_RESPONSE
+  WAITING_REVIEW
+  CONFIRMED
+  NOT_ACCEPTED
+  CANCELLED
+}
+
+enum LetterBatchStatus {
+  WAITING_RESPONSE
+  WAITING_REVIEW
+  COMPLETED
+  CANCELLED
+}
+
+enum LetterDocumentType {
+  OUTGOING_REQUEST
+  COMPANY_RESPONSE
+}
+
+enum DocumentVersionStatus {
+  ACTIVE
+  RETURNED
+  SUPERSEDED
+  CANCELLED
+}
+
+enum FileValidationStatus {
+  PENDING
+  VALID
+  INVALID
+}
+
+enum SupervisionRound {
+  ROUND_1
+  ROUND_2
+}
+
+enum SupervisionPeriod {
+  MORNING
+  AFTERNOON
+}
+
+enum SupervisionAppointmentStatus {
+  DRAFT
+  PUBLISHED
+  POSTPONED
+  COMPLETED
+  CANCELLED
+}
+
+enum SupervisionParticipantSource {
+  GROUP
+  MANUAL
+}
+
+enum SupervisionParticipantRole {
+  LEAD
+  PARTICIPANT
+}
+
+enum EvaluationStatus {
+  DRAFT
+  SUBMITTED
+}
+
+enum CompanyRecommendation {
+  RECOMMENDED
+  CONDITIONAL
+  FOLLOW_UP
+  NOT_RECOMMENDED
+  SAFETY_RISK
+}
+
+enum NotificationSeverity {
+  INFO
+  WARNING
+  SUCCESS
+  ERROR
+}
+
+enum CalendarEventType {
+  SUPERVISION
+  DOCUMENT
+  DEADLINE
+  EVALUATION
+  GENERAL
+}
+
+// =============================================================================
+// Authentication, accounts, profiles and audit
+// =============================================================================
+
+model User {
+  id                  String        @id @default(cuid()) @db.VarChar(30)
+  username            String        @unique @db.VarChar(100)
+  passwordHash        String        @db.VarChar(255)
+  role                UserRole
+  status              AccountStatus @default(FIRST_LOGIN)
+  recordStatus        RecordStatus  @default(ACTIVE)
+  namePrefix          String        @db.VarChar(50)
+  firstName           String        @db.VarChar(100)
+  lastName            String        @db.VarChar(100)
+  cohortYear          Int?
+  section             String?       @db.VarChar(50)
+  canReviewPlacements Boolean       @default(false)
+  failedLoginCount    Int           @default(0)
+  failedWindowAt      DateTime?     @db.DateTime(3)
+  lockedUntil         DateTime?     @db.DateTime(3)
+  sessionVersion      Int           @default(1)
+  passwordChangedAt   DateTime?     @db.DateTime(3)
+  suspendedAt         DateTime?     @db.DateTime(3)
+  terminatedAt        DateTime?     @db.DateTime(3)
+  lastLoginAt         DateTime?     @db.DateTime(3)
+  createdById         String?       @db.VarChar(30)
+  createdAt           DateTime      @default(now()) @db.DateTime(3)
+  updatedAt           DateTime      @updatedAt @db.DateTime(3)
+
+  createdBy                  User?                            @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdUsers               User[]                           @relation("UserCreatedBy")
+  auditLogs                  AuditLog[]
+  cycleStatusChanges         CoopCycleStatusHistory[]
+  cycleEnrollmentsCreated    CycleEnrollment[]
+  cycleEnrollments           CycleEnrollment[]                @relation("EnrollmentStudent")
+  companiesCreated           Company[]                        @relation("CompanyCreatedBy")
+  placementStatusChanges     PlacementRequestStatusHistory[]
+  placementsConfirmed        PlacementRequest[]               @relation("PlacementConfirmedBy")
+  letterBatchesCreated       LetterBatch[]                    @relation("LetterBatchCreatedBy")
+  letterBatchesIssued        LetterBatch[]                    @relation("LetterBatchIssuedBy")
+  letterDocumentsUploaded    LetterDocumentVersion[]          @relation("LetterDocumentUploadedBy")
+  letterDocumentsReviewed    LetterDocumentVersion[]          @relation("LetterDocumentReviewedBy")
+  supervisionGroupsCreated   SupervisionGroup[]
+  supervisionGroups          SupervisionGroupLecturer[]
+  appointmentsCreated        SupervisionAppointment[]         @relation("AppointmentCreatedBy")
+  appointmentsPublished      SupervisionAppointment[]         @relation("AppointmentPublishedBy")
+  supervisionResultsRecorded SupervisionAppointment[]         @relation("AppointmentResultRecordedBy")
+  appointmentParticipants    SupervisionAppointmentLecturer[]
+  studentEvaluations         StudentEvaluation[]
+  companyEvaluations         CompanyEvaluation[]
+  notificationRecipients     NotificationRecipient[]
+  notificationsCreated       Notification[]
+  calendarEvents             CalendarEvent[]
+
+  @@index([role, status])
+  @@index([recordStatus, firstName, lastName])
+  @@index([cohortYear, section])
+  @@index([createdById])
+  @@map("users")
+}
+
+model AuditLog {
+  id             BigInt   @id @default(autoincrement())
+  actorAccountId String?  @db.VarChar(30)
+  action         String   @db.VarChar(100)
+  entityType     String   @db.VarChar(100)
+  entityId       String   @db.VarChar(100)
+  reason         String?  @db.Text
+  beforeData     Json?
+  afterData      Json?
+  metadata       Json?
+  correlationId  String?  @db.VarChar(100)
+  ipAddress      String?  @db.VarChar(45)
+  userAgent      String?  @db.Text
+  occurredAt     DateTime @default(now()) @db.DateTime(3)
+
+  actor User? @relation(fields: [actorAccountId], references: [id], onDelete: SetNull)
+
+  @@index([action, occurredAt])
+  @@index([entityType, entityId, occurredAt])
+  @@index([actorAccountId, occurredAt])
+  @@index([correlationId])
+  @@map("audit_logs")
+}
+
+// =============================================================================
+// Co-op cycles and student participation
+// =============================================================================
+
+model CoopCycle {
+  id                String          @id @default(cuid()) @db.VarChar(30)
+  code              String          @unique @db.VarChar(50)
+  label             String          @db.VarChar(150)
+  academicYear      Int
+  term              AcademicTerm
+  termLabel         String          @db.VarChar(100)
+  targetCohortYear  Int
+  requestStartDate  DateTime        @db.Date
+  requestEndDate    DateTime        @db.Date
+  trainingStartDate DateTime        @db.Date
+  trainingEndDate   DateTime        @db.Date
+  status            CoopCycleStatus @default(DRAFT)
+  closedAt          DateTime?       @db.DateTime(3)
+  createdAt         DateTime        @default(now()) @db.DateTime(3)
+  updatedAt         DateTime        @updatedAt @db.DateTime(3)
+
+  statusHistory     CoopCycleStatusHistory[]
+  enrollments       CycleEnrollment[]
+  letterBatches     LetterBatch[]
+  supervisionGroups SupervisionGroup[]
+
+  @@unique([academicYear, term, targetCohortYear])
+  @@index([status, requestStartDate, requestEndDate])
+  @@index([trainingStartDate, trainingEndDate])
+  @@map("coop_cycles")
+}
+
+model CoopCycleStatusHistory {
+  id          BigInt           @id @default(autoincrement())
+  cycleId     String           @db.VarChar(30)
+  fromStatus  CoopCycleStatus?
+  toStatus    CoopCycleStatus
+  reason      String           @db.Text
+  changedById String           @db.VarChar(30)
+  changedAt   DateTime         @default(now()) @db.DateTime(3)
+
+  cycle     CoopCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict)
+  changedBy User      @relation(fields: [changedById], references: [id], onDelete: Restrict)
+
+  @@index([cycleId, changedAt])
+  @@index([changedById])
+  @@map("coop_cycle_status_history")
+}
+
+model CycleEnrollment {
+  id                 String                @id @default(cuid()) @db.VarChar(30)
+  cycleId            String                @db.VarChar(30)
+  studentId          String                @db.VarChar(30)
+  cohortYearSnapshot Int
+  sectionSnapshot    String?               @db.VarChar(50)
+  enrollmentStatus   CycleEnrollmentStatus @default(ACTIVE)
+  workStatus         StudentWorkStatus     @default(NOT_STARTED)
+  currentStudentKey  String?               @unique @db.VarChar(30)
+  joinedAt           DateTime              @default(now()) @db.DateTime(3)
+  exitedAt           DateTime?             @db.DateTime(3)
+  exitReason         String?               @db.Text
+  createdById        String                @db.VarChar(30)
+  createdAt          DateTime              @default(now()) @db.DateTime(3)
+  updatedAt          DateTime              @updatedAt @db.DateTime(3)
+
+  cycle               CoopCycle            @relation(fields: [cycleId], references: [id], onDelete: Restrict)
+  student             User                 @relation("EnrollmentStudent", fields: [studentId], references: [id], onDelete: Restrict)
+  createdBy           User                 @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  placementRequests   PlacementRequest[]
+  trackedApplications StudentApplication[]
+
+  @@unique([cycleId, studentId])
+  @@index([cycleId, enrollmentStatus, workStatus])
+  @@index([studentId, enrollmentStatus])
+  @@index([createdById])
+  @@map("cycle_enrollments")
+}
+
+// =============================================================================
+// Company master data and duplicate merging
+// =============================================================================
+
+model Province {
+  id        Int        @id @default(autoincrement())
+  code      String     @unique @db.VarChar(10)
+  nameTh    String     @unique @db.VarChar(100)
+  region    RegionCode
+  createdAt DateTime   @default(now()) @db.DateTime(3)
+  updatedAt DateTime   @updatedAt @db.DateTime(3)
+
+  companySites CompanySite[]
+
+  @@index([region, nameTh])
+  @@map("provinces")
+}
+
+model Company {
+  id            String        @id @default(cuid()) @db.VarChar(30)
+  code          String        @unique @db.VarChar(50)
+  legalName     String        @db.VarChar(255)
+  taxId         String?       @db.VarChar(20)
+  status        CompanyStatus @default(PENDING)
+  createdById   String        @db.VarChar(30)
+  deactivatedAt DateTime?     @db.DateTime(3)
+  createdAt     DateTime      @default(now()) @db.DateTime(3)
+  updatedAt     DateTime      @updatedAt @db.DateTime(3)
+
+  createdBy User          @relation("CompanyCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  sites     CompanySite[]
+
+  @@unique([taxId])
+  @@index([legalName, status])
+  @@index([createdById])
+  @@map("companies")
+}
+
+model CompanySite {
+  id           String       @id @default(cuid()) @db.VarChar(30)
+  companyId    String       @db.VarChar(30)
+  branchName   String       @default("สำนักงานใหญ่") @db.VarChar(150)
+  address      String       @db.Text
+  latitude     Decimal?     @db.Decimal(10, 7)
+  longitude    Decimal?     @db.Decimal(10, 7)
+  provinceId   Int
+  postalCode   String?      @db.VarChar(10)
+  contactName  String?      @db.VarChar(150)
+  contactRole  String?      @db.VarChar(150)
+  contactPhone String?      @db.VarChar(50)
+  contactEmail String?      @db.VarChar(255)
+  recordStatus RecordStatus @default(ACTIVE)
+  createdAt    DateTime     @default(now()) @db.DateTime(3)
+  updatedAt    DateTime     @updatedAt @db.DateTime(3)
+
+  company             Company                   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  province            Province                  @relation(fields: [provinceId], references: [id], onDelete: Restrict)
+  trackedApplications StudentApplication[]
+  placementRequests   PlacementRequest[]
+  letterBatches       LetterBatch[]
+  supervisionGroups   SupervisionGroupCompany[]
+
+  @@unique([companyId, branchName])
+  @@index([provinceId, recordStatus])
+  @@index([branchName])
+  @@map("company_sites")
+}
+
+// =============================================================================
+// Student-managed application tracker
+// =============================================================================
+
+model StudentApplication {
+  id                  String                   @id @default(cuid()) @db.VarChar(30)
+  enrollmentId        String                   @db.VarChar(30)
+  companySiteId       String?                  @db.VarChar(30)
+  companyNameSnapshot String                   @db.VarChar(255)
+  companyLocation     String?                  @db.VarChar(500)
+  latitude            Decimal?                 @db.Decimal(10, 7)
+  longitude           Decimal?                 @db.Decimal(10, 7)
+  provinceSnapshot    String                   @db.VarChar(100)
+  positionTitle       String                   @db.VarChar(150)
+  appliedDate         DateTime                 @db.Date
+  status              TrackedApplicationStatus @default(SUBMITTED)
+  details             String?                  @db.Text
+  responseDate        DateTime?                @db.Date
+  createdAt           DateTime                 @default(now()) @db.DateTime(3)
+  updatedAt           DateTime                 @updatedAt @db.DateTime(3)
+
+  enrollment  CycleEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
+  companySite CompanySite?    @relation(fields: [companySiteId], references: [id], onDelete: SetNull)
+
+  @@index([enrollmentId, appliedDate])
+  @@index([status, provinceSnapshot])
+  @@index([companySiteId])
+  @@index([companyNameSnapshot])
+  @@map("student_applications")
+}
+
+// =============================================================================
+// Placement requests, letter batches, PDF versions and confirmed placements
+// =============================================================================
+
+model PlacementRequest {
+  id                 String                 @id @default(cuid()) @db.VarChar(30)
+  requestNo          String                 @unique @db.VarChar(50)
+  enrollmentId       String                 @db.VarChar(30)
+  companySiteId      String                 @db.VarChar(30)
+  positionTitle      String                 @db.VarChar(150)
+  details            String?                @db.Text
+  recipientName      String                 @db.VarChar(150)
+  recipientRole      String                 @db.VarChar(150)
+  letterAddress      String                 @db.Text
+  status             PlacementRequestStatus @default(DRAFT)
+  activeSlotKey      String?                @unique @db.VarChar(30)
+  confirmedSlotKey   String?                @unique @db.VarChar(30)
+  submittedAt        DateTime?              @db.DateTime(3)
+  returnedAt         DateTime?              @db.DateTime(3)
+  completedAt        DateTime?              @db.DateTime(3)
+  cancelledAt        DateTime?              @db.DateTime(3)
+  cancellationReason String?                @db.Text
+  confirmedPosition  String?                @db.VarChar(150)
+  resultNote         String?                @db.Text
+  confirmedById      String?                @db.VarChar(30)
+  confirmedAt        DateTime?              @db.DateTime(3)
+  createdAt          DateTime               @default(now()) @db.DateTime(3)
+  updatedAt          DateTime               @updatedAt @db.DateTime(3)
+
+  enrollment       CycleEnrollment                 @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
+  companySite      CompanySite                     @relation(fields: [companySiteId], references: [id], onDelete: Restrict)
+  statusHistory    PlacementRequestStatusHistory[]
+  batchMemberships LetterBatchMember[]
+  confirmedBy      User?                           @relation("PlacementConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull)
+  supervisionItems SupervisionAppointmentStudent[]
+  notifications    Notification[]
+
+  @@index([enrollmentId, status])
+  @@index([companySiteId, status])
+  @@index([submittedAt])
+  @@index([confirmedById])
+  @@map("placement_requests")
+}
+
+model PlacementRequestStatusHistory {
+  id          BigInt                  @id @default(autoincrement())
+  requestId   String                  @db.VarChar(30)
+  fromStatus  PlacementRequestStatus?
+  toStatus    PlacementRequestStatus
+  reason      String?                 @db.Text
+  changedById String                  @db.VarChar(30)
+  changedAt   DateTime                @default(now()) @db.DateTime(3)
+
+  request   PlacementRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  changedBy User             @relation(fields: [changedById], references: [id], onDelete: Restrict)
+
+  @@index([requestId, changedAt])
+  @@index([changedById])
+  @@map("placement_request_status_history")
+}
+
+model LetterBatch {
+  id                     String            @id @default(cuid()) @db.VarChar(30)
+  batchNo                String            @unique @db.VarChar(50)
+  cycleId                String            @db.VarChar(30)
+  companySiteId          String            @db.VarChar(30)
+  status                 LetterBatchStatus @default(WAITING_RESPONSE)
+  companyNameSnapshot    String            @db.VarChar(255)
+  branchNameSnapshot     String            @db.VarChar(150)
+  companyAddressSnapshot String            @db.Text
+  recipientNameSnapshot  String            @db.VarChar(150)
+  recipientRoleSnapshot  String            @db.VarChar(150)
+  letterAddressSnapshot  String            @db.Text
+  letterDate             DateTime?         @db.Date
+  issuedAt               DateTime?         @db.DateTime(3)
+  publishedAt            DateTime?         @db.DateTime(3)
+  cancelledAt            DateTime?         @db.DateTime(3)
+  cancellationReason     String?           @db.Text
+  createdById            String            @db.VarChar(30)
+  issuedById             String?           @db.VarChar(30)
+  createdAt              DateTime          @default(now()) @db.DateTime(3)
+  updatedAt              DateTime          @updatedAt @db.DateTime(3)
+
+  cycle         CoopCycle               @relation(fields: [cycleId], references: [id], onDelete: Restrict)
+  companySite   CompanySite             @relation(fields: [companySiteId], references: [id], onDelete: Restrict)
+  createdBy     User                    @relation("LetterBatchCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  issuedBy      User?                   @relation("LetterBatchIssuedBy", fields: [issuedById], references: [id], onDelete: SetNull)
+  members       LetterBatchMember[]
+  documents     LetterDocumentVersion[]
+  notifications Notification[]
+
+  @@index([cycleId, status])
+  @@index([companySiteId, status])
+  @@index([createdById])
+  @@index([issuedById])
+  @@map("letter_batches")
+}
+
+model LetterBatchMember {
+  id                  String    @id @default(cuid()) @db.VarChar(30)
+  batchId             String    @db.VarChar(30)
+  requestId           String    @db.VarChar(30)
+  activeMembershipKey String?   @unique @db.VarChar(30)
+  studentCodeSnapshot String    @db.VarChar(50)
+  namePrefixSnapshot  String    @db.VarChar(50)
+  firstNameSnapshot   String    @db.VarChar(100)
+  lastNameSnapshot    String    @db.VarChar(100)
+  positionSnapshot    String    @db.VarChar(150)
+  addedAt             DateTime  @default(now()) @db.DateTime(3)
+  removedAt           DateTime? @db.DateTime(3)
+  lockedAt            DateTime? @db.DateTime(3)
+
+  batch   LetterBatch      @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  request PlacementRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+
+  @@unique([batchId, requestId])
+  @@index([requestId, removedAt])
+  @@index([batchId, removedAt])
+  @@map("letter_batch_members")
+}
+
+model LetterDocumentVersion {
+  id                String                @id @default(cuid()) @db.VarChar(30)
+  batchId           String                @db.VarChar(30)
+  documentType      LetterDocumentType
+  versionNumber     Int
+  status            DocumentVersionStatus @default(ACTIVE)
+  storageKey        String                @unique @db.VarChar(500)
+  originalFileName  String                @db.VarChar(255)
+  mimeType          String                @db.VarChar(100)
+  detectedMimeType  String?               @db.VarChar(100)
+  sizeBytes         BigInt
+  sha256            String                @db.Char(64)
+  validationStatus  FileValidationStatus  @default(PENDING)
+  validationError   String?               @db.Text
+  validatedAt       DateTime?             @db.DateTime(3)
+  uploadedById      String                @db.VarChar(30)
+  uploadedAt        DateTime              @default(now()) @db.DateTime(3)
+  replacementReason String?               @db.Text
+  reviewedById      String?               @db.VarChar(30)
+  reviewedAt        DateTime?             @db.DateTime(3)
+  reviewNote        String?               @db.Text
+
+  batch      LetterBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  uploadedBy User        @relation("LetterDocumentUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+  reviewedBy User?       @relation("LetterDocumentReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@unique([batchId, documentType, versionNumber])
+  @@index([batchId, documentType, status])
+  @@index([sha256])
+  @@index([uploadedById])
+  @@index([reviewedById])
+  @@map("letter_document_versions")
+}
+
+// =============================================================================
+// Supervision groups, schedules, participants and result
+// =============================================================================
+
+model SupervisionGroup {
+  id          String           @id @default(cuid()) @db.VarChar(30)
+  code        String           @unique @db.VarChar(50)
+  cycleId     String           @db.VarChar(30)
+  round       SupervisionRound
+  name        String           @db.VarChar(150)
+  createdById String           @db.VarChar(30)
+  createdAt   DateTime         @default(now()) @db.DateTime(3)
+  updatedAt   DateTime         @updatedAt @db.DateTime(3)
+
+  cycle     CoopCycle                  @relation(fields: [cycleId], references: [id], onDelete: Restrict)
+  createdBy User                       @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  lecturers SupervisionGroupLecturer[]
+  companies SupervisionGroupCompany[]
+
+  @@unique([id, cycleId, round])
+  @@unique([cycleId, round, name])
+  @@index([cycleId, round])
+  @@index([createdById])
+  @@map("supervision_groups")
+}
+
+model SupervisionGroupLecturer {
+  id         String           @id @default(cuid()) @db.VarChar(30)
+  groupId    String           @db.VarChar(30)
+  cycleId    String           @db.VarChar(30)
+  round      SupervisionRound
+  lecturerId String           @db.VarChar(30)
+  assignedAt DateTime         @default(now()) @db.DateTime(3)
+
+  group    SupervisionGroup @relation(fields: [groupId, cycleId, round], references: [id, cycleId, round], onDelete: Restrict)
+  lecturer User             @relation(fields: [lecturerId], references: [id], onDelete: Restrict)
+
+  @@unique([cycleId, round, lecturerId])
+  @@index([lecturerId])
+  @@map("supervision_group_lecturers")
+}
+
+model SupervisionGroupCompany {
+  id            String           @id @default(cuid()) @db.VarChar(30)
+  groupId       String           @db.VarChar(30)
+  cycleId       String           @db.VarChar(30)
+  round         SupervisionRound
+  companySiteId String           @db.VarChar(30)
+  assignedAt    DateTime         @default(now()) @db.DateTime(3)
+
+  group        SupervisionGroup         @relation(fields: [groupId, cycleId, round], references: [id, cycleId, round], onDelete: Restrict)
+  companySite  CompanySite              @relation(fields: [companySiteId], references: [id], onDelete: Restrict)
+  appointments SupervisionAppointment[]
+
+  @@unique([cycleId, round, companySiteId])
+  @@index([companySiteId])
+  @@map("supervision_group_companies")
+}
+
+model SupervisionAppointment {
+  id                  String                       @id @default(cuid()) @db.VarChar(30)
+  appointmentNo       String                       @unique @db.VarChar(50)
+  groupCompanyId      String                       @db.VarChar(30)
+  scheduledDate       DateTime?                    @db.Date
+  period              SupervisionPeriod?
+  status              SupervisionAppointmentStatus @default(DRAFT)
+  splitReason         String?                      @db.Text
+  postponementReason  String?                      @db.Text
+  cancellationReason  String?                      @db.Text
+  publishedAt         DateTime?                    @db.DateTime(3)
+  completedAt         DateTime?                    @db.DateTime(3)
+  lockedAt            DateTime?                    @db.DateTime(3)
+  resultSummary       String?                      @db.LongText
+  resultIssues        String?                      @db.LongText
+  resultSuggestions   String?                      @db.LongText
+  companyRequirements String?                      @db.LongText
+  resultRecordedById  String?                      @db.VarChar(30)
+  resultRecordedAt    DateTime?                    @db.DateTime(3)
+  createdById         String                       @db.VarChar(30)
+  publishedById       String?                      @db.VarChar(30)
+  createdAt           DateTime                     @default(now()) @db.DateTime(3)
+  updatedAt           DateTime                     @updatedAt @db.DateTime(3)
+
+  groupCompany      SupervisionGroupCompany          @relation(fields: [groupCompanyId], references: [id], onDelete: Restrict)
+  createdBy         User                             @relation("AppointmentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  publishedBy       User?                            @relation("AppointmentPublishedBy", fields: [publishedById], references: [id], onDelete: SetNull)
+  resultRecordedBy  User?                            @relation("AppointmentResultRecordedBy", fields: [resultRecordedById], references: [id], onDelete: SetNull)
+  lecturers         SupervisionAppointmentLecturer[]
+  students          SupervisionAppointmentStudent[]
+  companyEvaluation CompanyEvaluation?
+  notifications     Notification[]
+
+  @@index([groupCompanyId, status])
+  @@index([scheduledDate, period])
+  @@index([createdById])
+  @@index([publishedById])
+  @@index([resultRecordedById])
+  @@map("supervision_appointments")
+}
+
+model SupervisionAppointmentLecturer {
+  id            String                       @id @default(cuid()) @db.VarChar(30)
+  appointmentId String                       @db.VarChar(30)
+  lecturerId    String                       @db.VarChar(30)
+  source        SupervisionParticipantSource
+  role          SupervisionParticipantRole   @default(PARTICIPANT)
+  isActual      Boolean                      @default(false)
+  addedAt       DateTime                     @default(now()) @db.DateTime(3)
+  confirmedAt   DateTime?                    @db.DateTime(3)
+
+  appointment SupervisionAppointment @relation(fields: [appointmentId], references: [id], onDelete: Restrict)
+  lecturer    User                   @relation(fields: [lecturerId], references: [id], onDelete: Restrict)
+
+  @@unique([appointmentId, lecturerId])
+  @@index([lecturerId])
+  @@map("supervision_appointment_lecturers")
+}
+
+model SupervisionAppointmentStudent {
+  id                 String   @id @default(cuid()) @db.VarChar(30)
+  appointmentId      String   @db.VarChar(30)
+  placementRequestId String   @db.VarChar(30)
+  assignedAt         DateTime @default(now()) @db.DateTime(3)
+
+  appointment        SupervisionAppointment @relation(fields: [appointmentId], references: [id], onDelete: Restrict)
+  placementRequest   PlacementRequest       @relation(fields: [placementRequestId], references: [id], onDelete: Restrict)
+  studentEvaluations StudentEvaluation[]
+
+  @@unique([appointmentId, placementRequestId])
+  @@index([placementRequestId])
+  @@map("supervision_appointment_students")
+}
+
+// =============================================================================
+// Fixed evaluation forms used by the internal system
+// Score domain: null = unanswered, 0 = not applicable, 1..5 = rating.
+// =============================================================================
+
+model StudentEvaluation {
+  id                   String           @id @default(cuid()) @db.VarChar(30)
+  appointmentStudentId String           @db.VarChar(30)
+  evaluatorLecturerId  String           @db.VarChar(30)
+  rubricVersion        Int              @default(1)
+  status               EvaluationStatus @default(DRAFT)
+  responsibilityScore  Int?             @db.UnsignedTinyInt
+  disciplineScore      Int?             @db.UnsignedTinyInt
+  communicationScore   Int?             @db.UnsignedTinyInt
+  knowledgeScore       Int?             @db.UnsignedTinyInt
+  workQualityScore     Int?             @db.UnsignedTinyInt
+  problemSolvingScore  Int?             @db.UnsignedTinyInt
+  safetyScore          Int?             @db.UnsignedTinyInt
+  strengths            String?          @db.LongText
+  issues               String?          @db.LongText
+  suggestions          String?          @db.LongText
+  nextFollowUp         String?          @db.LongText
+  submittedAt          DateTime?        @db.DateTime(3)
+  createdAt            DateTime         @default(now()) @db.DateTime(3)
+  updatedAt            DateTime         @updatedAt @db.DateTime(3)
+
+  appointmentStudent SupervisionAppointmentStudent @relation(fields: [appointmentStudentId], references: [id], onDelete: Restrict)
+  evaluator          User                          @relation(fields: [evaluatorLecturerId], references: [id], onDelete: Restrict)
+
+  @@unique([appointmentStudentId, evaluatorLecturerId])
+  @@index([evaluatorLecturerId, status])
+  @@map("student_evaluations")
+}
+
+model CompanyEvaluation {
+  id                          String                 @id @default(cuid()) @db.VarChar(30)
+  appointmentId               String                 @unique @db.VarChar(30)
+  evaluatorLecturerId         String                 @db.VarChar(30)
+  rubricVersion               Int                    @default(1)
+  status                      EvaluationStatus       @default(DRAFT)
+  workRelevanceScore          Int?                   @db.UnsignedTinyInt
+  workChallengeScore          Int?                   @db.UnsignedTinyInt
+  supervisorReadinessScore    Int?                   @db.UnsignedTinyInt
+  studentSupportScore         Int?                   @db.UnsignedTinyInt
+  environmentSafetyScore      Int?                   @db.UnsignedTinyInt
+  resourceReadinessScore      Int?                   @db.UnsignedTinyInt
+  universityCoordinationScore Int?                   @db.UnsignedTinyInt
+  recommendation              CompanyRecommendation?
+  observations                String?                @db.LongText
+  issues                      String?                @db.LongText
+  suggestions                 String?                @db.LongText
+  submittedAt                 DateTime?              @db.DateTime(3)
+  createdAt                   DateTime               @default(now()) @db.DateTime(3)
+  updatedAt                   DateTime               @updatedAt @db.DateTime(3)
+
+  appointment SupervisionAppointment @relation(fields: [appointmentId], references: [id], onDelete: Restrict)
+  evaluator   User                   @relation(fields: [evaluatorLecturerId], references: [id], onDelete: Restrict)
+
+  @@index([evaluatorLecturerId, status])
+  @@map("company_evaluations")
+}
+
+// =============================================================================
+// In-app notifications and user-created calendar events
+// =============================================================================
+
+model Notification {
+  id                 String               @id @default(cuid()) @db.VarChar(30)
+  type               String               @db.VarChar(100)
+  severity           NotificationSeverity @default(INFO)
+  title              String               @db.VarChar(255)
+  body               String               @db.Text
+  deepLink           String?              @db.VarChar(500)
+  placementRequestId String?              @db.VarChar(30)
+  letterBatchId      String?              @db.VarChar(30)
+  appointmentId      String?              @db.VarChar(30)
+  createdById        String?              @db.VarChar(30)
+  createdAt          DateTime             @default(now()) @db.DateTime(3)
+
+  placementRequest PlacementRequest?       @relation(fields: [placementRequestId], references: [id], onDelete: SetNull)
+  letterBatch      LetterBatch?            @relation(fields: [letterBatchId], references: [id], onDelete: SetNull)
+  appointment      SupervisionAppointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  createdBy        User?                   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  recipients       NotificationRecipient[]
+
+  @@index([placementRequestId])
+  @@index([letterBatchId])
+  @@index([appointmentId])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model NotificationRecipient {
+  id             String    @id @default(cuid()) @db.VarChar(30)
+  notificationId String    @db.VarChar(30)
+  accountId      String    @db.VarChar(30)
+  deliveredAt    DateTime  @default(now()) @db.DateTime(3)
+  readAt         DateTime? @db.DateTime(3)
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  account      User         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, accountId])
+  @@index([accountId, readAt, deliveredAt])
+  @@map("notification_recipients")
+}
+
+model CalendarEvent {
+  id             String            @id @default(cuid()) @db.VarChar(30)
+  eventType      CalendarEventType
+  title          String            @db.VarChar(255)
+  description    String?           @db.Text
+  startsAt       DateTime          @db.DateTime(3)
+  endsAt         DateTime?         @db.DateTime(3)
+  isAllDay       Boolean           @default(false)
+  ownerAccountId String            @db.VarChar(30)
+  createdAt      DateTime          @default(now()) @db.DateTime(3)
+  updatedAt      DateTime          @updatedAt @db.DateTime(3)
+
+  owner User @relation(fields: [ownerAccountId], references: [id], onDelete: Cascade)
+
+  @@index([startsAt, endsAt])
+  @@index([ownerAccountId, startsAt])
+  @@map("calendar_events")
+}

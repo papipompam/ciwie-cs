@@ -1,0 +1,38 @@
+# Version control
+.git
+.gitignore
+
+# Dependencies & Package Managers
+node_modules
+.pnpm-store
+
+# Nuxt build & output
+.nuxt
+.output
+.data
+.nitro
+.cache
+dist
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Logs & runtime
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+# OS & Editor
+.DS_Store
+.idea
+.vscode
+.fleet
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
