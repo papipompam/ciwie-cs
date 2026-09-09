@@ -1,3 +1,6 @@
+import { peopleResponseSchema, personRecordSchema } from '#shared/people'
+import { requestAwareFetch } from '../utils/requestAwareFetch'
+
 export type PersonType = 'student' | 'lecturer'
 export const personPrefixValues = ['นาย', 'นาง', 'นางสาว', 'อาจารย์', 'ดร.', 'ผศ.', 'ผศ.ดร.', 'รศ.', 'รศ.ดร.', 'ศ.', 'ศ.ดร.'] as const
 export type PersonPrefix = typeof personPrefixValues[number]
@@ -16,10 +19,12 @@ export interface PersonActivity {
 
 export interface PersonRecord {
   id: string
+  accountId?: string
   type: PersonType
   prefix: PersonPrefix
   firstName: string
   lastName: string
+  gender?: 'male' | 'female'
   recordStatus: PersonRecordStatus
   accountStatus: AccountStatus
   cycle?: string
@@ -33,6 +38,7 @@ export interface PersonInput {
   prefix: PersonPrefix
   firstName: string
   lastName: string
+  gender?: 'male' | 'female'
   cycle?: string
   section?: StudentSection
 }
@@ -168,6 +174,7 @@ const initialPeople: PersonRecord[] = [
     prefix: 'ผศ.ดร.',
     firstName: 'สมชาย',
     lastName: 'ใจมั่น',
+    gender: 'male',
     recordStatus: 'active',
     accountStatus: 'active',
     activities: [{ id: 'ACT-005', action: 'เข้าสู่ระบบสำเร็จ', detail: 'เข้าสู่ระบบด้วยบัญชีอาจารย์', actor: 'ผศ.ดร.สมชาย ใจมั่น', occurredAt: '2026-08-30T07:55:00+07:00' }],
@@ -178,6 +185,7 @@ const initialPeople: PersonRecord[] = [
     prefix: 'อาจารย์',
     firstName: 'อรทัย',
     lastName: 'บุญช่วย',
+    gender: 'female',
     recordStatus: 'active',
     accountStatus: 'suspended',
     activities: [{ id: 'ACT-006', action: 'ระงับบัญชีชั่วคราว', detail: 'ระงับการสร้าง Session ใหม่', actor: 'นางสาวพิมพ์ชนก ใจดี', occurredAt: '2026-08-27T16:10:00+07:00' }],
@@ -188,6 +196,7 @@ const initialPeople: PersonRecord[] = [
     prefix: 'ดร.',
     firstName: 'กมลชนก',
     lastName: 'ศรีสวัสดิ์',
+    gender: 'female',
     recordStatus: 'active',
     accountStatus: 'active',
     activities: [{ id: 'ACT-008', action: 'สร้างข้อมูลและบัญชี', detail: 'บัญชีอาจารย์พร้อมใช้งาน', actor: 'นางสาวพิมพ์ชนก ใจดี', occurredAt: '2026-08-20T10:00:00+07:00' }],
@@ -198,6 +207,7 @@ const initialPeople: PersonRecord[] = [
     prefix: 'อาจารย์',
     firstName: 'วรัญญา',
     lastName: 'ทองใบ',
+    gender: 'female',
     recordStatus: 'active',
     accountStatus: 'active',
     activities: [{ id: 'ACT-009', action: 'สร้างข้อมูลและบัญชี', detail: 'บัญชีอาจารย์พร้อมใช้งาน', actor: 'นางสาวพิมพ์ชนก ใจดี', occurredAt: '2026-08-18T13:45:00+07:00' }],
@@ -236,6 +246,7 @@ export const personPrefixOptions: Record<PersonType, Array<{ value: PersonPrefix
 }
 
 export const getPersonFullName = (person: Pick<PersonRecord, 'prefix' | 'firstName' | 'lastName'>) => `${person.prefix}${person.firstName} ${person.lastName}`
+export const getPersonAccountId = (person: Pick<PersonRecord, 'id' | 'accountId'>) => person.accountId ?? person.id
 
 export const accountStatusMeta: Record<AccountStatus, { label: string, tone: 'neutral' | 'success' | 'warning' | 'danger' }> = {
   'first-login': { label: 'รอเข้าสู่ระบบครั้งแรก', tone: 'warning' },
@@ -258,10 +269,10 @@ export const studentApplicationStatusMeta: Record<StudentApplicationStatus, { la
 }
 
 export const usePeopleDirectory = () => {
-  const people = useState<PersonRecord[]>('people-directory-v2', cloneInitialPeople)
+  const people = useState<PersonRecord[]>('people-directory-v2', () => import.meta.dev ? cloneInitialPeople() : [])
   const { scenario, recordEvent } = useScenario()
 
-  const findPerson = (type: PersonType, id: string) => people.value.find(person => person.type === type && person.id === id)
+  const findPerson = (type: PersonType, id: string) => people.value.find(person => person.type === type && (person.id === id || person.accountId === id))
   const getStudentApplicationHistory = (id: string) => applicationHistory[id] || []
 
   const addActivity = (person: PersonRecord, action: string, detail: string) => {
@@ -350,6 +361,40 @@ export const usePeopleDirectory = () => {
     return { created, updated }
   }
 
+  const loadPersistedPeople = async (type: PersonType) => {
+    const { people: records } = peopleResponseSchema.parse(await requestAwareFetch('/api/people', { query: { type } }))
+    people.value = [...people.value.filter(person => person.type !== type), ...records]
+    return records
+  }
+
+  const persistCreatePerson = async (type: PersonType, input: PersonInput) => {
+    const person = personRecordSchema.parse(await requestAwareFetch('/api/staff/people', { method: 'POST', body: { type, ...input } }))
+    people.value.unshift(person)
+    return person
+  }
+
+  const persistUpdatePerson = async (person: PersonRecord, input: PersonInput) => {
+    const updated = personRecordSchema.parse(await requestAwareFetch(`/api/staff/people/${encodeURIComponent(person.id)}`, { method: 'PATCH', body: input }))
+    Object.assign(person, updated)
+    return person
+  }
+
+  const persistAccountAction = async (
+    person: PersonRecord,
+    body: { action: 'suspend' | 'activate' | 'terminate' | 'restore' }
+      | { action: 'reset-password', temporaryPassword: string },
+  ) => {
+    const updated = personRecordSchema.parse(await requestAwareFetch(`/api/staff/people/${encodeURIComponent(person.id)}`, { method: 'PATCH', body }))
+    Object.assign(person, updated)
+    return person
+  }
+
+  const persistLecturerStudentName = async (person: PersonRecord, input: Pick<PersonInput, 'prefix' | 'firstName' | 'lastName'>) => {
+    const updated = personRecordSchema.parse(await requestAwareFetch(`/api/people/${encodeURIComponent(person.id)}`, { method: 'PATCH', body: input }))
+    Object.assign(person, updated)
+    return person
+  }
+
   return {
     people,
     findPerson,
@@ -362,5 +407,10 @@ export const usePeopleDirectory = () => {
     restorePerson,
     resetPassword,
     importPeople,
+    loadPersistedPeople,
+    persistCreatePerson,
+    persistUpdatePerson,
+    persistAccountAction,
+    persistLecturerStudentName,
   }
 }

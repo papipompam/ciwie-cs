@@ -5,11 +5,16 @@ definePageMeta({ title: 'การแจ้งเตือน' })
 useHead({ title: 'การแจ้งเตือน' })
 
 const { scenario } = useScenario()
-const { roleNotifications, unreadCount, markAllAsRead, openNotification } = useNotifications()
-const effectiveViewState = computed(() => scenario.value.forceError ? 'error' : scenario.value.viewState)
-const retry = () => {
+const { roleNotifications, unreadCount, fetchStatus, fetchError, refreshNotifications, markAllAsRead, openNotification } = useNotifications()
+const effectiveViewState = computed(() => {
+  if (scenario.value.forceError || fetchError.value) return 'error'
+  if (scenario.value.viewState === 'loading' || fetchStatus.value === 'pending') return 'loading'
+  return scenario.value.viewState
+})
+const retry = async () => {
   scenario.value.forceError = false
   scenario.value.viewState = 'data'
+  await refreshNotifications()
 }
 const formatDateTime = (value: string) => new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 </script>

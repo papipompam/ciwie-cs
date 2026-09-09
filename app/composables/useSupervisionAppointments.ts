@@ -1,4 +1,9 @@
 import type { SupervisionRound } from './useSupervisionGroups'
+import {
+  supervisionAppointmentResponseSchema,
+  supervisionAppointmentsResponseSchema,
+} from '#shared/supervision-appointments'
+import { requestAwareFetch } from '../utils/requestAwareFetch'
 
 export type SupervisionPeriod = 'morning' | 'afternoon'
 export type SupervisionAppointmentStatus = 'draft' | 'published' | 'postponed' | 'completed' | 'cancelled'
@@ -26,6 +31,15 @@ export interface SupervisionAppointment {
   status: SupervisionAppointmentStatus
   result: SupervisionResult
   createdAt: string
+  display?: {
+    companyName: string
+    branchName: string
+    address: string
+    province: string
+    groupName: string
+    lecturers: Array<{ id: string, name: string }>
+    students: Array<{ id: string, name: string, position: string }>
+  }
 }
 
 export interface SupervisionAppointmentInput {
@@ -113,7 +127,7 @@ export const supervisionAppointmentStatusMeta: Record<SupervisionAppointmentStat
 }
 
 export const useSupervisionAppointments = () => {
-  const appointments = useState<SupervisionAppointment[]>('supervision-appointments-v1', () => structuredClone(appointmentsSeed))
+  const appointments = useState<SupervisionAppointment[]>('supervision-appointments-v1', () => import.meta.dev ? structuredClone(appointmentsSeed) : [])
   const { recordEvent } = useScenario()
 
   const createAppointment = (input: SupervisionAppointmentInput) => {
@@ -190,5 +204,64 @@ export const useSupervisionAppointments = () => {
     return appointment
   }
 
-  return { appointments, createAppointment, joinAppointment, leaveAppointment, updateAppointment, saveResult, completeAppointment }
+  const mergeAppointment = (appointment: SupervisionAppointment) => {
+    const index = appointments.value.findIndex(item => item.id === appointment.id)
+    if (index === -1) appointments.value.unshift(appointment)
+    else appointments.value[index] = appointment
+    return appointment
+  }
+
+  const loadPersistedAppointments = async (cycleId: string, round: SupervisionRound) => {
+    const response = supervisionAppointmentsResponseSchema.parse(await requestAwareFetch('/api/supervision/appointments', {
+      query: { cycleId, round },
+    }))
+    appointments.value = [
+      ...appointments.value.filter(item => item.cycleId !== cycleId || item.round !== round),
+      ...response.appointments,
+    ]
+    return response.appointments
+  }
+
+  const loadPersistedAppointment = async (appointmentId: string) => {
+    const response = supervisionAppointmentResponseSchema.parse(await requestAwareFetch(`/api/supervision/appointments/${appointmentId}`))
+    return mergeAppointment(response.appointment)
+  }
+
+  const persistSaveResult = async (appointmentId: string, input: Omit<SupervisionResultInput, 'actualLecturerIds'>) => {
+    await requestAwareFetch(`/api/supervision/appointments/${appointmentId}`, {
+      method: 'PATCH', body: { action: 'save-result', ...input },
+    })
+    return saveResult(appointmentId, input)
+  }
+
+  const persistUpdateAppointment = async (appointmentId: string, input: Pick<SupervisionAppointmentInput, 'date' | 'period' | 'lecturerIds'>) => {
+    await requestAwareFetch(`/api/supervision/appointments/${appointmentId}`, {
+      method: 'PATCH', body: { action: 'update-schedule', ...input },
+    })
+    return updateAppointment(appointmentId, input)
+  }
+
+  const persistCompleteAppointment = async (appointmentId: string, input: SupervisionResultInput) => {
+    const response = await requestAwareFetch(`/api/supervision/appointments/${appointmentId}`, {
+      method: 'PATCH', body: { action: 'complete', ...input },
+    }) as { completedAt: string }
+    const appointment = completeAppointment(appointmentId, input)
+    appointment.result.completedAt = response.completedAt
+    return appointment
+  }
+
+  return {
+    appointments,
+    createAppointment,
+    joinAppointment,
+    leaveAppointment,
+    updateAppointment,
+    saveResult,
+    completeAppointment,
+    loadPersistedAppointments,
+    loadPersistedAppointment,
+    persistUpdateAppointment,
+    persistSaveResult,
+    persistCompleteAppointment,
+  }
 }

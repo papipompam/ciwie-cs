@@ -7,11 +7,24 @@ const route = useRoute()
 const { scenario } = useScenario()
 const { people } = usePeopleDirectory()
 const { groups, getCompanies } = useSupervisionGroups()
-const { appointments } = useSupervisionAppointments()
-const currentLecturerId = 'L0012'
+const { currentAccount } = useAuthPrototype()
+const { appointments, loadPersistedAppointment } = useSupervisionAppointments()
+const currentLecturerId = computed(() => currentAccount.value?.id ?? '')
 const appointmentId = computed(() => String(route.params.id))
 const appointment = computed(() => appointments.value.find(item => item.id === appointmentId.value) ?? null)
-const company = computed(() => appointment.value ? getCompanies(appointment.value.cycleId).find(item => item.id === appointment.value?.companyId) ?? null : null)
+const company = computed(() => {
+  if (!appointment.value) return null
+  const stored = getCompanies(appointment.value.cycleId).find(item => item.id === appointment.value?.companyId)
+  if (stored) return stored
+  const display = appointment.value.display
+  return display
+    ? {
+        id: appointment.value.companyId, cycleId: appointment.value.cycleId, name: display.companyName, branch: display.branchName, province: display.province,
+        region: '', address: display.address, contactName: '', contactPhone: '', status: 'active' as const, studentCount: display.students.length,
+        students: display.students.map(student => ({ id: student.id, studentId: student.id, studentName: student.name, prefix: '', firstName: student.name, lastName: '', section: '', position: student.position })),
+      }
+    : null
+})
 const group = computed(() => groups.value.find(item => item.id === appointment.value?.groupId) ?? null)
 const evaluatorIds = computed(() => appointment.value?.result.actualLecturerIds.length ? appointment.value.result.actualLecturerIds : appointment.value?.lecturerIds ?? [])
 const evaluationType = computed(() => route.query.type === 'company' ? 'company' : 'student')
@@ -22,15 +35,28 @@ const students = computed(() => company.value?.students.filter(student => appoin
 const pageTitle = computed(() => evaluationType.value === 'company' ? 'ประเมินสถานประกอบการ' : 'ประเมินนักศึกษา')
 const canManage = computed(() => Boolean(appointment.value?.status === 'completed'
   && selectedStudentValid.value
-  && (evaluationType.value === 'company' ? evaluatorIds.value[0] === currentLecturerId : evaluatorIds.value.includes(currentLecturerId))))
-const effectiveViewState = computed(() => scenario.value.forceError ? 'error' : scenario.value.viewState)
+  && (evaluationType.value === 'company' ? evaluatorIds.value[0] === currentLecturerId.value : evaluatorIds.value.includes(currentLecturerId.value))))
+const appointmentLoading = ref(true)
+const appointmentLoadError = ref(false)
+const effectiveViewState = computed(() => scenario.value.forceError || appointmentLoadError.value
+  ? 'error'
+  : appointmentLoading.value ? 'loading' : scenario.value.viewState)
 const backPath = computed(() => ({ path: '/lecturer/evaluations', query: { type: evaluationType.value } }))
 
 const lecturerName = (id: string) => {
-  const lecturer = people.value.find(person => person.type === 'lecturer' && person.id === id)
+  const lecturer = people.value.find(person => person.type === 'lecturer' && (person.id === id || person.accountId === id))
   return lecturer ? getPersonFullName(lecturer) : id
 }
-const retry = () => { scenario.value.forceError = false; scenario.value.viewState = 'data' }
+const loadAppointment = async () => {
+  appointmentLoading.value = true
+  appointmentLoadError.value = false
+  try { await loadPersistedAppointment(appointmentId.value) }
+  catch { if (!(import.meta.dev && appointment.value)) appointmentLoadError.value = true }
+  finally { appointmentLoading.value = false }
+}
+const retry = () => { scenario.value.forceError = false; scenario.value.viewState = 'data'; void loadAppointment() }
+onMounted(loadAppointment)
+watch(appointmentId, loadAppointment)
 
 watch([appointment, pageTitle], ([value]) => {
   if (value) useHead({ title: `${value.id} · ${pageTitle.value}` })

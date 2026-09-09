@@ -18,7 +18,6 @@ withDefaults(defineProps<{ collapsed?: boolean }>(), { collapsed: false });
 const emit = defineEmits<{ navigate: [] }>();
 const route = useRoute();
 const { scenario } = useScenario();
-const { canAccess } = useLecturerPermissions();
 const hideNavigationScrollbar = computed(() => scenario.value.role === "lecturer" || route.path.startsWith("/lecturer"));
 
 interface NavigationItem {
@@ -79,7 +78,6 @@ const navigationGroups = computed<NavigationGroup[]>(() => [
         {
           label: "งานที่ต้องดำเนินการ",
           items: [
-            ...(canAccess() ? [{ label: "ตรวจคำร้องและผลตอบกลับ", to: "/lecturer/placements", icon: FileCheck2, exact: false }] : []),
             { label: "ตารางนิเทศ", to: "/lecturer/supervision", icon: CalendarDays, exact: false },
             { label: "ประเมินนักศึกษา", to: "/lecturer/evaluations?type=student", icon: ClipboardCheck, exact: false },
             { label: "ประเมินสถานประกอบการ", to: "/lecturer/evaluations?type=company", icon: Building2, exact: false },

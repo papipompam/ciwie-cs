@@ -7,8 +7,7 @@ definePageMeta({ title: 'จัดกลุ่มอาจารย์นิเ�
 useHead({ title: 'จัดกลุ่มอาจารย์นิเทศ' })
 
 const { scenario } = useScenario()
-const { people } = usePeopleDirectory()
-const { placements, groups, getCompanies, getGroupCompanies, getUnassignedCompanies } = useSupervisionGroups()
+const { placements, groups, supervisionLecturers, getCompanies, getGroupCompanies, getUnassignedCompanies, loadPersistedGroups } = useSupervisionGroups()
 const { cycleId, round, selectedCycleLabel } = useSupervisionContext()
 const search = ref('')
 const province = ref('all')
@@ -18,7 +17,26 @@ const groupDialogOpen = ref(false)
 const selectedGroup = ref<SupervisionGroup | null>(null)
 const companyDialogOpen = ref(false)
 const selectedCompany = ref<SupervisionCompany | null>(null)
-const effectiveViewState = computed(() => scenario.value.forceError ? 'error' : scenario.value.viewState)
+const backendViewState = ref<'loading' | 'error' | 'data'>('loading')
+const effectiveViewState = computed(() => scenario.value.forceError || backendViewState.value === 'error'
+  ? 'error'
+  : scenario.value.viewState === 'empty'
+    ? 'empty'
+    : backendViewState.value)
+
+const load = async () => {
+  backendViewState.value = 'loading'
+  try {
+    await loadPersistedGroups(cycleId.value, round.value)
+    backendViewState.value = 'data'
+  }
+  catch {
+    backendViewState.value = 'error'
+  }
+}
+
+watch([cycleId, round], () => { if (import.meta.client) void load() })
+onMounted(load)
 
 const currentGroups = computed(() => groups.value.filter(group => group.cycleId === cycleId.value && group.round === round.value))
 const unassignedCompanies = computed(() => getUnassignedCompanies(cycleId.value, round.value))
@@ -57,13 +75,13 @@ const resetTable = () => {
   pageSize.value = '10'
   currentPage.value = 1
 }
-const retry = () => {
+const retry = async () => {
   scenario.value.forceError = false
   scenario.value.viewState = 'data'
+  await load()
 }
 const lecturerName = (id: string) => {
-  const lecturer = people.value.find(person => person.type === 'lecturer' && person.id === id)
-  return lecturer ? getPersonFullName(lecturer) : id
+  return supervisionLecturers.value.find(person => person.id === id)?.name ?? id
 }
 const selectedGroupCompanies = computed(() => selectedGroup.value ? getGroupCompanies(selectedGroup.value) : [])
 const selectedGroupStudentCount = computed(() => selectedGroupCompanies.value.reduce((total, company) => total + company.studentCount, 0))
@@ -105,7 +123,7 @@ const openCompanyDialog = (company: SupervisionCompany) => {
             <div class="hidden overflow-x-auto md:block">
               <table class="w-full min-w-[760px] table-fixed border-collapse text-left text-sm">
                 <caption class="sr-only">กลุ่มอาจารย์และสถานประกอบการที่รับผิดชอบ</caption>
-                <thead class="bg-surface text-xs font-semibold tracking-wide text-muted uppercase"><tr><th scope="col" class="w-44 px-5 py-3">กลุ่มอาจารย์</th><th scope="col" class="w-52 px-4 py-3">อาจารย์ในกลุ่ม</th><th scope="col" class="px-4 py-3">สถานประกอบการที่รับผิดชอบ</th><th scope="col" class="w-28 px-4 py-3"><span class="sr-only">ดูข้อมูล</span></th></tr></thead>
+                <thead class="bg-surface text-xs font-semibold tracking-wide text-muted uppercase"><tr><th scope="col" class="w-44 px-5 py-3">กลุ่มอาจารย์</th><th scope="col" class="w-52 px-4 py-3">อาจารย์ในกลุ่ม</th><th scope="col" class="px-4 py-3">สถานประกอบการที่รับผิดชอบ</th><th scope="col" class="w-40 px-4 py-3"><span class="sr-only">จัดการอาจารย์</span></th></tr></thead>
                 <tbody class="divide-y divide-divider">
                   <tr v-for="group in currentGroups" :key="group.id" class="hover:bg-surface/70">
                     <td class="px-5 py-4 align-top"><p class="font-semibold text-ink">{{ group.name }}</p><p class="mt-0.5 text-xs text-muted">{{ group.id }}</p></td>
@@ -118,14 +136,14 @@ const openCompanyDialog = (company: SupervisionCompany) => {
                         </li>
                       </ul>
                     </td>
-                    <td class="px-4 py-4 align-top"><button type="button" class="inline-flex min-h-9 items-center justify-center whitespace-nowrap rounded-control border border-divider bg-canvas px-3 text-xs font-semibold text-ink hover:bg-surface" :aria-label="`ดูข้อมูล ${group.name}`" @click="openGroupDialog(group)">ดูข้อมูล</button></td>
+                    <td class="px-4 py-4 align-top"><button type="button" class="inline-flex min-h-9 items-center justify-center whitespace-nowrap rounded-control border border-divider bg-canvas px-3 text-xs font-semibold text-ink hover:bg-surface" :aria-label="`${group.lecturerIds.length ? 'แก้ไข' : 'เพิ่ม'}อาจารย์ ${group.name}`" @click="openGroupDialog(group)">{{ group.lecturerIds.length ? 'แก้ไขอาจารย์' : 'เพิ่มอาจารย์' }}</button></td>
                   </tr>
                 </tbody>
               </table>
             </div>
             <div class="divide-y divide-divider md:hidden">
               <article v-for="group in currentGroups" :key="group.id" class="p-5">
-                <div class="flex items-start justify-between gap-3"><div><h4 class="font-semibold text-ink">{{ group.name }}</h4><p class="mt-1 text-xs text-muted">{{ group.id }}</p></div><UiButton class="shrink-0" size="sm" variant="secondary" @click="openGroupDialog(group)">ดูข้อมูล</UiButton></div>
+                <div class="flex items-start justify-between gap-3"><div><h4 class="font-semibold text-ink">{{ group.name }}</h4><p class="mt-1 text-xs text-muted">{{ group.id }}</p></div><UiButton class="shrink-0" size="sm" variant="secondary" @click="openGroupDialog(group)">{{ group.lecturerIds.length ? 'แก้ไขอาจารย์' : 'เพิ่มอาจารย์' }}</UiButton></div>
                 <div class="mt-3 space-y-1.5"><p v-if="!group.lecturerIds.length" class="text-sm text-muted">รอเพิ่มอาจารย์</p><p v-for="id in group.lecturerIds" :key="id" class="text-sm text-ink">{{ lecturerName(id) }}</p></div>
                 <div class="mt-3 border-t border-divider pt-3"><p class="text-xs font-semibold text-muted">สถานประกอบการที่รับผิดชอบ</p><ul class="mt-2 space-y-2"><li v-for="company in getGroupCompanies(group)" :key="company.id" class="flex min-w-0 items-start gap-2"><p class="min-w-0 flex-1 text-sm leading-5 text-ink">{{ company.name }} <span class="whitespace-nowrap text-muted">· {{ company.province }}</span></p><UiBadge tone="info" class="shrink-0">{{ company.studentCount }} คน</UiBadge></li></ul></div>
               </article>

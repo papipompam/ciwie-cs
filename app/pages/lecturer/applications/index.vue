@@ -2,6 +2,7 @@
 import { ArrowDown, ArrowUp, BriefcaseBusiness, CheckCircle2, ChevronLeft, ChevronRight, Clock3, RotateCcw, Search, Users, X } from '@lucide/vue'
 import { selectableCoopSemester } from '~/composables/useCoopCycles'
 import type { PersonRecord } from '~/composables/usePeopleDirectory'
+import type { StudentApplication, TrackedApplicationStatus } from '~/composables/useStudentApplications'
 import { getPageCount, paginateItems } from '~/utils/table'
 
 definePageMeta({
@@ -12,8 +13,22 @@ definePageMeta({
 useHead({ title: 'การสมัครสหกิจของนักศึกษา' })
 
 const { scenario } = useScenario()
-const { people } = usePeopleDirectory()
-const { applications, getStudentApplications } = useStudentApplications()
+const { people, loadPersistedPeople } = usePeopleDirectory()
+const { applications, getStudentApplications, updateApplicationStatus } = useStudentApplications()
+const { showToast } = useToast()
+const staffApplicationsEndpoint: string = '/api/staff/student-applications'
+const { data: persistedApplications, status: applicationFetchStatus, error: applicationFetchError, refresh: refreshApplications } = await useFetch<StudentApplication[]>(staffApplicationsEndpoint, { immediate: scenario.value.role === 'staff' })
+watch(persistedApplications, (items) => { if (items && scenario.value.role === 'staff') applications.value = items }, { immediate: true })
+const { status: peopleFetchStatus, error: peopleFetchError, refresh: refreshPeople } = await useAsyncData(
+  'applications-students-directory',
+  () => loadPersistedPeople('student'),
+)
+watch(() => scenario.value.role, (role) => {
+  if (import.meta.client && (role === 'staff' || role === 'lecturer')) {
+    void refreshPeople()
+    if (role === 'staff') void refreshApplications()
+  }
+})
 const { studentCohort, studentSection, studentSemester } = useStudentCohortContext()
 const isStaffView = computed(() => scenario.value.role === 'staff')
 const pageDescription = computed(() => isStaffView.value
@@ -28,12 +43,17 @@ const pageSize = ref('10')
 const currentPage = ref(1)
 const detailOpen = ref(false)
 const selectedStudentId = ref<string | null>(null)
+const decidingApplicationId = ref<string | null>(null)
 
 const students = computed(() => people.value.filter((person): person is PersonRecord => person.type === 'student'))
 const studentFor = (studentId: string) => students.value.find(student => student.id === studentId)
 const selectedStudent = computed(() => selectedStudentId.value ? studentFor(selectedStudentId.value) : undefined)
 const selectedApplications = computed(() => selectedStudentId.value ? getStudentApplications(selectedStudentId.value) : [])
-const effectiveViewState = computed(() => scenario.value.forceError ? 'error' : scenario.value.viewState)
+const effectiveViewState = computed(() => {
+  if (scenario.value.forceError || (isStaffView.value && (applicationFetchError.value || peopleFetchError.value))) return 'error'
+  if (scenario.value.viewState === 'loading' || (isStaffView.value && (applicationFetchStatus.value === 'pending' || peopleFetchStatus.value === 'pending'))) return 'loading'
+  return scenario.value.viewState
+})
 const statusOptions = [
   { value: 'all', label: 'ทุกสถานะ' },
   ...trackedApplicationStatusOptions,
@@ -116,13 +136,28 @@ const resetTable = () => {
   pageSize.value = '10'
   currentPage.value = 1
 }
-const retry = () => {
+const retry = async () => {
   scenario.value.forceError = false
   scenario.value.viewState = 'data'
+  await refreshPeople()
+  if (isStaffView.value) await refreshApplications()
 }
 const toggleDateSort = () => {
   sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
   currentPage.value = 1
+}
+const decideApplication = async (id: string, status: Extract<TrackedApplicationStatus, 'accepted' | 'rejected'>) => {
+  if (!isStaffView.value || decidingApplicationId.value) return
+  decidingApplicationId.value = id
+  try {
+    await updateApplicationStatus(id, status)
+    showToast({ title: status === 'accepted' ? 'บันทึกการตอบรับแล้ว' : 'บันทึกการปฏิเสธแล้ว' })
+  }
+  catch {
+    await refreshApplications()
+    showToast({ title: 'บันทึกผลไม่สำเร็จ', description: 'สถานะอาจเปลี่ยนแล้ว กรุณาตรวจสอบอีกครั้ง' })
+  }
+  finally { decidingApplicationId.value = null }
 }
 const formatDate = (date: string) => new Intl.DateTimeFormat('th-TH', {
   day: 'numeric',
@@ -210,8 +245,8 @@ const formatDate = (date: string) => new Intl.DateTimeFormat('th-TH', {
 
     <UiDialog v-model:open="detailOpen" size="xl" :title="selectedStudent ? `บริษัทที่ ${getPersonFullName(selectedStudent)} สมัคร` : 'รายการสมัครของนักศึกษา'" :description="selectedStudent ? `${selectedStudent.id} · ${selectedStudent.section || 'ยังไม่กำหนดหมู่'} · ${selectedApplications.length} บริษัท` : undefined">
       <div v-if="selectedApplications.length" class="overflow-hidden rounded-panel border border-divider">
-        <div class="hidden overflow-x-auto sm:block"><table class="w-full min-w-[720px] text-left text-sm"><thead class="bg-surface text-xs font-semibold tracking-wide text-muted uppercase"><tr><th class="px-4 py-3">บริษัท / ตำแหน่ง</th><th class="px-4 py-3">จังหวัด</th><th class="px-4 py-3">วันที่สมัคร</th><th class="px-4 py-3">สถานะ</th></tr></thead><tbody class="divide-y divide-divider"><tr v-for="application in selectedApplications" :key="application.id"><td class="px-4 py-4"><p class="font-medium text-ink">{{ application.companyName }}</p><p class="mt-1 text-xs text-muted">{{ application.position }}</p></td><td class="px-4 py-4 text-muted">{{ application.province }}</td><td class="whitespace-nowrap px-4 py-4 text-muted">{{ formatDate(application.appliedAt) }}</td><td class="px-4 py-4"><UiBadge :tone="trackedApplicationStatusMeta[application.status].tone">{{ trackedApplicationStatusMeta[application.status].label }}</UiBadge></td></tr></tbody></table></div>
-        <div class="divide-y divide-divider sm:hidden"><article v-for="application in selectedApplications" :key="application.id" class="p-4"><div class="flex items-start justify-between gap-3"><div><p class="font-medium text-ink">{{ application.companyName }}</p><p class="mt-1 text-sm text-muted">{{ application.position }}</p></div><UiBadge :tone="trackedApplicationStatusMeta[application.status].tone">{{ trackedApplicationStatusMeta[application.status].label }}</UiBadge></div><p class="mt-3 text-xs text-muted">{{ application.province }} · {{ formatDate(application.appliedAt) }}</p></article></div>
+        <div class="hidden overflow-x-auto sm:block"><table class="w-full min-w-[820px] text-left text-sm"><thead class="bg-surface text-xs font-semibold tracking-wide text-muted uppercase"><tr><th class="px-4 py-3">บริษัท / ตำแหน่ง</th><th class="px-4 py-3">จังหวัด</th><th class="px-4 py-3">วันที่สมัคร</th><th class="px-4 py-3">สถานะ</th><th v-if="isStaffView" class="px-4 py-3">ผลจากบริษัท</th></tr></thead><tbody class="divide-y divide-divider"><tr v-for="application in selectedApplications" :key="application.id"><td class="px-4 py-4"><p class="font-medium text-ink">{{ application.companyName }}</p><p class="mt-1 text-xs text-muted">{{ application.position }}</p></td><td class="px-4 py-4 text-muted">{{ application.province }}</td><td class="whitespace-nowrap px-4 py-4 text-muted">{{ formatDate(application.appliedAt) }}</td><td class="px-4 py-4"><UiBadge :tone="trackedApplicationStatusMeta[application.status].tone">{{ trackedApplicationStatusMeta[application.status].label }}</UiBadge></td><td v-if="isStaffView" class="px-4 py-4"><div v-if="!['accepted', 'rejected', 'completed', 'cancelled'].includes(application.status)" class="flex gap-2"><UiButton size="sm" :loading="decidingApplicationId === application.id" @click="decideApplication(application.id, 'accepted')">ตอบรับ</UiButton><UiButton size="sm" variant="secondary" :disabled="Boolean(decidingApplicationId)" @click="decideApplication(application.id, 'rejected')">ปฏิเสธ</UiButton></div><span v-else class="text-xs text-muted">บันทึกผลแล้ว</span></td></tr></tbody></table></div>
+        <div class="divide-y divide-divider sm:hidden"><article v-for="application in selectedApplications" :key="application.id" class="p-4"><div class="flex items-start justify-between gap-3"><div><p class="font-medium text-ink">{{ application.companyName }}</p><p class="mt-1 text-sm text-muted">{{ application.position }}</p></div><UiBadge :tone="trackedApplicationStatusMeta[application.status].tone">{{ trackedApplicationStatusMeta[application.status].label }}</UiBadge></div><p class="mt-3 text-xs text-muted">{{ application.province }} · {{ formatDate(application.appliedAt) }}</p><div v-if="isStaffView && !['accepted', 'rejected', 'completed', 'cancelled'].includes(application.status)" class="mt-4 flex gap-2 border-t border-divider pt-3"><UiButton size="sm" :loading="decidingApplicationId === application.id" @click="decideApplication(application.id, 'accepted')">ตอบรับ</UiButton><UiButton size="sm" variant="secondary" :disabled="Boolean(decidingApplicationId)" @click="decideApplication(application.id, 'rejected')">ปฏิเสธ</UiButton></div></article></div>
       </div>
       <AppEmptyState v-else title="ยังไม่มีบริษัทที่สมัคร" description="นักศึกษารายนี้ยังไม่ได้เพิ่มข้อมูลบริษัทที่สมัครไว้" />
     </UiDialog>

@@ -1,4 +1,6 @@
 import { readonly } from 'vue'
+import { persistedEvaluationBundleSchema } from '#shared/evaluations'
+import { requestAwareFetch } from '../utils/requestAwareFetch'
 
 export type EvaluationRating = '1' | '2' | '3' | '4' | '5'
 export type EvaluationStatus = 'draft' | 'submitted'
@@ -158,6 +160,17 @@ export const useSupervisionEvaluations = () => {
     return cloneStudentEvaluation(evaluation)
   }
 
+  const persistStudentEvaluation = async (appointmentId: string, studentId: string, lecturerId: string, input: StudentEvaluationInput, status: EvaluationStatus) => {
+    requireStudentEvaluator()
+    await requestAwareFetch(`/api/evaluations/students/${appointmentId}/${encodeURIComponent(studentId)}`, {
+      method: 'PUT',
+      body: { status, ...input },
+    })
+    return status === 'submitted'
+      ? submitStudentEvaluation(appointmentId, studentId, lecturerId, input)
+      : saveStudentEvaluation(appointmentId, studentId, lecturerId, input)
+  }
+
   const findCompanyEvaluation = (appointmentId: string) => companyEvaluations.value
     .find(item => item.appointmentId === appointmentId) ?? null
   const getCompanyEvaluation = (appointmentId: string) => {
@@ -195,14 +208,49 @@ export const useSupervisionEvaluations = () => {
     return cloneCompanyEvaluation(evaluation)
   }
 
+  const persistCompanyEvaluation = async (appointmentId: string, evaluatorId: string, input: CompanyEvaluationInput, status: EvaluationStatus) => {
+    requireCompanyEvaluator()
+    await requestAwareFetch(`/api/evaluations/companies/${appointmentId}`, {
+      method: 'PUT',
+      body: { status, ...input },
+    })
+    return status === 'submitted'
+      ? submitCompanyEvaluation(appointmentId, evaluatorId, input)
+      : saveCompanyEvaluation(appointmentId, evaluatorId, input)
+  }
+
+  const loadPersistedEvaluations = async (appointmentId: string) => {
+    const response = persistedEvaluationBundleSchema.parse(await requestAwareFetch(`/api/evaluations/appointments/${encodeURIComponent(appointmentId)}`))
+    studentEvaluations.value = [
+      ...studentEvaluations.value.filter(evaluation => evaluation.appointmentId !== appointmentId),
+      ...response.studentEvaluations.map(evaluation => ({
+        ...evaluation,
+        ratings: { ...evaluation.ratings } as Record<string, EvaluationRating>,
+      })),
+    ]
+    companyEvaluations.value = [
+      ...companyEvaluations.value.filter(evaluation => evaluation.appointmentId !== appointmentId),
+      ...(response.companyEvaluation
+        ? [{
+            ...response.companyEvaluation,
+            ratings: { ...response.companyEvaluation.ratings } as Record<string, EvaluationRating>,
+          }]
+        : []),
+    ]
+    return response
+  }
+
   return {
     studentEvaluations: readonly(studentEvaluations),
     companyEvaluations: readonly(companyEvaluations),
     getStudentEvaluation,
     saveStudentEvaluation,
     submitStudentEvaluation,
+    persistStudentEvaluation,
     getCompanyEvaluation,
     saveCompanyEvaluation,
     submitCompanyEvaluation,
+    persistCompanyEvaluation,
+    loadPersistedEvaluations,
   }
 }

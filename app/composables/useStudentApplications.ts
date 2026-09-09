@@ -66,9 +66,10 @@ const initialApplications: StudentApplication[] = [
 const cloneApplications = () => initialApplications.map(application => ({ ...application }))
 
 export const useStudentApplications = () => {
-  const currentStudentId = '66123456701'
-  const applications = useState<StudentApplication[]>('mock-student-applications', cloneApplications)
-  const currentStudentApplications = computed(() => applications.value.filter(application => application.studentId === currentStudentId))
+  const { currentAccount } = useAuthPrototype()
+  const currentStudentId = computed(() => currentAccount.value?.role === 'student' ? currentAccount.value.username : '')
+  const applications = useState<StudentApplication[]>('mock-student-applications', () => import.meta.dev ? cloneApplications() : [])
+  const currentStudentApplications = computed(() => applications.value.filter(application => application.studentId === currentStudentId.value))
   const latestApplication = computed(() => getLatestStudentApplication(currentStudentApplications.value))
   const canCreateApplication = computed(() => canCreateStudentApplication(currentStudentApplications.value))
   const getStudentApplications = (studentId: string) => applications.value.filter(application => application.studentId === studentId)

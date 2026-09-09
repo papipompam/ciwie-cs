@@ -7,14 +7,17 @@ definePageMeta({ title: 'ข้อมูลนักศึกษา', middleware
 useHead({ title: 'ข้อมูลนักศึกษา' })
 
 const { scenario } = useScenario()
-const { people } = usePeopleDirectory()
+const { people, loadPersistedPeople } = usePeopleDirectory()
+const { status: peopleFetchStatus, error: peopleFetchError, refresh: refreshPeople } = await useAsyncData('lecturer-students', () => loadPersistedPeople('student'))
 const { cycleCatalog } = useCoopCycles()
 const { placements } = useSupervisionGroups()
 const { studentCohort, studentSection, studentSemester } = useStudentCohortContext()
 const search = ref('')
 const pageSize = ref('10')
 const currentPage = ref(1)
-const effectiveViewState = computed(() => scenario.value.forceError ? 'error' : scenario.value.viewState)
+const effectiveViewState = computed(() => scenario.value.forceError || peopleFetchError.value
+  ? 'error'
+  : peopleFetchStatus.value === 'pending' ? 'loading' : scenario.value.viewState)
 const pageSizeOptions = ['10', '20', '50', '100'].map(value => ({ value, label: value }))
 const cycleIdFor = (cycle?: string) => cycleCatalog.find(item => item.label === cycle)?.id
 
@@ -50,7 +53,7 @@ const resultEnd = computed(() => Math.min(currentPage.value * pageSizeNumber.val
 const hasFilters = computed(() => Boolean(search.value))
 watch([search, pageSize, studentCohort, studentSection, studentSemester], () => { currentPage.value = 1 })
 const clearFilters = () => { search.value = '' }
-const retry = () => { scenario.value.forceError = false; scenario.value.viewState = 'data' }
+const retry = () => { scenario.value.forceError = false; scenario.value.viewState = 'data'; void refreshPeople() }
 </script>
 
 <template>

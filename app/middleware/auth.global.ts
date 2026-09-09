@@ -1,5 +1,6 @@
-export default defineNuxtRouteMiddleware((to) => {
-  const { authenticated, currentAccount } = useAuthPrototype()
+export default defineNuxtRouteMiddleware(async (to) => {
+  const { authenticated, currentAccount, restoreSession } = useAuthPrototype()
+  await restoreSession()
   const isLoginPage = to.path === '/login'
 
   if (!authenticated.value || !currentAccount.value) {

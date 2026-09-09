@@ -89,6 +89,25 @@ describe('company evaluation roles', () => {
     expect(store.getStudentEvaluation('A1', 'student-1', 'lecturer-1')).toMatchObject({ status: 'draft' })
   })
 
+  it('hydrates persisted student and company evaluations from the API', async () => {
+    account.value = { role: 'lecturer' }
+    vi.stubGlobal('$fetch', vi.fn(async () => ({
+      appointmentId: 'A9',
+      studentEvaluations: [{
+        appointmentId: 'A9', studentId: 'student-9', lecturerId: 'lecturer-9', status: 'draft', submittedAt: null,
+        ratings: { responsibility: '4' }, strengths: 'รับผิดชอบ', issues: '', suggestions: '', followUp: '',
+      }],
+      companyEvaluation: {
+        appointmentId: 'A9', evaluatorId: 'staff-1', status: 'submitted', submittedAt: '2026-09-01T00:00:00.000Z',
+        ratings: { environment: '5' }, recommendation: 'recommended', observations: '', companyRequirements: '', issues: '', suggestions: '',
+      },
+    })))
+    const store = useSupervisionEvaluations()
+    await store.loadPersistedEvaluations('A9')
+    expect(store.getStudentEvaluation('A9', 'student-9', 'lecturer-9')).toMatchObject({ status: 'draft', ratings: { responsibility: '4' } })
+    expect(store.getCompanyEvaluation('A9')).toMatchObject({ evaluatorId: 'staff-1', status: 'submitted' })
+  })
+
   it.each(['staff', 'lecturer'] as const)('allows %s to submit the shared company evaluation', (role) => {
     account.value = { role }
     const store = useSupervisionEvaluations()

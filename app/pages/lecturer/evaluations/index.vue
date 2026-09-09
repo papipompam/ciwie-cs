@@ -9,11 +9,14 @@ const route = useRoute()
 const { scenario } = useScenario()
 const { cycleId, round } = useSupervisionContext()
 const { groups, getCompanies } = useSupervisionGroups()
-const { appointments } = useSupervisionAppointments()
+const { currentAccount } = useAuthPrototype()
+const { appointments, loadPersistedAppointments } = useSupervisionAppointments()
 const { studentEvaluations, companyEvaluations } = useSupervisionEvaluations()
 const { exportStudentEvaluations } = useEvaluationExport()
 const { showToast } = useToast()
-const currentLecturerId = 'L0012'
+const currentLecturerId = computed(() => currentAccount.value?.id ?? '')
+const appointmentsLoading = ref(true)
+const appointmentsLoadError = ref(false)
 const exportFormat = ref('xlsx')
 const exporting = ref(false)
 const exportError = ref('')
@@ -31,7 +34,9 @@ const statusFilter = ref('all')
 const pageSize = ref('10')
 const currentPage = ref(1)
 const selectedCompanyAppointment = ref<SupervisionAppointment | null>(null)
-const effectiveViewState = computed(() => scenario.value.forceError ? 'error' : scenario.value.viewState)
+const effectiveViewState = computed(() => scenario.value.forceError || appointmentsLoadError.value
+  ? 'error'
+  : appointmentsLoading.value ? 'loading' : scenario.value.viewState)
 const companies = computed(() => getCompanies(cycleId.value))
 const statusOptions = [
   { value: 'all', label: 'ทุกสถานะ' },
@@ -42,17 +47,29 @@ const statusOptions = [
 ]
 const pageSizeOptions = ['10', '20', '50'].map(value => ({ value, label: value }))
 
-const company = (id: string) => companies.value.find(item => item.id === id)
+const company = (id: string) => {
+  const stored = companies.value.find(item => item.id === id)
+  if (stored) return stored
+  const display = appointments.value.find(item => item.companyId === id)?.display
+  return display
+    ? {
+        id, cycleId: cycleId.value, name: display.companyName, branch: display.branchName, province: display.province,
+        region: '', address: display.address, contactName: '', contactPhone: '', status: 'active' as const, studentCount: display.students.length,
+        students: display.students.map(student => ({ id: student.id, studentId: student.id, studentName: student.name, prefix: '', firstName: student.name, lastName: '', section: '', position: student.position })),
+      }
+    : undefined
+}
 const companyStudentCount = (appointment: SupervisionAppointment) => company(appointment.companyId)?.students.length ?? appointment.studentIds.length
 const appointmentStudents = (appointment: SupervisionAppointment) => company(appointment.companyId)?.students
   .filter(student => appointment.studentIds.includes(student.studentId)) ?? []
-const groupName = (id: string) => groups.value.find(group => group.id === id)?.name ?? id
+const groupName = (id: string) => groups.value.find(group => group.id === id)?.name
+  ?? appointments.value.find(item => item.groupId === id)?.display?.groupName ?? id
 const evaluatorIds = (appointment: SupervisionAppointment) => appointment.result.actualLecturerIds.length
   ? appointment.result.actualLecturerIds
   : appointment.lecturerIds
 const evaluationProgress = (appointment: SupervisionAppointment) => {
   const studentSubmitted = studentEvaluations.value.filter(evaluation => evaluation.appointmentId === appointment.id
-    && evaluation.lecturerId === currentLecturerId
+    && evaluation.lecturerId === currentLecturerId.value
     && appointment.studentIds.includes(evaluation.studentId)
     && evaluation.status === 'submitted').length
   if (evaluationType.value === 'student') return { submitted: studentSubmitted, required: appointment.studentIds.length }
@@ -77,12 +94,12 @@ const baseAppointments = computed(() => {
   if (scenario.value.viewState === 'empty') return []
   return appointments.value
     .filter(appointment => appointment.cycleId === cycleId.value && appointment.round === round.value)
-    .filter(appointment => evaluatorIds(appointment).includes(currentLecturerId))
+    .filter(appointment => evaluatorIds(appointment).includes(currentLecturerId.value))
 })
 const currentAppointments = computed(() => {
   const keyword = searchQuery.value.trim().toLocaleLowerCase('th')
   return baseAppointments.value
-    .filter(appointment => evaluatorIds(appointment)[0] === currentLecturerId)
+    .filter(appointment => evaluatorIds(appointment)[0] === currentLecturerId.value)
     .filter(appointment => statusFilter.value === 'all' || evaluationState(appointment) === statusFilter.value)
     .filter((appointment) => {
       const appointmentCompany = company(appointment.companyId)
@@ -99,7 +116,7 @@ const currentStudentTasks = computed(() => {
       const student = appointmentCompany?.students.find(item => item.studentId === studentId)
       const evaluation = studentEvaluations.value.find(item => item.appointmentId === appointment.id
         && item.studentId === studentId
-        && item.lecturerId === currentLecturerId)
+        && item.lecturerId === currentLecturerId.value)
       const state: EvaluationState = appointment.status !== 'completed' ? 'not-ready' : evaluation?.status === 'submitted' ? 'completed' : evaluation ? 'in-progress' : 'pending'
       return {
         id: `${appointment.id}-${studentId}`,
@@ -147,7 +164,16 @@ watch(pageCount, (count) => { if (currentPage.value > count) currentPage.value =
 
 const clearFilters = () => { searchQuery.value = ''; statusFilter.value = 'all' }
 const resetTable = () => { clearFilters(); pageSize.value = '10'; currentPage.value = 1 }
-const retry = () => { scenario.value.forceError = false; scenario.value.viewState = 'data' }
+const loadAppointments = async () => {
+  appointmentsLoading.value = true
+  appointmentsLoadError.value = false
+  try { await loadPersistedAppointments(cycleId.value, round.value) }
+  catch { appointmentsLoadError.value = true }
+  finally { appointmentsLoading.value = false }
+}
+const retry = () => { scenario.value.forceError = false; scenario.value.viewState = 'data'; void loadAppointments() }
+onMounted(loadAppointments)
+watch([cycleId, round], loadAppointments)
 const formatDate = (date: string) => new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium' }).format(new Date(`${date}T00:00:00+07:00`))
 const evaluationPath = (appointmentId: string, studentId?: string) => ({
   path: `/lecturer/evaluations/${appointmentId}`,

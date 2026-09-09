@@ -148,7 +148,7 @@ const createCompany = () => {
   resetCompanyTable()
   companyDialogOpen.value = false
   recordEvent(`เพิ่มสถานประกอบการใหม่: ${company.name}`)
-  showToast({ title: 'เพิ่มสถานประกอบการแล้ว', description: 'รายการมีสถานะรออาจารย์ตรวจสอบและถูกเลือกในคำร้องนี้' })
+  showToast({ title: 'เพิ่มสถานประกอบการแล้ว', description: 'รายการมีสถานะรอเจ้าหน้าที่ตรวจสอบและถูกเลือกในคำร้องนี้' })
 }
 
 const validatePlacement = async () => {
@@ -361,7 +361,7 @@ const submit = async (mode: 'draft' | 'submitted') => {
         v-model:open="companyDialogOpen"
         :close-on-confirm="false"
         title="เพิ่มสถานประกอบการใหม่"
-        description="กรอกเฉพาะข้อมูลหลัก รายการนี้จะถูกบันทึกให้ผู้อื่นค้นหาและใช้ต่อได้ โดยมีสถานะรออาจารย์ตรวจสอบ"
+        description="กรอกเฉพาะข้อมูลหลัก รายการนี้จะถูกบันทึกให้ผู้อื่นค้นหาและใช้ต่อได้ โดยมีสถานะรอเจ้าหน้าที่ตรวจสอบ"
       >
         <div class="grid gap-4 sm:grid-cols-2">
           <div class="sm:col-span-2"><UiInput v-model="newCompany.name" label="ชื่อสถานประกอบการ" required :error="companyErrors.name" /></div>

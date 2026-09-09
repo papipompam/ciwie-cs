@@ -7,7 +7,7 @@ import type { SupervisionAppointment } from './useSupervisionAppointments'
 describe('useEvaluationExport', () => {
   const click = vi.fn()
   const createObjectURL = vi.fn(() => 'blob:evaluation-export')
-  const currentAccount = ref({ id: 'lecturer-001', role: 'lecturer', name: 'อาจารย์ผู้ตรวจคำร้อง' })
+  const currentAccount = ref({ id: 'lecturer-001', role: 'lecturer', name: 'อาจารย์ผู้นิเทศ' })
   const submitted = (appointmentId: string, lecturerId: string): StudentEvaluation => ({
     appointmentId,
     studentId: 'S1',
@@ -33,9 +33,15 @@ describe('useEvaluationExport', () => {
     }))
     vi.stubGlobal('URL', { createObjectURL, revokeObjectURL: vi.fn() })
     vi.stubGlobal('document', { createElement: () => ({ href: '', download: '', click }) })
+    vi.stubGlobal('$fetch', {
+      raw: vi.fn(async () => ({
+        _data: new TextEncoder().encode('csv').buffer,
+        headers: new Headers({ 'content-disposition': 'attachment; filename="student-evaluation-scores.csv"', 'x-export-count': '1' }),
+      })),
+    })
   })
 
-  it('binds lecturer export to the signed-in lecturer and participating appointments', async () => {
+  it('downloads the server-scoped lecturer export', async () => {
     const appointments = [
       { id: 'A1', cycleId: 'C1', companyId: 'CO1', studentIds: ['S1'], lecturerIds: ['L0012'], result: { actualLecturerIds: ['L0012'] } },
       { id: 'A2', cycleId: 'C1', companyId: 'CO1', studentIds: ['S1'], lecturerIds: ['L0030'], result: { actualLecturerIds: ['L0030'] } },

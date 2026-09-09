@@ -19,7 +19,7 @@
 1. Backend มี Prisma, migration, seed, authentication, authorization และ validation ที่ Feature อื่นนำไปใช้ได้
 2. เจ้าหน้าที่จัดการบัญชี นักศึกษา และอาจารย์ รวมถึง import/export ได้
 3. นักศึกษาจัดการรายการสมัครส่วนตัวและยื่นคำร้องสถานประกอบการได้
-4. อาจารย์ตรวจคำร้อง รวมคำร้องเป็นชุดหนังสือ และยืนยันผลรายบุคคลได้
+4. เจ้าหน้าที่จัดการและตรวจคำร้องกับเอกสารรายคำร้องทั้งหมด อาจารย์ไม่มีสิทธิ์เข้าถึง flow นี้
 5. เอกสาร PDF ถูกจัดเก็บและดาวน์โหลดผ่าน endpoint ที่ตรวจสิทธิ์
 6. Mutation สำคัญถูกบันทึกลง Audit Log
 
@@ -101,9 +101,7 @@ Route handler ต้องทำเพียงตรวจ request, เรี�
 | `StudentApplication` | รายการสมัครสถานประกอบการส่วนตัวของนักศึกษา |
 | `PlacementRequest` | คำร้องสถานประกอบการและสถานะปัจจุบัน |
 | `PlacementRequestStatusHistory` | Timeline การเปลี่ยนสถานะคำร้อง |
-| `LetterBatch` | ชุดหนังสือขอความอนุเคราะห์ |
-| `LetterBatchMember` | คำร้องที่อยู่ในแต่ละชุดหนังสือ |
-| `LetterDocumentVersion` | รุ่นของเอกสารและข้อมูลไฟล์ PDF |
+| `LetterDocumentVersion` | รุ่นของเอกสารรายคำร้องและข้อมูลไฟล์ PDF |
 
 กติกาข้าม Model:
 
@@ -144,7 +142,6 @@ Route handler ต้องทำเพียงตรวจ request, เรี�
 - [ ] ป้องกัน brute-force ตามจำนวนครั้งและเวลาที่ตกลงร่วมกัน
 - [ ] ใช้ `sessionVersion` เพื่อยกเลิก session เดิมหลัง reset password หรือระงับบัญชี
 - [ ] สร้าง middleware สำหรับ `ADMIN`, `LECTURER`, `STUDENT`
-- [ ] รองรับ permission `canReviewPlacements`
 - [ ] บันทึก login failure, password reset และการเปลี่ยนสถานะบัญชีลง Audit
 
 Endpoint ขั้นต่ำ:
@@ -218,12 +215,9 @@ POST          /api/placements/:id/return
 GET           /api/placements/:id/timeline
 ```
 
-### ระยะ F — Letter Batch และเอกสาร
+### ระยะ F — เอกสารรายคำร้อง
 
-- [ ] ตรวจ compatibility ก่อนรวมคำร้อง
-- [ ] สร้างชุดหนังสือและสมาชิกใน transaction
 - [ ] สร้างหรือบันทึกเลขที่หนังสือ
-- [ ] Publish ชุดหนังสือ
 - [ ] Upload หนังสือขอความอนุเคราะห์และหนังสือตอบกลับ
 - [ ] บันทึก document version, checksum และผลตรวจไฟล์
 - [ ] ตรวจ extension, MIME type, magic bytes และขนาดไฟล์
@@ -235,13 +229,9 @@ GET           /api/placements/:id/timeline
 Endpoint ขั้นต่ำ:
 
 ```text
-GET/POST      /api/letter-batches
-GET           /api/letter-batches/:id
-POST          /api/letter-batches/:id/publish
-POST          /api/letter-batches/:id/documents
-POST          /api/letter-batches/:id/members/:memberId/confirm
-POST          /api/letter-batches/:id/members/:memberId/reject
-GET           /api/documents/:id/download
+POST          /api/placement-requests/:id/documents
+GET           /api/placement-requests/:id/documents/:documentId
+PATCH         /api/placement-requests/:id/review
 ```
 
 ---
@@ -255,7 +245,6 @@ type AuthContext = {
   userId: number
   role: 'ADMIN' | 'LECTURER' | 'STUDENT'
   sessionVersion: number
-  canReviewPlacements: boolean
 }
 ```
 
@@ -323,7 +312,7 @@ confirmedAt
 - Reset password แล้ว session เดิมใช้ไม่ได้
 - Import สำเร็จทั้งหมดหรือ rollback ทั้งหมด
 - นักศึกษาแก้คำร้องของคนอื่นไม่ได้
-- อาจารย์ไม่มี permission ตรวจคำร้องไม่ได้
+- อาจารย์เรียก endpoint ตรวจคำร้องหรือเอกสารไม่ได้
 - ส่งคำร้องพร้อมกันแล้วไม่เกิด active request ซ้ำ
 - สร้าง Letter Batch ล้มเหลวแล้วไม่เหลือ member บางส่วน
 - ดาวน์โหลดเอกสารโดยผู้ไม่มีสิทธิ์ไม่ได้

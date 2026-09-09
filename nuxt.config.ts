@@ -6,6 +6,11 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   modules: ['@nuxt/eslint'],
   runtimeConfig: {
+    fileStorageRoot: process.env.FILE_STORAGE_ROOT ?? '.data/uploads',
+    initialAccountPassword: process.env.INITIAL_ACCOUNT_PASSWORD
+      ?? (process.env.NODE_ENV === 'production' ? '' : 'Cwie@2569'),
+    sessionPassword: process.env.NUXT_SESSION_PASSWORD
+      ?? (process.env.NODE_ENV === 'production' ? '' : 'development-only-session-password-change-me'),
     geocodingBaseUrl: 'https://nominatim.openstreetmap.org',
     geocodingUserAgent: 'CWIE-BRU-Supervision/1.0',
     public: {
@@ -42,6 +47,11 @@ export default defineNuxtConfig({
       pathPrefix: false,
     },
   ],
+  nitro: {
+    externals: {
+      trace: false,
+    },
+  },
   vite: {
     plugins: [
       tailwindcss(),

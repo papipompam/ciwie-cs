@@ -7,24 +7,46 @@ definePageMeta({ title: 'รายละเอียดการนิเทศ'
 const route = useRoute()
 const { scenario } = useScenario()
 const { showToast } = useToast()
-const { people } = usePeopleDirectory()
+const { people, loadPersistedPeople } = usePeopleDirectory()
+await loadPersistedPeople('lecturer')
 const { groups, getCompanies } = useSupervisionGroups()
-const { appointments, updateAppointment, saveResult, completeAppointment } = useSupervisionAppointments()
-const currentLecturerId = 'L0012'
+const { currentAccount } = useAuthPrototype()
+const {
+  appointments,
+  loadPersistedAppointment,
+  persistUpdateAppointment,
+  persistSaveResult,
+  persistCompleteAppointment,
+} = useSupervisionAppointments()
+const currentLecturerId = computed(() => currentAccount.value?.id ?? '')
 const appointmentId = computed(() => String(route.params.id))
 const appointment = computed(() => appointments.value.find(item => item.id === appointmentId.value) ?? null)
-const company = computed(() => appointment.value
-  ? getCompanies(appointment.value.cycleId).find(item => item.id === appointment.value?.companyId) ?? null
-  : null)
+const company = computed(() => {
+  if (!appointment.value) return null
+  const stored = getCompanies(appointment.value.cycleId).find(item => item.id === appointment.value?.companyId)
+  if (stored) return stored
+  const display = appointment.value.display
+  return display
+    ? {
+        id: appointment.value.companyId, cycleId: appointment.value.cycleId, name: display.companyName, branch: display.branchName, province: display.province,
+        region: '', address: display.address, contactName: '', contactPhone: '', status: 'active' as const, studentCount: display.students.length,
+        students: display.students.map(student => ({ id: student.id, studentId: student.id, studentName: student.name, prefix: '', firstName: student.name, lastName: '', section: '', position: student.position })),
+      }
+    : null
+})
 const group = computed(() => groups.value.find(item => item.id === appointment.value?.groupId) ?? null)
 const students = computed(() => company.value?.students.filter(student => appointment.value?.studentIds.includes(student.studentId)) ?? [])
 const lecturers = computed(() => people.value.filter(person => person.type === 'lecturer' && person.recordStatus === 'active' && person.accountStatus === 'active'))
-const effectiveViewState = computed(() => scenario.value.forceError ? 'error' : scenario.value.viewState)
+const appointmentLoading = ref(true)
+const appointmentLoadError = ref(false)
+const effectiveViewState = computed(() => scenario.value.forceError || appointmentLoadError.value
+  ? 'error'
+  : appointmentLoading.value ? 'loading' : scenario.value.viewState)
 const isLocked = computed(() => appointment.value?.status === 'completed' || appointment.value?.status === 'cancelled')
 const isCancelled = computed(() => appointment.value?.status === 'cancelled')
 const canManage = computed(() => Boolean(appointment.value && (
-  appointment.value.lecturerIds.includes(currentLecturerId)
-  || group.value?.lecturerIds.includes(currentLecturerId)
+  appointment.value.lecturerIds.includes(currentLecturerId.value)
+  || group.value?.lecturerIds.includes(currentLecturerId.value)
 )))
 const scheduleErrors = ref<{ date?: string, period?: string, lecturerIds?: string }>({})
 const scheduleForm = reactive({ date: '', period: 'morning' as SupervisionPeriod, lecturerIds: [] as string[] })
@@ -37,7 +59,7 @@ const periodOptions = [
 ]
 
 const lecturerName = (id: string) => {
-  const lecturer = people.value.find(person => person.type === 'lecturer' && person.id === id)
+  const lecturer = people.value.find(person => person.type === 'lecturer' && (person.id === id || person.accountId === id))
   return lecturer ? getPersonFullName(lecturer) : id
 }
 const formatDateTime = (value: string) => new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium', timeStyle: 'short' })
@@ -45,6 +67,7 @@ const formatDateTime = (value: string) => new Intl.DateTimeFormat('th-TH', { dat
 const retry = () => {
   scenario.value.forceError = false
   scenario.value.viewState = 'data'
+  void loadAppointment()
 }
 const toggleLecturer = (id: string, checked: boolean | 'indeterminate') => {
   const selected = scheduleForm.lecturerIds
@@ -52,7 +75,7 @@ const toggleLecturer = (id: string, checked: boolean | 'indeterminate') => {
   scheduleForm.lecturerIds = next
   scheduleErrors.value.lecturerIds = undefined
 }
-const saveSupervisionResult = () => {
+const saveSupervisionResult = async () => {
   if (!appointment.value || !canManage.value || isCancelled.value || isSavingResult.value) return
   scheduleErrors.value = {}
   resultError.value = ''
@@ -72,16 +95,16 @@ const saveSupervisionResult = () => {
   isSavingResult.value = true
   try {
     if (appointment.value.status === 'completed') {
-      saveResult(appointment.value.id, resultInput)
+      await persistSaveResult(appointment.value.id, resultInput)
       showToast({ title: 'บันทึกการแก้ไขผลการนิเทศแล้ว', description: appointment.value.id })
     }
     else {
-      updateAppointment(appointment.value.id, {
+      await persistUpdateAppointment(appointment.value.id, {
         date: scheduleForm.date,
         period: scheduleForm.period,
         lecturerIds: [...scheduleForm.lecturerIds],
       })
-      completeAppointment(appointment.value.id, {
+      await persistCompleteAppointment(appointment.value.id, {
         ...resultInput,
         actualLecturerIds: [...scheduleForm.lecturerIds],
       })
@@ -95,6 +118,21 @@ const saveSupervisionResult = () => {
     isSavingResult.value = false
   }
 }
+const loadAppointment = async () => {
+  appointmentLoading.value = true
+  appointmentLoadError.value = false
+  try {
+    await loadPersistedAppointment(appointmentId.value)
+  }
+  catch {
+    if (!(import.meta.dev && appointment.value)) appointmentLoadError.value = true
+  }
+  finally {
+    appointmentLoading.value = false
+  }
+}
+onMounted(loadAppointment)
+watch(appointmentId, loadAppointment)
 watch(appointment, (value) => {
   if (!value) return
   Object.assign(scheduleForm, { date: value.date, period: value.period, lecturerIds: [...value.lecturerIds] })
@@ -149,7 +187,7 @@ watch(appointment, (value) => {
               <div class="flex items-center justify-between gap-3"><h4 class="text-sm font-bold text-ink">อาจารย์ที่วางแผนเข้าร่วม</h4><UiBadge tone="info">{{ scheduleForm.lecturerIds.length }} คน</UiBadge></div>
               <div class="mt-3 divide-y divide-divider overflow-hidden rounded-control border border-divider">
                 <label v-for="lecturer in lecturers" :key="lecturer.id" class="flex min-h-14 items-center gap-3 px-4 py-2" :class="canManage && !isLocked ? 'cursor-pointer hover:bg-surface' : ''">
-                  <UiCheckbox :model-value="scheduleForm.lecturerIds.includes(lecturer.id)" :label="`เลือก ${getPersonFullName(lecturer)}`" :disabled="!canManage || isLocked" @update:model-value="toggleLecturer(lecturer.id, $event)" />
+                  <UiCheckbox :model-value="scheduleForm.lecturerIds.includes(getPersonAccountId(lecturer))" :label="`เลือก ${getPersonFullName(lecturer)}`" :disabled="!canManage || isLocked" @update:model-value="toggleLecturer(getPersonAccountId(lecturer), $event)" />
                   <span class="min-w-0 text-sm"><span class="font-semibold text-ink">{{ getPersonFullName(lecturer) }}</span><span class="ml-2 text-muted">{{ lecturer.id }}</span></span>
                 </label>
               </div>

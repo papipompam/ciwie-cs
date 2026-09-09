@@ -1,64 +1,27 @@
 <script setup lang="ts">
-import { Sparkles, UserPlus } from '@lucide/vue'
-import { clusterCompanies, clusteringOptionsSchema } from '~/utils/supervisionClustering'
+import { Sparkles } from '@lucide/vue'
+import { clusteringOptionsSchema } from '#shared/supervision-clustering'
 import type { SupervisionRound } from '~/composables/useSupervisionGroups'
 
 const props = defineProps<{ cycleId: string, round: SupervisionRound, disabled?: boolean }>()
-const { groups, getUnassignedCompanies, createSuggestedGroups } = useSupervisionGroups()
-const { people } = usePeopleDirectory()
+interface GroupingSuggestion { groups: Array<{ name: string, companyIds: string[] }>, missingCompanyIds: string[] }
+const { getUnassignedCompanies, persistSuggestedGroups } = useSupervisionGroups()
 const { showToast } = useToast()
 const companies = computed(() => getUnassignedCompanies(props.cycleId, props.round))
 const distance = ref('100')
 const capacity = ref('5')
-const preview = ref<ReturnType<typeof clusterCompanies> | null>(null)
-const selectedLecturerIds = ref<string[][]>([])
-const lecturerDialogOpen = ref(false)
-const activeGroupIndex = ref<number | null>(null)
-const stagedLecturerIds = ref<string[]>([])
+const preview = ref<GroupingSuggestion | null>(null)
 const error = ref('')
 const fieldErrors = ref<Record<string, string>>({})
 const busy = ref(false)
 const signature = computed(() => JSON.stringify([props.cycleId, props.round, companies.value.map(company => [company.id, company.latitude, company.longitude]), distance.value, capacity.value]))
 watch(signature, () => {
   preview.value = null
-  selectedLecturerIds.value = []
-  lecturerDialogOpen.value = false
-  activeGroupIndex.value = null
   error.value = ''
   fieldErrors.value = {}
 })
 const companyName = (id: string) => companies.value.find(company => company.id === id)?.name ?? id
-const lecturerName = (id: string) => {
-  const lecturer = people.value.find(person => person.type === 'lecturer' && person.id === id)
-  return lecturer ? getPersonFullName(lecturer) : id
-}
-const assignedLecturerIds = computed(() => new Set(groups.value
-  .filter(group => group.cycleId === props.cycleId && group.round === props.round)
-  .flatMap(group => group.lecturerIds)))
-const lecturerCandidates = computed(() => {
-  const selectedInOtherGroups = new Set(selectedLecturerIds.value.flatMap((ids, index) => index === activeGroupIndex.value ? [] : ids))
-  return people.value.filter(person => person.type === 'lecturer'
-    && person.recordStatus === 'active'
-    && !['suspended', 'terminated'].includes(person.accountStatus)
-    && !assignedLecturerIds.value.has(person.id)
-    && !selectedInOtherGroups.has(person.id))
-})
-const openLecturerDialog = (index: number) => {
-  activeGroupIndex.value = index
-  stagedLecturerIds.value = [...(selectedLecturerIds.value[index] ?? [])]
-  lecturerDialogOpen.value = true
-}
-const toggleLecturer = (id: string, checked: boolean | 'indeterminate') => {
-  stagedLecturerIds.value = checked === true
-    ? [...new Set([...stagedLecturerIds.value, id])]
-    : stagedLecturerIds.value.filter(item => item !== id)
-}
-const confirmLecturers = () => {
-  if (activeGroupIndex.value === null) return
-  selectedLecturerIds.value[activeGroupIndex.value] = [...stagedLecturerIds.value]
-  lecturerDialogOpen.value = false
-}
-const suggest = () => {
+const suggest = async () => {
   if (busy.value || props.disabled) return
   preview.value = null
   error.value = ''
@@ -66,19 +29,21 @@ const suggest = () => {
   if (!parsed.success) { fieldErrors.value = Object.fromEntries(parsed.error.issues.map(issue => [String(issue.path[0]), issue.message])); return }
   busy.value = true
   try {
-    preview.value = clusterCompanies(companies.value, parsed.data)
-    selectedLecturerIds.value = preview.value.groups.map(() => [])
+    preview.value = await $fetch<GroupingSuggestion>('/api/staff/supervision/groups/suggest', {
+      method: 'POST',
+      body: { cycleId: props.cycleId, round: props.round, ...parsed.data },
+    })
   }
   catch (cause) { error.value = cause instanceof Error ? cause.message : 'จัดกลุ่มไม่สำเร็จ กรุณาลองใหม่' }
   finally { busy.value = false }
 }
-const save = () => {
+const save = async () => {
   if (busy.value || props.disabled || !preview.value?.groups.length) return
   busy.value = true
   try {
-    const saved = createSuggestedGroups(props.cycleId, props.round, preview.value.groups, selectedLecturerIds.value)
+    const saved = await persistSuggestedGroups(props.cycleId, props.round, preview.value.groups)
     preview.value = null
-    showToast({ title: `บันทึก ${saved.length} กลุ่มแล้ว`, description: 'บันทึกกลุ่มสถานประกอบการและอาจารย์ผู้รับผิดชอบเรียบร้อยแล้ว' })
+    showToast({ title: `บันทึก ${saved.length} กลุ่มแล้ว`, description: 'เพิ่มอาจารย์ผู้รับผิดชอบจากการ์ดของแต่ละกลุ่มได้เลย' })
   }
   catch (cause) { error.value = cause instanceof Error ? cause.message : 'บันทึกไม่สำเร็จ กรุณาลองใหม่' }
   finally { busy.value = false }
@@ -94,45 +59,15 @@ const save = () => {
     </form>
     <p v-if="error" role="alert" class="mt-3 text-sm text-danger">{{ error }}</p>
     <div v-if="preview" class="mt-5 space-y-4" aria-live="polite">
-      <UiAlert v-if="preview.missingIds.length" tone="warning" title="ยังจัดกลุ่มไม่ได้เนื่องจากไม่มีพิกัดที่ถูกต้อง">{{ preview.missingIds.map(companyName).join(' · ') }} — แก้ไขพิกัดในหน้าสถานประกอบการ หรือจัดกลุ่มด้วยตนเอง</UiAlert>
+      <UiAlert v-if="preview.missingCompanyIds.length" tone="warning" title="ยังจัดกลุ่มไม่ได้เนื่องจากไม่มีพิกัดที่ถูกต้อง">{{ preview.missingCompanyIds.map(companyName).join(' · ') }} — แก้ไขพิกัดในหน้าสถานประกอบการ หรือจัดกลุ่มด้วยตนเอง</UiAlert>
       <div class="grid gap-3 md:grid-cols-2">
-        <section v-for="(ids, index) in preview.groups" :key="index" class="rounded-control border border-divider p-4">
-          <h4 class="font-semibold text-ink">กลุ่มเสนอ {{ index + 1 }} · {{ ids.length }} แห่ง</h4>
-          <ul class="mt-2 space-y-1 text-sm text-muted"><li v-for="id in ids" :key="id">{{ companyName(id) }}</li></ul>
-          <div class="mt-4 border-t border-divider pt-3">
-            <p class="text-xs font-semibold text-muted">อาจารย์ผู้รับผิดชอบ</p>
-            <ul v-if="selectedLecturerIds[index]?.length" class="mt-2 space-y-1 text-sm text-ink">
-              <li v-for="id in selectedLecturerIds[index]" :key="id">{{ lecturerName(id) }}</li>
-            </ul>
-            <p v-else class="mt-2 text-xs text-muted">ยังไม่กำหนดอาจารย์</p>
-            <UiButton class="mt-3" size="sm" variant="secondary" :icon="UserPlus" :disabled="disabled" @click="openLecturerDialog(index)">
-              {{ selectedLecturerIds[index]?.length ? 'แก้ไขอาจารย์' : 'เพิ่มอาจารย์' }}
-            </UiButton>
-          </div>
+        <section v-for="(group, index) in preview.groups" :key="index" class="rounded-control border border-divider p-4">
+          <h4 class="font-semibold text-ink">{{ group.name }} · {{ group.companyIds.length }} แห่ง</h4>
+          <ul class="mt-2 space-y-1 text-sm text-muted"><li v-for="id in group.companyIds" :key="id">{{ companyName(id) }}</li></ul>
+          <p class="mt-4 border-t border-divider pt-3 text-xs text-muted">ระบบเสนอเฉพาะกลุ่มสถานประกอบการ เจ้าหน้าที่จะเพิ่มอาจารย์หลังบันทึกกลุ่ม</p>
         </section>
       </div>
       <UiButton v-if="preview.groups.length" :loading="busy" :disabled="disabled" @click="save">ยืนยันบันทึก {{ preview.groups.length }} กลุ่ม</UiButton>
     </div>
-
-    <UiDialog
-      v-model:open="lecturerDialogOpen"
-      size="lg"
-      :title="activeGroupIndex === null ? 'เพิ่มอาจารย์' : `เพิ่มอาจารย์ · กลุ่มเสนอ ${activeGroupIndex + 1}`"
-      description="อาจารย์หนึ่งคนอยู่ได้เพียงหนึ่งกลุ่มต่อรอบและครั้งที่นิเทศ"
-    >
-      <fieldset>
-        <legend class="text-sm font-semibold text-ink">เลือกอาจารย์ผู้รับผิดชอบ</legend>
-        <div v-if="lecturerCandidates.length" class="mt-3 divide-y divide-divider overflow-hidden rounded-control border border-divider">
-          <div v-for="lecturer in lecturerCandidates" :key="lecturer.id" class="flex min-h-14 items-center gap-3 p-4 hover:bg-surface">
-            <UiCheckbox :model-value="stagedLecturerIds.includes(lecturer.id)" :label="`เลือก ${getPersonFullName(lecturer)}`" @update:model-value="toggleLecturer(lecturer.id, $event)" />
-            <span class="min-w-0 flex-1 text-sm font-semibold text-ink">{{ getPersonFullName(lecturer) }}</span>
-            <span class="shrink-0 text-xs text-muted">{{ lecturer.id }}</span>
-          </div>
-        </div>
-        <p v-else class="mt-3 rounded-control bg-surface p-4 text-sm text-muted">ไม่มีอาจารย์ที่พร้อมมอบหมายในรอบและครั้งนี้</p>
-      </fieldset>
-      <template #cancel><UiButton variant="ghost">ยกเลิก</UiButton></template>
-      <template #confirm><UiButton @click="confirmLecturers">บันทึกการเลือก</UiButton></template>
-    </UiDialog>
   </UiCard>
 </template>

@@ -1,4 +1,5 @@
 import type { ExpenseAmounts, ExpenseCalculation, ExpenseRecord, ExpenseRecordMetadata, ExpenseReference } from '../../shared/expenses'
+export { calculateSupervisionLineExpense } from '../../shared/expense-calculation'
 
 const validPreviewAmount = (value: number) => Number.isFinite(value) && value >= 0 ? value : 0
 
@@ -11,6 +12,7 @@ export const normalizeExpensePreview = (amounts: ExpenseAmounts): ExpenseAmounts
 export const calculateExpenseTotal = (amounts: ExpenseAmounts) => (
   Math.round((amounts.fuel + amounts.accommodation + amounts.allowance) * 100) / 100
 )
+
 
 export const createExpenseCalculation = (reference: ExpenseReference, amounts: ExpenseAmounts): ExpenseCalculation => ({
   reference: { ...reference },

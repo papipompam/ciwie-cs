@@ -9,6 +9,14 @@ export const requestStatusMeta = {
   confirmed: { label: 'ยืนยันสถานที่ฝึกงานแล้ว', tone: 'success' },
   cancelled: { label: 'ยกเลิกคำร้องแล้ว', tone: 'neutral' },
 } as const
+export const studentRequestStatusMeta = {
+  submitted: { label: 'รอรับเอกสาร', description: 'เจ้าหน้าที่กำลังจัดทำและอัปโหลดหนังสือขอความอนุเคราะห์', tone: 'warning' },
+  'letter-issued': { label: 'ได้รับหนังสือแล้ว', description: 'ดาวน์โหลดหนังสือ นำส่งสถานประกอบการ แล้วแนบหนังสือตอบรับกลับเข้าระบบ', tone: 'info' },
+  'signed-uploaded': { label: 'ส่งหนังสือตอบรับแล้ว', description: 'รอเจ้าหน้าที่ตรวจหนังสือตอบรับ', tone: 'warning' },
+  returned: { label: 'กรุณาแก้ไขหนังสือตอบรับ', description: 'ตรวจเหตุผลจากเจ้าหน้าที่แล้วส่งไฟล์ฉบับแก้ไข', tone: 'danger' },
+  confirmed: { label: 'ยืนยันสถานที่ฝึกงานแล้ว', description: 'เจ้าหน้าที่ตรวจหนังสือตอบรับเรียบร้อยแล้ว', tone: 'success' },
+  cancelled: { label: 'ยกเลิกคำร้องแล้ว', description: 'คำร้องนี้สิ้นสุดแล้ว', tone: 'neutral' },
+} as const satisfies Record<keyof typeof requestStatusMeta, { label: string, description: string, tone: 'warning' | 'info' | 'danger' | 'success' | 'neutral' }>
 export type RequestStatus = keyof typeof requestStatusMeta
 export interface RequestDocument { name: string, dataUrl: string }
 export interface PlacementRequestPreview {

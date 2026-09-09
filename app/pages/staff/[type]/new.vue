@@ -6,7 +6,7 @@ import type { PersonInput, PersonType } from '~/composables/usePeopleDirectory'
 definePageMeta({ title: 'เพิ่มข้อมูลบุคคล', middleware: 'staff-prototype' })
 
 const route = useRoute()
-const { createPerson } = usePeopleDirectory()
+const { persistCreatePerson } = usePeopleDirectory()
 const { cycles } = useCoopCycles()
 const { showToast } = useToast()
 
@@ -18,8 +18,9 @@ const context = computed(() => personType.value === 'student'
 useHead({ title: () => context.value.title })
 
 const prefixOptions = computed(() => personPrefixOptions[personType.value])
+const genderOptions = [{ value: 'male', label: 'ชาย' }, { value: 'female', label: 'หญิง' }]
 const cycleOptions = cycles.map(cycle => ({ value: cycle.label, label: cycle.label }))
-const form = reactive<PersonInput>({ id: '', prefix: personType.value === 'student' ? 'นาย' : 'อาจารย์', firstName: '', lastName: '', cycle: personType.value === 'student' ? 'ภาคเรียนที่ 2/2569' : undefined, section: personType.value === 'student' ? 'หมู่ 1' : undefined })
+const form = reactive<PersonInput>({ id: '', prefix: personType.value === 'student' ? 'นาย' : 'อาจารย์', firstName: '', lastName: '', gender: undefined, cycle: personType.value === 'student' ? 'ภาคเรียนที่ 2/2569' : undefined, section: personType.value === 'student' ? 'หมู่ 1' : undefined })
 const formCycle = computed({
   get: () => form.cycle ?? '',
   set: value => { form.cycle = value },
@@ -27,6 +28,10 @@ const formCycle = computed({
 const formSection = computed({
   get: () => form.section ?? '',
   set: value => { form.section = value as PersonInput['section'] },
+})
+const formGender = computed({
+  get: () => form.gender ?? '',
+  set: value => { form.gender = value as PersonInput['gender'] },
 })
 const errors = reactive<Partial<Record<keyof PersonInput, string>>>({})
 const isSubmitting = ref(false)
@@ -36,21 +41,26 @@ const schema = z.object({
   prefix: z.enum(personPrefixValues, { error: 'กรุณาเลือกคำนำหน้า' }),
   firstName: z.string().trim().min(1, 'กรุณากรอกชื่อ').max(100, 'ชื่อต้องไม่เกิน 100 ตัวอักษร'),
   lastName: z.string().trim().min(1, 'กรุณากรอกนามสกุล').max(100, 'นามสกุลต้องไม่เกิน 100 ตัวอักษร'),
+  gender: z.enum(['male', 'female']).optional(),
   cycle: z.string().optional(),
   section: z.enum(studentSectionValues).optional(),
 })
 
 const submit = async () => {
-  Object.assign(errors, { id: undefined, prefix: undefined, firstName: undefined, lastName: undefined, cycle: undefined, section: undefined })
+  Object.assign(errors, { id: undefined, prefix: undefined, firstName: undefined, lastName: undefined, gender: undefined, cycle: undefined, section: undefined })
   const result = schema.safeParse(form)
   if (!result.success) {
     result.error.issues.forEach((issue) => { errors[issue.path[0] as keyof PersonInput] = issue.message })
     return
   }
+  if (personType.value === 'lecturer' && !result.data.gender) {
+    errors.gender = 'กรุณาระบุเพศสำหรับคำนวณห้องพัก'
+    return
+  }
 
   isSubmitting.value = true
   try {
-    const person = createPerson(personType.value, result.data)
+    const person = await persistCreatePerson(personType.value, result.data)
     showToast({ title: `เพิ่ม${context.value.singular}แล้ว`, description: `สร้างบัญชี ${person.id} และรอเข้าสู่ระบบครั้งแรก` })
     await navigateTo(`/staff/${route.params.type}/${person.id}`)
   } catch (error) {
@@ -76,6 +86,7 @@ const submit = async () => {
           <div><UiSelect v-model="form.prefix" :options="prefixOptions" label="คำนำหน้า" :error="errors.prefix" required /></div>
           <div><UiInput v-model="form.firstName" label="ชื่อ" placeholder="กรอกชื่อ" :error="errors.firstName" required /></div>
           <div><UiInput v-model="form.lastName" label="นามสกุล" placeholder="กรอกนามสกุล" :error="errors.lastName" required /></div>
+          <div v-if="personType === 'lecturer'"><UiSelect v-model="formGender" :options="genderOptions" label="เพศ" placeholder="เลือกเพศ" help="ใช้สำหรับจัดห้องพักแยกชายและหญิง" :error="errors.gender" required /></div>
           <div v-if="personType === 'student'"><UiSelect v-model="formCycle" :options="cycleOptions" label="รอบสหกิจศึกษา" help="กำหนดรอบของนักศึกษาได้ภายหลังโดยไม่ต้องสร้างบัญชีใหม่" :error="errors.cycle" /></div>
           <div v-if="personType === 'student'"><UiSelect v-model="formSection" :options="studentSectionValues.map(value => ({ value, label: value }))" label="หมู่เรียน" :error="errors.section" required /></div>
         </div>

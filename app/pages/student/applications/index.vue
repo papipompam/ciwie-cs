@@ -5,7 +5,6 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
-  Download,
   Files,
   MapPin,
   Pencil,
@@ -19,6 +18,8 @@ import {
 } from '@lucide/vue'
 import { format } from 'date-fns'
 import { studentApplicationFormSchema as applicationSchema } from '#shared/student-applications'
+import type { PlacementRequestPreview } from '#shared/placement-requests'
+import { studentRequestStatusMeta } from '#shared/placement-requests'
 import type { StudentApplication, StudentApplicationFormValue, TrackedApplicationStatus } from '~/composables/useStudentApplications'
 import { createStudentApplicationSchema } from '~/composables/useStudentApplications'
 import { getPageCount, paginateItems } from '~/utils/table'
@@ -31,7 +32,18 @@ const { showToast } = useToast()
 const { currentAccount } = useAuthPrototype()
 const { findPerson } = usePeopleDirectory()
 const { requests, selectAndSubmit } = usePlacementRequestPreview()
-const currentRequest = computed(() => requests.value.find(item => item.application.id === latestApplication.value?.id))
+const { data: persistedRequests, status: requestFetchStatus, error: requestFetchError, refresh: refreshPlacementRequests } = await useFetch<PlacementRequestPreview[]>('/api/student/placement-requests')
+watch(persistedRequests, (items) => { if (items) requests.value = items }, { immediate: true })
+const currentRequest = computed(() => requestFetchStatus.value === 'success'
+  ? requests.value.find(item => item.application.id === latestApplication.value?.id)
+  : undefined)
+const latestVisibleStatus = computed(() => {
+  if (latestApplication.value?.status === 'completed' && requestFetchStatus.value === 'pending') return { label: 'กำลังโหลดสถานะคำร้อง', tone: 'neutral' as const }
+  if (latestApplication.value?.status === 'completed' && requestFetchError.value) return { label: 'โหลดสถานะคำร้องไม่สำเร็จ', tone: 'danger' as const }
+  return currentRequest.value
+    ? studentRequestStatusMeta[currentRequest.value.status]
+    : trackedApplicationStatusMeta[latestApplication.value?.status ?? 'submitted']
+})
 const {
   applications: applicationStore,
   currentStudentApplications: applications,
@@ -336,6 +348,7 @@ const confirmSelection = async () => {
   isSavingStatus.value = true
   try {
     await selectAndSubmit(application, updateApplicationStatus)
+    await refreshPlacementRequests()
     selectionDialogOpen.value = false
     showToast({ title: 'ยืนยันสถานประกอบการแล้ว', description: 'ข้อมูลถูกส่งเข้าคิวของเจ้าหน้าที่ทันที ขั้นตอนต่อไปคือรอเจ้าหน้าที่ออกหนังสือ' })
   }
@@ -424,8 +437,8 @@ const formatDate = (date: string) => new Intl.DateTimeFormat('th-TH', {
             <p class="mt-1 text-sm leading-6 text-muted">ข้อมูลบริษัท ตำแหน่ง และสถานะการสมัครล่าสุด</p>
           </div>
         </div>
-        <UiBadge class="shrink-0 self-start" :tone="trackedApplicationStatusMeta[latestApplication.status].tone">
-          {{ trackedApplicationStatusMeta[latestApplication.status].label }}
+        <UiBadge class="shrink-0 self-start" :tone="latestVisibleStatus.tone">
+          {{ latestVisibleStatus.label }}
         </UiBadge>
       </div>
       <section class="mb-5 rounded-control border border-divider bg-surface/60 p-4 sm:p-5" aria-labelledby="application-student-heading">
@@ -473,7 +486,7 @@ const formatDate = (date: string) => new Intl.DateTimeFormat('th-TH', {
         <div><dt class="text-xs text-muted">อัปเดตล่าสุด</dt><dd class="mt-1 text-ink">{{ formatUpdatedAt(latestApplication.updatedAt) }}</dd></div>
       </dl>
       <div class="mt-5 flex flex-wrap gap-2 border-t border-divider pt-4">
-        <UiButton v-if="!canCreateApplication && !currentRequest" :loading="isSavingStatus" @click="selectionDialogOpen = true">{{ latestApplication.status === 'completed' ? 'ส่งคำร้องขอหนังสือ (ทดลอง)' : 'เลือกบริษัทนี้และส่งคำร้อง (ทดลอง)' }}</UiButton>
+        <UiButton v-if="requestFetchStatus === 'success' && !canCreateApplication && !currentRequest && ['accepted', 'completed'].includes(latestApplication.status)" :loading="isSavingStatus" @click="selectionDialogOpen = true">{{ latestApplication.status === 'completed' ? 'เปิดคำร้องที่ส่งแล้ว' : 'ยืนยันบริษัทและส่งให้เจ้าหน้าที่' }}</UiButton>
         <template v-if="latestApplication.status !== 'completed'">
           <UiButton variant="secondary" :icon="Pencil" @click="openEditDialog(latestApplication)">แก้ไขข้อมูล</UiButton>
           <UiButton variant="secondary" :icon="RefreshCw" @click="openStatusDialog(latestApplication)">อัปเดตผลการสมัคร</UiButton>
@@ -489,31 +502,10 @@ const formatDate = (date: string) => new Intl.DateTimeFormat('th-TH', {
           <p class="mt-1 text-sm leading-6 text-muted">ดาวน์โหลดหนังสือที่เจ้าหน้าที่จัดทำ และส่งหนังสือตอบรับจากสถานประกอบการกลับเข้าระบบ</p>
         </div>
       </div>
-      <div class="mt-5 divide-y divide-divider">
-        <section class="pb-5" aria-labelledby="sample-request-letter-heading">
-          <h4 id="sample-request-letter-heading" class="font-semibold text-ink">หนังสือขอความอนุเคราะห์</h4>
-          <p class="mt-1 text-sm leading-6 text-muted">ไฟล์ที่เจ้าหน้าที่จัดทำให้นักศึกษานำส่งสถานประกอบการ</p>
-          <div class="mt-4 flex flex-col gap-3 rounded-control border border-divider bg-surface/60 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div class="min-w-0">
-              <p class="text-xs font-medium text-muted">แนบไฟล์</p>
-              <p class="mt-1 break-words text-sm font-semibold text-ink">หนังสือขอความอนุเคราะห์เข้ารับนักศึกษาฝึกงาน (ตัวอย่าง).pdf</p>
-            </div>
-            <a href="/api/mock-documents/หนังสือขอความอนุเคราะห์เข้ารับนักศึกษาฝึกงาน (ตัวอย่าง).pdf" download class="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-control border border-divider bg-canvas px-4 text-sm font-semibold text-ink hover:bg-surface">
-              <Download :size="17" aria-hidden="true" />ดาวน์โหลดไฟล์
-            </a>
-          </div>
-        </section>
-        <section class="pt-5" aria-labelledby="sample-response-letter-heading">
-          <h4 id="sample-response-letter-heading" class="font-semibold text-ink">แบบหนังสือตอบรับ</h4>
-          <p class="mt-1 text-sm leading-6 text-muted">แนบหนังสือตอบรับที่ได้รับจากสถานประกอบการ</p>
-          <label class="mt-4 block text-sm font-semibold text-ink">
-            แนบไฟล์
-            <input type="file" accept="application/pdf,.pdf" class="mt-2 block w-full min-w-0 rounded-control border border-divider bg-canvas p-3 text-sm" aria-describedby="sample-response-file-help">
-          </label>
-          <p id="sample-response-file-help" class="mt-2 text-xs leading-5 text-muted">รองรับไฟล์ PDF ขนาดไม่เกิน 5 MB · ช่องแนบตัวอย่างยังไม่ส่งไฟล์จริง</p>
-        </section>
-      </div>
-      <p class="mt-4 text-xs leading-5 text-muted">ข้อมูลและไฟล์ส่วนนี้เป็นข้อมูลตัวอย่างภายใน session เท่านั้น</p>
+      <div v-if="requestFetchStatus === 'pending'" class="mt-5 space-y-3" aria-label="กำลังโหลดเอกสาร"><UiSkeleton class="h-8 w-36" /><UiSkeleton class="h-24 w-full" /></div>
+      <AppErrorState v-else-if="requestFetchError" class="mt-5" title="โหลดเอกสารไม่สำเร็จ" description="กรุณาลองโหลดข้อมูลคำร้องอีกครั้ง" @retry="refreshPlacementRequests" />
+      <AppRequestDocuments v-else-if="currentRequest" :key="currentRequest.id" class="mt-5" :request="currentRequest" @refresh="refreshPlacementRequests" />
+      <UiAlert v-else class="mt-5" tone="warning" title="กำลังรอข้อมูลคำร้อง">ระบบกำลังสร้างคำร้องและแจ้งเจ้าหน้าที่ กรุณาลองโหลดหน้าอีกครั้งหากสถานะยังไม่อัปเดต</UiAlert>
     </UiCard>
 
     <UiCard :padded="false">

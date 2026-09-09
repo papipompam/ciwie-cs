@@ -110,8 +110,8 @@ const initialRequests: PlacementRequest[] = [
     updatedAt: '2026-08-28T09:30:00+07:00',
     timeline: [
       { id: 'TL-018-4', title: 'ออกหนังสือแล้ว', description: 'เจ้าหน้าที่ส่งหนังสือขอความอนุเคราะห์ให้นักศึกษาดาวน์โหลดแล้ว', createdAt: '2026-08-28T09:30:00+07:00' },
-      { id: 'TL-018-3', title: 'รวมในชุดหนังสือแล้ว', description: 'อาจารย์รับคำร้องเข้าชุดหนังสือ คำร้องจึงถูกล็อกชั่วคราว', createdAt: '2026-08-27T09:30:00+07:00' },
-      { id: 'TL-018-2', title: 'ส่งคำร้องแล้ว', description: 'ส่งข้อมูลให้อาจารย์ตรวจสอบ', createdAt: '2026-08-24T14:20:00+07:00' },
+      { id: 'TL-018-3', title: 'เจ้าหน้าที่รับคำร้องแล้ว', description: 'เจ้าหน้าที่รับข้อมูลไปดำเนินการออกหนังสือ คำร้องจึงถูกล็อกชั่วคราว', createdAt: '2026-08-27T09:30:00+07:00' },
+      { id: 'TL-018-2', title: 'ส่งคำร้องแล้ว', description: 'ส่งข้อมูลให้เจ้าหน้าที่ตรวจสอบ', createdAt: '2026-08-24T14:20:00+07:00' },
       { id: 'TL-018-1', title: 'สร้างฉบับร่าง', description: 'บันทึกข้อมูลคำร้องครั้งแรก', createdAt: '2026-08-24T13:55:00+07:00' },
     ],
   },
@@ -131,8 +131,8 @@ const initialRequests: PlacementRequest[] = [
     updatedAt: '2026-08-22T10:15:00+07:00',
     timeline: [
       { id: 'TL-006-4', title: 'ยกเลิกคำร้อง', description: 'คำร้องนี้สิ้นสุดแล้วและเก็บไว้เป็นประวัติ', createdAt: '2026-08-23T09:00:00+07:00' },
-      { id: 'TL-006-3', title: 'ส่งกลับให้แก้ไข', description: 'อาจารย์พบข้อมูลที่ต้องปรับก่อนจัดทำหนังสือ', createdAt: '2026-08-22T10:15:00+07:00' },
-      { id: 'TL-006-2', title: 'ส่งคำร้องแล้ว', description: 'ส่งข้อมูลให้อาจารย์ตรวจสอบ', createdAt: '2026-08-18T16:40:00+07:00' },
+      { id: 'TL-006-3', title: 'ส่งกลับให้แก้ไข', description: 'เจ้าหน้าที่พบข้อมูลที่ต้องปรับก่อนจัดทำหนังสือ', createdAt: '2026-08-22T10:15:00+07:00' },
+      { id: 'TL-006-2', title: 'ส่งคำร้องแล้ว', description: 'ส่งข้อมูลให้เจ้าหน้าที่ตรวจสอบ', createdAt: '2026-08-18T16:40:00+07:00' },
       { id: 'TL-006-1', title: 'สร้างฉบับร่าง', description: 'บันทึกข้อมูลคำร้องครั้งแรก', createdAt: '2026-08-18T16:10:00+07:00' },
     ],
   },
@@ -151,7 +151,7 @@ const initialRequests: PlacementRequest[] = [
     updatedAt: '2026-08-13T11:25:00+07:00',
     timeline: [
       { id: 'TL-002-3', title: 'ยกเลิกคำร้อง', description: 'คำร้องนี้สิ้นสุดแล้วและเก็บไว้เป็นประวัติ', createdAt: '2026-08-13T11:25:00+07:00' },
-      { id: 'TL-002-2', title: 'ส่งคำร้องแล้ว', description: 'ส่งข้อมูลให้อาจารย์ตรวจสอบ พร้อมสถานประกอบการใหม่ที่รอตรวจสอบ', createdAt: '2026-08-12T11:25:00+07:00' },
+      { id: 'TL-002-2', title: 'ส่งคำร้องแล้ว', description: 'ส่งข้อมูลให้เจ้าหน้าที่ตรวจสอบ พร้อมสถานประกอบการใหม่ที่รอตรวจสอบ', createdAt: '2026-08-12T11:25:00+07:00' },
       { id: 'TL-002-1', title: 'สร้างฉบับร่าง', description: 'บันทึกข้อมูลคำร้องครั้งแรก', createdAt: '2026-08-12T11:10:00+07:00' },
     ],
   },
@@ -176,9 +176,9 @@ const provinceRegions: Record<string, string> = {
 
 export const placementStatusMeta: Record<PlacementStatus, { label: string, tone: 'neutral' | 'success' | 'warning' | 'danger' | 'info', nextStep: string }> = {
   draft: { label: 'ฉบับร่าง', tone: 'neutral', nextStep: 'กรอกข้อมูลให้ครบแล้วส่งคำร้อง' },
-  submitted: { label: 'ส่งคำร้องแล้ว', tone: 'warning', nextStep: 'รออาจารย์ตรวจสอบข้อมูล' },
+  submitted: { label: 'ส่งคำร้องแล้ว', tone: 'warning', nextStep: 'รอเจ้าหน้าที่ตรวจสอบข้อมูล' },
   returned: { label: 'ส่งกลับให้แก้ไข', tone: 'danger', nextStep: 'ตรวจเหตุผล แก้ข้อมูล แล้วส่งคำร้องอีกครั้ง' },
-  batched: { label: 'รวมในชุดหนังสือแล้ว', tone: 'info', nextStep: 'รออาจารย์จัดทำหนังสือขอฝึกงาน' },
+  batched: { label: 'รวมในชุดหนังสือแล้ว', tone: 'info', nextStep: 'รอเจ้าหน้าที่จัดทำหนังสือขอฝึกงาน' },
   'letter-issued': { label: 'ออกหนังสือแล้ว', tone: 'success', nextStep: 'ดาวน์โหลดหนังสือและนำส่งสถานประกอบการ' },
   'response-uploaded': { label: 'ส่งหนังสือตอบรับแล้ว', tone: 'info', nextStep: 'รอเจ้าหน้าที่ตรวจสอบและยืนยันสถานที่ฝึกงาน' },
   'response-returned': { label: 'หนังสือตอบรับถูกส่งกลับ', tone: 'danger', nextStep: 'ตรวจเหตุผลและอัปโหลดหนังสือตอบรับฉบับแก้ไข' },
@@ -291,7 +291,7 @@ export const useStudentPlacements = () => {
       existing.timeline.unshift({
         id: crypto.randomUUID(),
         title: mode === 'submitted' ? 'ส่งคำร้องอีกครั้ง' : 'แก้ไขฉบับร่าง',
-        description: mode === 'submitted' ? 'บันทึกข้อมูลที่แก้ไขและส่งให้อาจารย์ตรวจสอบ' : 'บันทึกข้อมูลล่าสุดไว้เป็นฉบับร่าง',
+        description: mode === 'submitted' ? 'บันทึกข้อมูลที่แก้ไขและส่งให้เจ้าหน้าที่ตรวจสอบ' : 'บันทึกข้อมูลล่าสุดไว้เป็นฉบับร่าง',
         createdAt: now,
       })
       if (mode === 'submitted') syncSubmittedRequest(existing)
@@ -320,7 +320,7 @@ export const useStudentPlacements = () => {
       timeline: [{
         id: crypto.randomUUID(),
         title: mode === 'submitted' ? 'ส่งคำร้องแล้ว' : 'สร้างฉบับร่าง',
-        description: mode === 'submitted' ? 'ส่งข้อมูลให้อาจารย์ตรวจสอบ' : 'บันทึกข้อมูลคำร้องครั้งแรก',
+        description: mode === 'submitted' ? 'ส่งข้อมูลให้เจ้าหน้าที่ตรวจสอบ' : 'บันทึกข้อมูลคำร้องครั้งแรก',
         createdAt: now,
       }],
     }

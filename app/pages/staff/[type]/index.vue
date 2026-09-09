@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Download, Plus, RotateCcw, Search, Upload } from '@lucide/vue'
 import type { PeopleFileFormat } from '~/composables/usePeopleImport'
-import type { PersonRecord, PersonType } from '~/composables/usePeopleDirectory'
+import type { PersonType } from '~/composables/usePeopleDirectory'
 import { selectableCoopSemester } from '~/composables/useCoopCycles'
 import { getPageCount, paginateItems } from '~/utils/table'
 import { hasConfirmedPlacement as hasPlacement } from '~/utils/studentPlacementStatus'
@@ -11,14 +11,18 @@ definePageMeta({ title: 'ข้อมูลบุคคล', middleware: 'staff-
 const route = useRoute()
 const { scenario } = useScenario()
 const { showToast } = useToast()
-const { people } = usePeopleDirectory()
+const { people, loadPersistedPeople } = usePeopleDirectory()
 const { exportPeople } = usePeopleImport()
 const { studentCohort, studentCohortOptions, studentSection, studentSectionOptions, studentSemester, ensureAvailableStudentFilters } = useStudentCohortContext()
-const { getPermissions, setPermission } = useLecturerPermissions()
 
 const personType = computed<PersonType>(() => route.params.type === 'lecturers' ? 'lecturer' : 'student')
 const isValidType = computed(() => ['students', 'lecturers'].includes(String(route.params.type)))
 if (!isValidType.value) throw createError({ statusCode: 404, statusMessage: 'Page not found' })
+const { status: peopleFetchStatus, error: peopleFetchError, refresh: refreshPeople } = await useAsyncData(
+  () => `staff-people-${personType.value}`,
+  () => loadPersistedPeople(personType.value),
+  { watch: [personType] },
+)
 
 const context = computed(() => personType.value === 'student'
   ? { title: 'ข้อมูลนักศึกษา', singular: 'นักศึกษา', idLabel: 'รหัสนักศึกษา' }
@@ -36,10 +40,9 @@ const pageSize = ref('10')
 const currentPage = ref(1)
 const exportFormat = ref<PeopleFileFormat>('xlsx')
 const isExporting = ref(false)
-const permissionsDialogOpen = ref(false)
-const editingLecturer = ref<PersonRecord | null>(null)
-const permissionDraft = ref(false)
-const effectiveViewState = computed(() => scenario.value.forceError ? 'error' : scenario.value.viewState)
+const effectiveViewState = computed(() => scenario.value.forceError || peopleFetchError.value
+  ? 'error'
+  : peopleFetchStatus.value === 'pending' ? 'loading' : scenario.value.viewState)
 
 const recordStatusOptions = [
   { value: 'all', label: 'ทุกสถานะข้อมูล' },
@@ -115,6 +118,7 @@ const resetTable = () => {
 const retry = () => {
   scenario.value.forceError = false
   scenario.value.viewState = 'data'
+  void refreshPeople()
 }
 const handleExport = async () => {
   if (isExporting.value) return
@@ -130,17 +134,6 @@ const handleExport = async () => {
   finally {
     isExporting.value = false
   }
-}
-const openPermissions = (person: PersonRecord) => {
-  editingLecturer.value = person
-  permissionDraft.value = getPermissions(person.id).placements
-  permissionsDialogOpen.value = true
-}
-const savePermissions = () => {
-  if (!editingLecturer.value) return
-  setPermission(editingLecturer.value.id, permissionDraft.value)
-  showToast({ title: 'บันทึกสิทธิ์แล้ว', description: `กำหนดสิทธิ์การใช้งานให้ ${getPersonFullName(editingLecturer.value)}` })
-  permissionsDialogOpen.value = false
 }
 </script>
 
@@ -218,7 +211,6 @@ const savePermissions = () => {
                 <th v-if="personType === 'student'" scope="col" class="px-4 py-3">สถานประกอบการ</th>
                 <th scope="col" class="px-4 py-3">สถานะข้อมูล</th>
                 <th v-if="personType === 'lecturer'" scope="col" class="px-4 py-3">สถานะบัญชี</th>
-                <th v-if="personType === 'lecturer'" scope="col" class="px-4 py-3">สิทธิ์ตรวจคำร้อง</th>
                 <th scope="col" class="px-4 py-3">ดำเนินการ</th>
               </tr>
             </thead>
@@ -235,10 +227,7 @@ const savePermissions = () => {
                   </div>
                 </td>
                 <td v-if="personType === 'lecturer'" class="px-4 py-4"><UiBadge :tone="accountStatusMeta[person.accountStatus].tone">{{ accountStatusMeta[person.accountStatus].label }}</UiBadge></td>
-                <td v-if="personType === 'lecturer'" class="px-4 py-4">
-                  <UiBadge :tone="getPermissions(person.id).placements ? 'success' : 'neutral'">{{ getPermissions(person.id).placements ? 'อนุญาต' : 'ไม่อนุญาต' }}</UiBadge>
-                </td>
-                <td class="px-4 py-4"><div class="flex flex-wrap gap-2"><UiButton v-if="personType === 'lecturer'" size="sm" variant="secondary" :aria-label="`กำหนดสิทธิ์ของ ${getPersonFullName(person)}`" @click="openPermissions(person)">กำหนดสิทธิ์</UiButton><NuxtLink :to="`/staff/${route.params.type}/${person.id}`" class="inline-flex min-h-9 items-center justify-center whitespace-nowrap rounded-control border border-divider bg-canvas px-3 text-sm font-semibold text-ink hover:bg-surface" :aria-label="`ดูข้อมูล ${getPersonFullName(person)}`">ดูข้อมูล</NuxtLink></div></td>
+                <td class="px-4 py-4"><div class="flex flex-wrap gap-2"><NuxtLink :to="`/staff/${route.params.type}/${person.id}`" class="inline-flex min-h-9 items-center justify-center whitespace-nowrap rounded-control border border-divider bg-canvas px-3 text-sm font-semibold text-ink hover:bg-surface" :aria-label="`ดูข้อมูล ${getPersonFullName(person)}`">ดูข้อมูล</NuxtLink></div></td>
               </tr>
             </tbody>
           </table>
@@ -253,13 +242,10 @@ const savePermissions = () => {
             </dl>
             <div v-if="personType === 'lecturer'" class="mt-4 space-y-3 border-t border-divider pt-3">
               <div><p class="text-xs text-muted">สถานะบัญชี</p><UiBadge class="mt-1" :tone="accountStatusMeta[person.accountStatus].tone">{{ accountStatusMeta[person.accountStatus].label }}</UiBadge></div>
-              <div class="border-t border-divider pt-3">
-                <div><p class="text-xs text-muted">สิทธิ์ตรวจคำร้อง</p><UiBadge class="mt-1" :tone="getPermissions(person.id).placements ? 'success' : 'neutral'">{{ getPermissions(person.id).placements ? 'อนุญาต' : 'ไม่อนุญาต' }}</UiBadge></div>
-              </div>
             </div>
             <div class="mt-4 flex items-end justify-between gap-3 border-t border-divider pt-3">
               <div v-if="personType === 'student'"><p class="text-xs text-muted">สถานะข้อมูล</p><UiBadge class="mt-1" :tone="recordStatusMeta[person.recordStatus].tone">{{ recordStatusMeta[person.recordStatus].label }}</UiBadge></div>
-              <div class="ml-auto flex flex-wrap justify-end gap-2"><UiButton v-if="personType === 'lecturer'" size="sm" variant="secondary" :aria-label="`กำหนดสิทธิ์ของ ${getPersonFullName(person)}`" @click="openPermissions(person)">กำหนดสิทธิ์</UiButton><NuxtLink :to="`/staff/${route.params.type}/${person.id}`" class="inline-flex min-h-9 items-center justify-center whitespace-nowrap rounded-control border border-divider bg-canvas px-3 text-sm font-semibold text-ink hover:bg-surface" :aria-label="`ดูข้อมูล ${getPersonFullName(person)}`">ดูข้อมูล</NuxtLink></div>
+              <div class="ml-auto flex flex-wrap justify-end gap-2"><NuxtLink :to="`/staff/${route.params.type}/${person.id}`" class="inline-flex min-h-9 items-center justify-center whitespace-nowrap rounded-control border border-divider bg-canvas px-3 text-sm font-semibold text-ink hover:bg-surface" :aria-label="`ดูข้อมูล ${getPersonFullName(person)}`">ดูข้อมูล</NuxtLink></div>
             </div>
           </article>
         </div>
@@ -270,10 +256,5 @@ const savePermissions = () => {
         </div>
       </template>
     </UiCard>
-    <UiDialog v-model:open="permissionsDialogOpen" :title="`กำหนดสิทธิ์การใช้งาน · ${editingLecturer ? getPersonFullName(editingLecturer) : ''}`" description="เลือกว่าบัญชีนี้สามารถเห็นและใช้งานฟีเจอร์ตรวจคำร้องและหนังสือขออนุญาตได้หรือไม่">
-      <label class="flex cursor-pointer items-start gap-3 rounded-control border border-divider bg-surface/35 p-4 hover:bg-surface"><UiCheckbox v-model="permissionDraft" label="สิทธิ์การตรวจคำร้องและหนังสือขออนุญาต" /><span><span class="block font-medium text-ink">ตรวจคำร้องและหนังสือขออนุญาต</span><span class="mt-1 block text-xs text-muted">เข้าถึงเมนูและใช้งานฟีเจอร์ที่เกี่ยวข้อง</span></span></label>
-      <template #cancel><UiButton variant="ghost">ยกเลิก</UiButton></template>
-      <template #confirm><UiButton @click="savePermissions">บันทึกสิทธิ์</UiButton></template>
-    </UiDialog>
   </div>
 </template>

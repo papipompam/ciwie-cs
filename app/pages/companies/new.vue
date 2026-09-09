@@ -5,7 +5,7 @@ import type { CompanyInput } from '~/composables/useSupervisionGroups'
 definePageMeta({ title: 'เพิ่มสถานประกอบการ', middleware: 'company-prototype', alias: ['/staff/companies/new', '/lecturer/companies/new'] })
 useHead({ title: 'เพิ่มสถานประกอบการ' })
 
-const { createCompany } = useSupervisionGroups()
+const { persistCreateCompany } = useSupervisionGroups()
 const { scenario } = useScenario()
 const { showToast } = useToast()
 const isSubmitting = ref(false)
@@ -14,7 +14,7 @@ const submit = async (input: CompanyInput) => {
   if (isSubmitting.value) return
   isSubmitting.value = true
   try {
-    const company = createCompany(input)
+    const company = await persistCreateCompany(input)
     showToast({ title: 'เพิ่มสถานประกอบการแล้ว', description: `${company.id} · ${company.name}` })
     await navigateTo(`${companyBasePath.value}/${company.id}`)
   } catch {

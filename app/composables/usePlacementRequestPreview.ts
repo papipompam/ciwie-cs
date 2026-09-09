@@ -45,7 +45,8 @@ export const usePlacementRequestPreview = () => {
     createStudentApplicationSchema.parse(application)
     if (requests.value.some(item => item.application.id === application.id)) throw new Error('ส่งคำร้องนี้แล้ว')
     const now = new Date().toISOString()
-    requests.value.unshift({ id: crypto.randomUUID(), cycleId: selectedCycle.value.id, application: { ...application }, studentName: currentAccount.value.name, status: 'submitted', submittedAt: now, updatedAt: now })
+    if (!application.placementRequestId) throw new Error('ระบบยังไม่ได้สร้างเลขคำร้อง กรุณาโหลดข้อมูลใหม่')
+    requests.value.unshift({ id: application.placementRequestId, cycleId: selectedCycle.value.id, application: { ...application }, studentName: currentAccount.value.name, status: 'submitted', submittedAt: now, updatedAt: now })
   }
   const selectAndSubmit = async (
     application: StudentApplicationRecord,
@@ -55,10 +56,9 @@ export const usePlacementRequestPreview = () => {
     if (application.studentId !== currentAccount.value?.username) throw new Error('ไม่มีสิทธิ์ดำเนินการ')
     if (['rejected', 'cancelled'].includes(application.status)) throw new Error('รายการนี้สิ้นสุดแล้ว')
     studentApplicationFormSchema.parse(application)
+    if (!['accepted', 'completed'].includes(application.status)) throw new Error('รอสถานประกอบการตอบรับก่อนยืนยัน')
     if (requests.value.some(item => item.application.id === application.id)) return
-    // Keep the existing API transitions. Retry resumes from the last successful step.
     let selected = application
-    if (!['accepted', 'completed'].includes(selected.status)) selected = await updateStatus(selected.id, 'accepted')
     if (selected.status !== 'completed') selected = await updateStatus(selected.id, 'completed')
     submit(selected)
   }
@@ -114,18 +114,6 @@ export const usePlacementRequestPreview = () => {
     request.returnReason = undefined
     request.updatedAt = new Date().toISOString()
   }
-  const readPdf = async (file: File): Promise<RequestDocument> => {
-    const parsed = pdfMetadataSchema.safeParse({ name: file.name, size: file.size })
-    if (!parsed.success) throw new Error(parsed.error.issues[0]?.message)
-    if (!new TextDecoder().decode(await file.slice(0, 5).arrayBuffer()).startsWith('%PDF-')) throw new Error('เนื้อหาไฟล์ไม่ใช่ PDF')
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(String(reader.result))
-      reader.onerror = () => reject(new Error('อ่านไฟล์ไม่สำเร็จ กรุณาลองอีกครั้ง'))
-      reader.readAsDataURL(file)
-    })
-    return { name: file.name, dataUrl }
-  }
   const attach = async (id: string, file: File, kind: 'letter' | 'signedDocument') => {
     const role = kind === 'letter' ? 'staff' : 'student'
     requireRole(role)
@@ -133,25 +121,32 @@ export const usePlacementRequestPreview = () => {
     const action = kind === 'letter' ? 'issue' : 'upload'
     if (!request || !canTransitionRequest(request.status, action)) throw new Error('สถานะคำร้องเปลี่ยนแล้ว กรุณาตรวจสอบอีกครั้ง')
     if (role === 'student' && request.application.studentId !== currentAccount.value?.username) throw new Error('ไม่มีสิทธิ์ดำเนินการ')
-    const document = await readPdf(file)
+    const parsed = pdfMetadataSchema.safeParse({ name: file.name, size: file.size })
+    if (!parsed.success) throw new Error(parsed.error.issues[0]?.message)
     requireRole(role)
     if (role === 'student' && request.application.studentId !== currentAccount.value?.username) throw new Error('ไม่มีสิทธิ์ดำเนินการ')
     if (!canTransitionRequest(request.status, action)) throw new Error('สถานะคำร้องเปลี่ยนแล้ว')
+    const body = new FormData()
+    body.set('kind', kind === 'letter' ? 'outgoing' : 'company-response')
+    body.set('file', file)
+    const document = await $fetch<RequestDocument>(`/api/placement-requests/${id}/documents`, { method: 'POST', body })
     request[kind] = document
     request.status = kind === 'letter' ? 'letter-issued' : 'signed-uploaded'
     request.returnReason = undefined
     request.updatedAt = new Date().toISOString()
     useStudentPlacements().syncDocumentStatus(id, kind === 'letter' ? 'letter-issued' : 'response-uploaded')
   }
-  const review = (id: string, outcome: 'return' | 'confirm', reason: string) => {
+  const review = async (id: string, outcome: 'return' | 'confirm', reason: string) => {
     requireRole('staff')
     const request = requests.value.find(item => item.id === id)
     if (!request || !request.signedDocument || !canTransitionRequest(request.status, outcome)) throw new Error('ยังไม่มีเอกสารลงนามให้ตรวจสอบ')
     if (outcome === 'confirm') {
       if (!request.cycleId) throw new Error('คำร้องเดิมไม่มีรอบสหกิจศึกษา กรุณาส่งคำร้องใหม่')
-      useSupervisionGroups().registerConfirmedPlacement(request, request.cycleId)
     }
-    request.returnReason = outcome === 'return' ? returnReasonSchema.parse(reason) : undefined
+    const returnReason = outcome === 'return' ? returnReasonSchema.parse(reason) : undefined
+    await $fetch(`/api/placement-requests/${id}/review`, { method: 'PATCH', body: { outcome, reason: returnReason ?? '' } })
+    if (outcome === 'confirm') useSupervisionGroups().registerConfirmedPlacement(request, request.cycleId!)
+    request.returnReason = returnReason
     request.status = outcome === 'return' ? 'returned' : 'confirmed'
     request.updatedAt = new Date().toISOString()
     useStudentPlacements().syncDocumentStatus(id, outcome === 'return' ? 'response-returned' : 'confirmed', request.returnReason)

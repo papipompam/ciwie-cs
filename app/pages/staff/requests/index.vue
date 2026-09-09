@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Eye, RotateCcw, Search, X } from '@lucide/vue'
 import { requestStatusMeta } from '#shared/placement-requests'
+import type { PlacementRequestPreview } from '#shared/placement-requests'
 import { getPageCount, paginateItems } from '~/utils/table'
 
 definePageMeta({ title: 'คำร้องและหนังสือ', middleware: 'staff-prototype' })
 useHead({ title: 'คำร้องและหนังสือ' })
 const { requests } = usePlacementRequestPreview()
+const { data: persistedRequests, status: requestFetchStatus, error: requestFetchError, refresh: refreshRequests } = await useFetch<PlacementRequestPreview[]>('/api/staff/placement-requests')
+watch(persistedRequests, (items) => { if (items) requests.value = items }, { immediate: true })
 const { scenario } = useScenario()
 const search = ref('')
 const statusFilter = ref('all')
@@ -15,7 +18,12 @@ const pageSize = ref('10')
 const selectedId = ref<string | null>(null)
 const detailOpen = ref(false)
 const selected = computed(() => requests.value.find(item => item.id === selectedId.value))
-const state = computed(() => scenario.value.forceError ? 'error' : scenario.value.viewState)
+const state = computed(() => {
+  if (scenario.value.forceError || requestFetchError.value) return 'error'
+  if (scenario.value.viewState === 'loading' || requestFetchStatus.value === 'pending') return 'loading'
+  if (scenario.value.viewState === 'empty') return 'empty'
+  return 'data'
+})
 const options = [{ value: 'all', label: 'ทุกสถานะ' }, ...Object.entries(requestStatusMeta).map(([value, meta]) => ({ value, label: meta.label }))]
 const filtered = computed(() => {
   const keyword = search.value.trim().toLocaleLowerCase('th')
@@ -29,20 +37,25 @@ const rows = computed(() => paginateItems(filtered.value, page.value, Number(pag
 watch([search, statusFilter, pageSize, ascending], () => { page.value = 1 })
 watch(pageCount, count => { page.value = Math.min(page.value, count) })
 const reset = () => { search.value = ''; statusFilter.value = 'all'; ascending.value = false; page.value = 1 }
-const retry = () => { scenario.value.forceError = false; scenario.value.viewState = 'data' }
+const retry = async () => { scenario.value.forceError = false; scenario.value.viewState = 'data'; await refreshRequests() }
 const open = (id: string) => { selectedId.value = id; detailOpen.value = true }
+const openRequestedRecord = () => {
+  const id = typeof route.query.request === 'string' ? route.query.request : null
+  if (id && requests.value.some(item => item.id === id)) open(id)
+}
 const date = (value: string) => new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' }).format(new Date(value))
 const mapLink = computed(() => {
   const item = selected.value?.application
   return item?.latitude != null && item.longitude != null ? `https://www.openstreetmap.org/?mlat=${item.latitude}&mlon=${item.longitude}#map=17/${item.latitude}/${item.longitude}` : null
 })
+const route = useRoute()
+watch([persistedRequests, () => route.query.request], openRequestedRecord, { immediate: true })
 </script>
 
 <template>
   <div class="space-y-6">
     <header><h2 class="text-2xl font-bold text-ink sm:text-3xl">คำร้องและหนังสือ</h2><p class="mt-2 text-sm text-muted">ออกหนังสือขอความอนุเคราะห์ และตรวจเอกสารที่สถานประกอบการลงนาม</p></header>
-    <p class="rounded-control border border-divider bg-canvas p-4 text-sm leading-6 text-muted">ต้นแบบสำหรับทดลอง flow · รับข้อมูลจากปุ่ม “ส่งคำร้องขอหนังสือ (ทดลอง)” ของนักศึกษาใน session เดียวกัน ข้อมูลและไฟล์หายเมื่อรีโหลดหน้า ยังไม่เชื่อมฐานข้อมูลหรือส่งเอกสารจริง</p>
-    <NuxtLink to="/staff/letters" class="inline-flex min-h-11 items-center rounded-control border border-divider px-4 text-sm font-semibold text-ink hover:bg-surface">จัดชุดและออกหนังสือจากคำร้องเดิม</NuxtLink>
+    <p class="rounded-control border border-divider bg-canvas p-4 text-sm leading-6 text-muted">คำร้องจะแสดงทันทีเมื่อนักศึกษายืนยันสถานประกอบการ เจ้าหน้าที่สามารถแนบหนังสือขอความอนุเคราะห์และตรวจหนังสือตอบรับได้จากรายการนี้</p>
     <UiCard :padded="false">
       <div class="space-y-4 border-b border-divider p-5 sm:p-6">
         <h3 class="text-lg font-bold text-ink">คำร้องจากนักศึกษา</h3>

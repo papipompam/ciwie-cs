@@ -1,6 +1,9 @@
 import type { PersonPrefix, StudentSection } from './usePeopleDirectory'
 import { z } from 'zod'
 import type { PlacementRequestPreview } from '#shared/placement-requests'
+import type { SupervisionCompanyDto, SupervisionGroupDto, SupervisionLecturerDto } from '#shared/supervision-groups'
+import { companiesResponseSchema, companyRecordSchema } from '#shared/companies'
+import { requestAwareFetch } from '../utils/requestAwareFetch'
 
 export type SupervisionRound = 1 | 2
 export type CompanyRecordStatus = 'active' | 'inactive'
@@ -141,7 +144,8 @@ const groupsSeed: SupervisionGroup[] = [
 export const useSupervisionGroups = () => {
   const placements = useState<SupervisionPlacement[]>('supervision-placements-v4', () => structuredClone(placementsSeed))
   const groups = useState<SupervisionGroup[]>('supervision-groups-v3', () => structuredClone(groupsSeed))
-  const companyRecords = useState<CompanyRecord[]>('company-records-v1', () => structuredClone(companyRecordsSeed))
+  const companyRecords = useState<CompanyRecord[]>('company-records-v1', () => import.meta.dev ? structuredClone(companyRecordsSeed) : [])
+  const supervisionLecturers = useState<SupervisionLecturerDto[]>('supervision-lecturers-v1', () => [])
   const studentProfiles = useState<Record<string, { prefix: string, section: string }>>('supervision-student-profiles-v1', () => Object.fromEntries(
     Object.keys(studentPrefixes).map(id => [id, { prefix: studentPrefixes[id] ?? 'นาย', section: studentSections[id] ?? 'ยังไม่กำหนด' }]),
   ))
@@ -149,6 +153,80 @@ export const useSupervisionGroups = () => {
   const { currentAccount } = useAuthPrototype()
   const requireStaff = () => {
     if (currentAccount.value?.role !== 'staff') throw new Error('เฉพาะเจ้าหน้าที่เท่านั้นที่จัดกลุ่มนิเทศได้')
+  }
+
+  const syncPersistedContext = (cycleId: string, data: { companies: SupervisionCompanyDto[], groups: SupervisionGroupDto[], lecturers: SupervisionLecturerDto[] }) => {
+    groups.value = [
+      ...groups.value.filter(group => group.cycleId !== cycleId),
+      ...data.groups,
+    ]
+    placements.value = [
+      ...placements.value.filter(placement => placement.cycleId !== cycleId),
+      ...data.companies.flatMap(company => company.students.map(student => ({
+        id: student.id,
+        cycleId,
+        studentId: student.studentId,
+        studentName: `${student.firstName} ${student.lastName}`.trim(),
+        companyId: company.id,
+        company: company.name,
+        branch: company.branch,
+        province: company.province,
+        region: company.region,
+        position: student.position,
+      }))),
+    ]
+    for (const company of data.companies) {
+      const record: CompanyRecord = {
+        id: company.id,
+        name: company.name,
+        branch: company.branch,
+        province: company.province,
+        region: company.region,
+        address: company.address,
+        contactName: company.contactName,
+        contactPhone: company.contactPhone,
+        status: company.status,
+        latitude: company.latitude,
+        longitude: company.longitude,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+      const index = companyRecords.value.findIndex(item => item.id === company.id)
+      if (index === -1) companyRecords.value.push(record)
+      else companyRecords.value[index] = { ...companyRecords.value[index]!, ...record }
+      for (const student of company.students) studentProfiles.value[student.studentId] = { prefix: student.prefix, section: student.section }
+    }
+    supervisionLecturers.value = data.lecturers
+  }
+
+  const loadPersistedGroups = async (cycleId: string, round: SupervisionRound) => {
+    requireStaff()
+    const data = await requestAwareFetch('/api/staff/supervision/groups', {
+      query: { cycleId, round },
+    }) as { companies: SupervisionCompanyDto[], groups: SupervisionGroupDto[], lecturers: SupervisionLecturerDto[] }
+    syncPersistedContext(cycleId, data)
+    return data
+  }
+
+  const persistSuggestedGroups = async (cycleId: string, round: SupervisionRound, proposed: Array<{ name: string, companyIds: string[] }>) => {
+    requireStaff()
+    const saved = await requestAwareFetch('/api/staff/supervision/groups', {
+      method: 'POST',
+      body: { cycleId, round, groups: proposed },
+    }) as SupervisionGroupDto[]
+    groups.value = [...groups.value, ...saved]
+    return saved
+  }
+
+  const persistLecturers = async (groupId: string, lecturerIds: string[]) => {
+    requireStaff()
+    const saved = await requestAwareFetch(`/api/staff/supervision/groups/${groupId}/lecturers`, {
+      method: 'PATCH',
+      body: { lecturerIds },
+    }) as SupervisionGroupDto
+    const index = groups.value.findIndex(group => group.id === saved.id)
+    if (index !== -1) Object.assign(groups.value[index]!, saved)
+    return saved
   }
 
   const getCompanies = (cycleId: string): SupervisionCompany[] => {
@@ -248,7 +326,9 @@ export const useSupervisionGroups = () => {
     const group = getGroup(groupId)
     if (!group) throw new Error('ไม่พบกลุ่มนิเทศ')
     const { people } = usePeopleDirectory()
-    const eligible = new Set(people.value.filter(person => person.type === 'lecturer' && person.recordStatus === 'active' && !['suspended', 'terminated'].includes(person.accountStatus)).map(person => person.id))
+    const eligible = new Set(people.value
+      .filter(person => person.type === 'lecturer' && person.recordStatus === 'active' && !['suspended', 'terminated'].includes(person.accountStatus))
+      .map(person => person.accountId ?? person.id))
     const assigned = new Set(groups.value.filter(item => item.id !== groupId && item.cycleId === group.cycleId && item.round === group.round).flatMap(item => item.lecturerIds))
     if (new Set(ids).size !== ids.length || ids.some(id => !eligible.has(id) || assigned.has(id))) throw new Error('อาจารย์ไม่พร้อมใช้งานหรืออยู่ในกลุ่มอื่นแล้ว')
     group.lecturerIds = [...ids]
@@ -307,6 +387,33 @@ export const useSupervisionGroups = () => {
     recordEvent(`ลบสถานประกอบการ ${company.name}`)
   }
 
+  const loadPersistedCompanies = async () => {
+    const response = companiesResponseSchema.parse(await requestAwareFetch('/api/companies'))
+    companyRecords.value = response.companies
+    return response.companies
+  }
+
+  const persistCreateCompany = async (input: CompanyInput) => {
+    const company = companyRecordSchema.parse(await requestAwareFetch('/api/companies', { method: 'POST', body: input }))
+    companyRecords.value.unshift(company)
+    recordEvent(`เพิ่มสถานประกอบการ ${company.name}`)
+    return company
+  }
+
+  const persistUpdateCompany = async (company: CompanyRecord, input: CompanyInput) => {
+    const updated = companyRecordSchema.parse(await requestAwareFetch(`/api/companies/${company.id}`, { method: 'PATCH', body: input }))
+    Object.assign(company, updated)
+    recordEvent(`แก้ไขสถานประกอบการ ${company.name}`)
+    return company
+  }
+
+  const persistCompanyStatus = async (company: CompanyRecord, status: CompanyRecordStatus) => {
+    const updated = companyRecordSchema.parse(await requestAwareFetch(`/api/companies/${company.id}`, { method: 'PATCH', body: { status } }))
+    Object.assign(company, updated)
+    recordEvent(`${status === 'active' ? 'เปิดใช้งาน' : 'ยุติการใช้งาน'}สถานประกอบการ ${company.name}`)
+    return company
+  }
+
   const updateCompanyStudent = (placementId: string, input: CompanyStudentInput) => {
     const placement = placements.value.find(item => item.id === placementId)
     if (!placement) throw new Error('student-placement-not-found')
@@ -324,6 +431,7 @@ export const useSupervisionGroups = () => {
     placements,
     groups,
     companyRecords,
+    supervisionLecturers,
     getGroup,
     getCompanyRecord,
     getCompanyPlacements,
@@ -335,12 +443,19 @@ export const useSupervisionGroups = () => {
     createGroup,
     createSuggestedGroups,
     assignLecturers,
+    loadPersistedGroups,
+    persistSuggestedGroups,
+    persistLecturers,
     registerConfirmedPlacement,
     createCompany,
     updateCompany,
     deactivateCompany,
     restoreCompany,
     deleteCompany,
+    loadPersistedCompanies,
+    persistCreateCompany,
+    persistUpdateCompany,
+    persistCompanyStatus,
     updateCompanyStudent,
   }
 }

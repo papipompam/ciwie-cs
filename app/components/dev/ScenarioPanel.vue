@@ -35,7 +35,7 @@ const viewStateOptions = [
 const selectedRole = computed({
   get: () => scenario.value.role,
   set: (value: string) => {
-    if (value === 'staff' || value === 'lecturer' || value === 'student') switchPrototypeRole(value)
+    if (value === 'staff' || value === 'lecturer' || value === 'student') void switchPrototypeRole(value)
   },
 })
 const selectedDataSet = computed({
@@ -60,7 +60,7 @@ const selectedViewState = computed({
 const resetAllMockData = () => {
   resetScenario()
   resetPlacementData()
-  switchPrototypeRole('staff')
+  void switchPrototypeRole('staff')
 }
 </script>
 

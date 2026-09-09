@@ -47,11 +47,6 @@ const roleEventSeeds: RoleCalendarEvent[] = [
     date: '2026-09-30', type: 'deadline', roles: ['staff', 'lecturer', 'student'], source: 'system',
   },
   {
-    id: 'CAL-LECTURER-001', title: 'ตรวจคำร้องและหนังสือที่รอดำเนินการ',
-    description: 'ตรวจรายละเอียดคำร้องและส่งผลให้เจ้าหน้าที่ดำเนินการออกหนังสือ',
-    date: '2026-09-01', type: 'document', roles: ['lecturer'], href: '/lecturer/placements', source: 'system',
-  },
-  {
     id: 'CAL-LECTURER-002', title: 'ติดตามแบบประเมินหลังการนิเทศ',
     description: 'ตรวจรายการที่นิเทศแล้วและส่งแบบประเมินให้ครบถ้วน',
     date: '2026-09-07', type: 'evaluation', roles: ['lecturer'], href: '/lecturer/evaluations?type=student', source: 'system',

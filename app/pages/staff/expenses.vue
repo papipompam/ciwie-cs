@@ -1,163 +1,141 @@
 <script setup lang="ts">
-import { BedDouble, Calculator, Fuel, History, ReceiptText, RotateCcw, Save, WalletCards } from '@lucide/vue'
+import { BedDouble, Calculator, Fuel, History, Save, UsersRound, WalletCards } from '@lucide/vue'
+import { supervisionLineExpenseInputSchema } from '#shared/expenses'
+import type { SupervisionLineExpenseInput } from '#shared/expenses'
+import { calculateSupervisionLineExpense } from '#shared/expense-calculation'
 
-definePageMeta({ title: 'คำนวณค่าใช้จ่าย', middleware: 'staff-prototype' })
-useHead({ title: 'คำนวณค่าใช้จ่าย' })
+definePageMeta({ title: 'ค่าใช้จ่ายสายการนิเทศ', middleware: 'staff-prototype' })
+useHead({ title: 'ค่าใช้จ่ายสายการนิเทศ' })
 
-const {
-  amounts,
-  errors,
-  calculatedExpense,
-  displayedAmounts,
-  displayedTotal,
-  hasInput,
-  clearFieldError,
-  calculateExpenses,
-  invalidateCalculation,
-  resetExpenses,
-} = useExpenseCalculator()
-const { cycleId, cycleOptions, round, roundModel, roundOptions, selectedCycleLabel } = useSupervisionContext()
-const { cycleCatalog } = useCoopCycles()
-const { records, saveExpense } = useExpenseRecords()
-const { currentAccount } = useAuthPrototype()
-const { scenario } = useScenario()
+type InputKey = keyof SupervisionLineExpenseInput
+const { cycleId, cycleOptions, round, roundModel, roundOptions } = useSupervisionContext()
+const { groups, records, loadExpenses, saveExpense } = useSupervisionExpenses()
 const { showToast } = useToast()
-
-const expenseItems = [
-  { key: 'fuel' as const, label: 'ค่าน้ำมัน', icon: Fuel },
-  { key: 'accommodation' as const, label: 'ค่าที่พัก', icon: BedDouble },
-  { key: 'allowance' as const, label: 'เบี้ยเลี้ยง', icon: WalletCards },
+const selectedGroupId = ref('')
+const saving = ref(false)
+const form = reactive<Record<InputKey, string>>({ fuel: '', roomRate: '', nights: '1', allowanceRate: '', allowanceDays: '1', roomCapacity: '2' })
+const errors = reactive<Partial<Record<InputKey | 'groupId', string>>>({})
+const { status, error, refresh } = await useAsyncData(
+  () => `staff-expenses-${cycleId.value}-${round.value}`,
+  () => loadExpenses(cycleId.value, round.value),
+  { watch: [cycleId, roundModel] },
+)
+const groupOptions = computed(() => groups.value.map(group => ({ value: group.id, label: `${group.name} · ${group.companyCount} สถานประกอบการ` })))
+const selectedGroup = computed(() => groups.value.find(group => group.id === selectedGroupId.value) ?? null)
+const selectedRecord = computed(() => records.value.find(record => record.groupId === selectedGroupId.value) ?? null)
+const missingGender = computed(() => selectedGroup.value?.lecturers.filter(lecturer => lecturer.gender === null) ?? [])
+const hasLecturers = computed(() => Boolean(selectedGroup.value?.lecturers.length))
+const numericInput = computed<SupervisionLineExpenseInput>(() => ({
+  fuel: Number(form.fuel), roomRate: Number(form.roomRate), nights: Number(form.nights),
+  allowanceRate: Number(form.allowanceRate), allowanceDays: Number(form.allowanceDays), roomCapacity: Number(form.roomCapacity),
+}))
+const preview = computed(() => {
+  if (!selectedGroup.value || missingGender.value.length) return null
+  const parsed = supervisionLineExpenseInputSchema.safeParse(numericInput.value)
+  return parsed.success ? calculateSupervisionLineExpense(parsed.data, selectedGroup.value.lecturers) : null
+})
+const inputFields = [
+  { key: 'fuel' as const, label: 'ค่าน้ำมันต่อสาย (บาท)', icon: Fuel, step: '0.01', min: '0' },
+  { key: 'roomRate' as const, label: 'ราคาห้องต่อคืน (บาท)', icon: BedDouble, step: '0.01', min: '0' },
+  { key: 'nights' as const, label: 'จำนวนคืน', icon: BedDouble, step: '1', min: '0' },
+  { key: 'roomCapacity' as const, label: 'จำนวนคนสูงสุดต่อห้อง', icon: UsersRound, step: '1', min: '1' },
+  { key: 'allowanceRate' as const, label: 'เบี้ยเลี้ยงต่อคนต่อวัน (บาท)', icon: WalletCards, step: '0.01', min: '0' },
+  { key: 'allowanceDays' as const, label: 'จำนวนวันเบี้ยเลี้ยง', icon: WalletCards, step: '1', min: '0' },
 ]
+const money = (value: number) => new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', minimumFractionDigits: 2 }).format(value)
+const dateTime = (value: string) => new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' }).format(new Date(value))
+const clearErrors = () => Object.assign(errors, {
+  groupId: undefined, fuel: undefined, roomRate: undefined, nights: undefined,
+  allowanceRate: undefined, allowanceDays: undefined, roomCapacity: undefined,
+})
 
-const formatCurrency = (value: number) => new Intl.NumberFormat('th-TH', {
-  style: 'currency', currency: 'THB', minimumFractionDigits: 2,
-}).format(value)
-const formatDateTime = (value: string) => new Intl.DateTimeFormat('th-TH', {
-  dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok',
-}).format(new Date(value))
-const cycleLabelFor = (savedCycleId: string) => cycleCatalog.find(cycle => cycle.id === savedCycleId)?.label ?? savedCycleId
-const effectiveHistoryState = computed(() => scenario.value.forceError ? 'error' : scenario.value.viewState)
-
-const calculate = () => {
-  const result = calculateExpenses({ cycleId: cycleId.value, round: round.value })
-  if (result === null) return
-  showToast({ title: 'คำนวณค่าใช้จ่ายแล้ว', description: `ยอดรวม ${formatCurrency(result.total)}` })
+const fillForm = () => {
+  const record = selectedRecord.value
+  Object.assign(form, record
+    ? { fuel: String(record.fuel), roomRate: String(record.roomRate), nights: String(record.nights), allowanceRate: String(record.allowanceRate), allowanceDays: String(record.allowanceDays), roomCapacity: String(record.roomCapacity) }
+    : { fuel: '', roomRate: '', nights: '1', allowanceRate: '', allowanceDays: '1', roomCapacity: '2' })
+  clearErrors()
 }
+watch(groups, (items) => {
+  if (!items.some(group => group.id === selectedGroupId.value)) selectedGroupId.value = items[0]?.id ?? ''
+}, { immediate: true })
+watch(selectedGroupId, fillForm)
 
-const save = () => {
-  const calculation = calculateExpenses({ cycleId: cycleId.value, round: round.value })
-  if (calculation === null) return
-  const record = saveExpense(calculation, currentAccount.value?.name ?? 'เจ้าหน้าที่')
-  resetExpenses()
-  scenario.value.forceError = false
-  scenario.value.viewState = 'data'
-  showToast({ title: 'บันทึกค่าใช้จ่ายแล้ว', description: `${selectedCycleLabel.value} · นิเทศครั้งที่ ${record.reference.round} · ${formatCurrency(record.total)}` })
+const submit = async () => {
+  clearErrors()
+  if (!selectedGroup.value) { errors.groupId = 'กรุณาเลือกสายการนิเทศ'; return }
+  if (!hasLecturers.value) {
+    showToast({ title: 'ยังบันทึกไม่ได้', description: 'กรุณาเพิ่มอาจารย์เข้าสายการนิเทศก่อน' })
+    return
+  }
+  if (missingGender.value.length) {
+    showToast({ title: 'ยังบันทึกไม่ได้', description: 'กรุณาระบุเพศของอาจารย์ในสายให้ครบก่อนคำนวณค่าที่พัก' })
+    return
+  }
+  const parsed = supervisionLineExpenseInputSchema.safeParse(numericInput.value)
+  if (!parsed.success) {
+    parsed.error.issues.forEach((issue) => { errors[issue.path[0] as InputKey] ??= issue.message })
+    return
+  }
+  saving.value = true
+  try {
+    const saved = await saveExpense(selectedGroup.value.id, parsed.data)
+    showToast({ title: 'บันทึกค่าใช้จ่ายแล้ว', description: `${saved.groupName} · ${money(saved.total)}` })
+  }
+  catch (cause) { showToast({ title: 'บันทึกไม่สำเร็จ', description: cause instanceof Error ? cause.message : 'กรุณาลองใหม่' }) }
+  finally { saving.value = false }
 }
-
-const reset = () => {
-  resetExpenses()
-  showToast({ title: 'ล้างข้อมูลแล้ว', description: 'ช่องกรอกค่าใช้จ่ายกลับเป็นค่าเริ่มต้น' })
-}
-const retryHistory = () => {
-  scenario.value.forceError = false
-  scenario.value.viewState = 'data'
-}
-
-watch([cycleId, roundModel], invalidateCalculation)
 </script>
 
 <template>
-  <div>
-    <header class="mb-6">
+  <div class="space-y-6">
+    <header>
       <p class="text-sm font-semibold text-primary">เครื่องมือสำหรับเจ้าหน้าที่</p>
-      <h2 class="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-3xl">คำนวณค่าใช้จ่าย</h2>
+      <h2 class="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-3xl">ค่าใช้จ่ายสายการนิเทศ</h2>
+      <p class="mt-2 text-sm leading-6 text-muted">เลือกสายที่ระบบจัดกลุ่มจากที่อยู่และพิกัด แล้วกรอกอัตราค่าใช้จ่าย ระบบจะแยกห้องพักอาจารย์ชายและหญิงอัตโนมัติ</p>
     </header>
 
-    <div class="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
-      <UiCard :padded="false">
-        <div class="flex flex-col gap-4 border-b border-divider p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
-          <div class="flex items-center gap-3">
-            <span class="grid size-11 shrink-0 place-items-center rounded-control bg-warning-soft text-warning"><ReceiptText :size="21" aria-hidden="true" /></span>
-            <h3 class="font-bold text-ink">รายการค่าใช้จ่าย</h3>
-          </div>
-          <div class="grid gap-3 sm:grid-cols-2 lg:w-[29rem]" role="group" aria-label="ตัวกรองการนิเทศ">
-            <UiSelect v-model="cycleId" :options="cycleOptions" label="ปีการศึกษา / ภาคเรียน" />
-            <UiSelect v-model="roundModel" :options="roundOptions" label="ครั้งที่นิเทศ" />
-          </div>
+    <div v-if="status === 'pending'" class="space-y-4"><UiSkeleton v-for="row in 4" :key="row" class="h-20" /></div>
+    <AppErrorState v-else-if="error" title="โหลดข้อมูลสายการนิเทศไม่สำเร็จ" description="กรุณาลองโหลดข้อมูลอีกครั้ง" @retry="refresh" />
+    <AppEmptyState v-else-if="!groups.length" title="ยังไม่มีสายการนิเทศ" description="ต้องจัดกลุ่มสถานประกอบการและเพิ่มอาจารย์เข้าสายก่อน จึงจะคำนวณค่าใช้จ่ายได้">
+      <NuxtLink to="/staff/supervision/groups" class="inline-flex min-h-11 items-center rounded-control border border-divider px-4 font-semibold text-ink">ไปหน้าจัดกลุ่มนิเทศ</NuxtLink>
+    </AppEmptyState>
+
+    <template v-else>
+      <UiCard><div class="grid gap-4 md:grid-cols-3"><UiSelect v-model="cycleId" :options="cycleOptions" label="ปีการศึกษา / ภาคเรียน" /><UiSelect v-model="roundModel" :options="roundOptions" label="ครั้งที่นิเทศ" /><UiSelect v-model="selectedGroupId" :options="groupOptions" label="สายการนิเทศที่จัดโดย AI" :error="errors.groupId" /></div></UiCard>
+
+      <div v-if="selectedGroup" class="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_23rem]">
+        <div class="space-y-6">
+          <UiCard>
+            <div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="text-lg font-bold text-ink">{{ selectedGroup.name }}</h3><p class="mt-1 text-sm text-muted">{{ selectedGroup.companyCount }} สถานประกอบการ · {{ selectedGroup.lecturers.length }} อาจารย์</p></div><UiBadge tone="info">นิเทศครั้งที่ {{ selectedGroup.round }}</UiBadge></div>
+            <div class="mt-5 grid gap-3 sm:grid-cols-2"><div v-for="lecturer in selectedGroup.lecturers" :key="lecturer.id" class="flex items-center justify-between gap-3 rounded-control border border-divider p-3"><span class="min-w-0 truncate text-sm font-semibold text-ink">{{ lecturer.name }}</span><UiBadge :tone="lecturer.gender ? 'neutral' : 'danger'">{{ lecturer.gender === 'male' ? 'ชาย' : lecturer.gender === 'female' ? 'หญิง' : 'ยังไม่ระบุเพศ' }}</UiBadge></div></div>
+            <UiAlert v-if="!hasLecturers" class="mt-4" tone="warning" title="ยังไม่มีอาจารย์ในสาย">กรุณากลับไปเพิ่มอาจารย์ในกลุ่มนิเทศก่อนคำนวณค่าใช้จ่าย</UiAlert>
+            <UiAlert v-else-if="missingGender.length" class="mt-4" tone="danger" title="ข้อมูลเพศอาจารย์ไม่ครบ">กรุณาแก้ข้อมูลอาจารย์ {{ missingGender.map(item => item.name).join(', ') }} ก่อนบันทึก ระบบจะไม่เดาเพศจากคำนำหน้า</UiAlert>
+          </UiCard>
+
+          <UiCard>
+            <form novalidate @submit.prevent="submit">
+              <h3 class="text-lg font-bold text-ink">อัตราและจำนวนวัน</h3>
+              <div class="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"><div v-for="field in inputFields" :key="field.key" class="rounded-panel border border-divider p-4"><div class="mb-3 flex items-center gap-2"><component :is="field.icon" :size="18" class="text-muted" aria-hidden="true" /><span class="text-sm font-semibold text-ink">{{ field.label }}</span></div><UiInput v-model="form[field.key]" type="number" :label="field.label" :label-visible="false" :min="field.min" :step="field.step" :error="errors[field.key]" input-class="text-right tabular-nums" /></div></div>
+              <div class="mt-6 flex justify-end border-t border-divider pt-5"><UiButton type="submit" :icon="Save" :loading="saving" :disabled="!hasLecturers || missingGender.length > 0">{{ selectedRecord ? 'อัปเดตค่าใช้จ่าย' : 'บันทึกค่าใช้จ่าย' }}</UiButton></div>
+            </form>
+          </UiCard>
         </div>
 
-        <form class="p-5 sm:p-6" novalidate @submit.prevent="calculate">
-          <div class="grid gap-5 lg:grid-cols-3">
-            <div v-for="item in expenseItems" :key="item.key" class="rounded-panel border border-divider p-4">
-              <div class="mb-4 flex items-center gap-3">
-                <span class="grid size-10 shrink-0 place-items-center rounded-control bg-surface text-muted"><component :is="item.icon" :size="19" aria-hidden="true" /></span>
-                <p class="min-w-0 font-semibold text-ink">{{ item.label }}</p>
-              </div>
-              <UiInput v-model="amounts[item.key]" type="number" :label="`${item.label} (บาท)`" placeholder="0.00" :error="errors[item.key]" input-class="text-right tabular-nums" @update:model-value="clearFieldError(item.key)" />
-            </div>
-          </div>
-
-          <div class="mt-6 flex flex-col-reverse gap-2 border-t border-divider pt-5 sm:flex-row sm:items-center sm:justify-between">
-            <UiDialog title="ยืนยันการล้างข้อมูล" description="จำนวนเงินที่กรอกไว้ทั้งหมดจะถูกล้างและไม่สามารถกู้คืนได้">
-              <template #trigger><UiButton type="button" variant="ghost" :icon="RotateCcw" :disabled="!hasInput">ล้างข้อมูล</UiButton></template>
-              <template #cancel><UiButton variant="ghost">ยกเลิก</UiButton></template>
-              <template #confirm><UiButton variant="danger" @click="reset">ยืนยันล้างข้อมูล</UiButton></template>
-            </UiDialog>
-            <div class="flex flex-col gap-2 sm:flex-row">
-              <UiButton type="submit" variant="secondary" :icon="Calculator">คำนวณค่าใช้จ่าย</UiButton>
-              <UiButton type="button" :icon="Save" :disabled="!hasInput" @click="save">บันทึกค่าใช้จ่าย</UiButton>
-            </div>
-          </div>
-        </form>
-      </UiCard>
-
-      <UiCard class="xl:sticky xl:top-24" aria-live="polite">
-        <div class="flex items-center gap-3">
-          <span class="grid size-11 shrink-0 place-items-center rounded-control bg-primary text-ink"><Calculator :size="21" aria-hidden="true" /></span>
-          <div><h3 class="font-bold text-ink">สรุปค่าใช้จ่าย</h3><p class="mt-0.5 text-xs text-muted">ยอดประมาณการจากข้อมูลที่กรอก</p></div>
-        </div>
-        <dl class="mt-5 space-y-3 text-sm">
-          <div v-for="item in expenseItems" :key="item.key" class="flex items-center justify-between gap-4"><dt class="text-muted">{{ item.label }}</dt><dd class="font-medium text-ink tabular-nums">{{ formatCurrency(displayedAmounts[item.key]) }}</dd></div>
-        </dl>
-        <div class="mt-5 border-t-2 border-ink pt-4"><div class="flex items-end justify-between gap-4"><p class="font-semibold text-ink">รวมทั้งสิ้น</p><p class="text-2xl font-bold text-ink tabular-nums">{{ formatCurrency(displayedTotal) }}</p></div></div>
-        <div class="mt-5 rounded-control bg-info-soft p-3 text-xs leading-5 text-info">{{ calculatedExpense ? 'คำนวณยอดล่าสุดแล้ว' : 'ยอดจะเปลี่ยนตามจำนวนเงินที่เจ้าหน้าที่กรอก' }} และยังไม่ถูกบันทึกลงระบบ</div>
-      </UiCard>
-    </div>
-
-    <UiCard class="mt-5" :padded="false">
-      <div class="flex items-start justify-between gap-4 border-b border-divider p-5 sm:p-6">
-        <div class="flex items-start gap-3">
-          <span class="grid size-11 shrink-0 place-items-center rounded-control bg-success-soft text-success"><History :size="21" aria-hidden="true" /></span>
-          <div><h3 class="font-bold text-ink">ประวัติค่าใช้จ่าย</h3><p class="mt-1 text-sm leading-6 text-muted">รายการที่บันทึกใน session ปัจจุบัน ข้อมูลจะรีเซ็ตเมื่อรีเฟรชแอป</p></div>
-        </div>
-        <UiBadge v-if="effectiveHistoryState === 'data'" tone="info">{{ records.length }} รายการ</UiBadge>
+        <UiCard class="xl:sticky xl:top-24" aria-live="polite">
+          <div class="flex items-center gap-3"><span class="grid size-11 place-items-center rounded-control bg-primary text-ink"><Calculator :size="21" /></span><div><h3 class="font-bold text-ink">สรุปค่าใช้จ่าย</h3><p class="text-xs text-muted">คำนวณจากอาจารย์ในสาย</p></div></div>
+          <dl v-if="preview" class="mt-5 space-y-3 text-sm"><div class="flex justify-between gap-4"><dt class="text-muted">ห้องอาจารย์ชาย</dt><dd class="font-semibold">{{ preview.maleRoomCount }} ห้อง / {{ preview.maleLecturerCount }} คน</dd></div><div class="flex justify-between gap-4"><dt class="text-muted">ห้องอาจารย์หญิง</dt><dd class="font-semibold">{{ preview.femaleRoomCount }} ห้อง / {{ preview.femaleLecturerCount }} คน</dd></div><div class="flex justify-between gap-4"><dt class="text-muted">ค่าน้ำมัน</dt><dd>{{ money(preview.amounts.fuel) }}</dd></div><div class="flex justify-between gap-4"><dt class="text-muted">ค่าที่พัก</dt><dd>{{ money(preview.amounts.accommodation) }}</dd></div><div class="flex justify-between gap-4"><dt class="text-muted">เบี้ยเลี้ยง</dt><dd>{{ money(preview.amounts.allowance) }}</dd></div><div class="flex items-end justify-between gap-4 border-t-2 border-ink pt-4"><dt class="font-semibold">รวมทั้งสิ้น</dt><dd class="text-2xl font-bold tabular-nums">{{ money(preview.total) }}</dd></div></dl>
+          <p v-else class="mt-5 rounded-control bg-info-soft p-3 text-sm leading-6 text-info">กรอกข้อมูลให้ครบเพื่อดูยอดประมาณการ</p>
+          <p class="mt-4 text-xs leading-5 text-muted">จำนวนห้อง = ห้องชาย + ห้องหญิง โดยไม่มีการรวมอาจารย์ต่างเพศไว้ห้องเดียวกัน</p>
+        </UiCard>
       </div>
 
-      <div v-if="effectiveHistoryState === 'loading'" class="space-y-3 p-5 sm:p-6" aria-label="กำลังโหลดประวัติค่าใช้จ่าย"><UiSkeleton v-for="row in 4" :key="row" class="h-14" /></div>
-      <div v-else-if="effectiveHistoryState === 'error'" class="p-5 sm:p-6"><AppErrorState title="โหลดประวัติค่าใช้จ่ายไม่สำเร็จ" description="เกิดข้อผิดพลาดชั่วคราว กรุณาลองอีกครั้ง" @retry="retryHistory" /></div>
-      <div v-else-if="effectiveHistoryState === 'empty' || !records.length" class="p-5 sm:p-6"><AppEmptyState title="ยังไม่มีรายการค่าใช้จ่าย" description="กรอกจำนวนเงิน เลือกรอบการนิเทศ แล้วกดบันทึกค่าใช้จ่าย รายการจะแสดงในตารางนี้" /></div>
-
-      <template v-else>
-        <div class="hidden overflow-x-auto md:block">
-          <table class="w-full min-w-[1080px] border-collapse text-left text-sm">
-            <caption class="sr-only">ประวัติรายการค่าใช้จ่ายจากการนิเทศ</caption>
-            <thead class="bg-surface text-xs font-semibold tracking-wide text-muted"><tr><th scope="col" class="px-6 py-3">รอบการนิเทศ</th><th scope="col" class="px-4 py-3 text-right">ค่าน้ำมัน</th><th scope="col" class="px-4 py-3 text-right">ค่าที่พัก</th><th scope="col" class="px-4 py-3 text-right">เบี้ยเลี้ยง</th><th scope="col" class="px-4 py-3 text-right">รวม</th><th scope="col" class="px-4 py-3">บันทึกเมื่อ</th><th scope="col" class="px-4 py-3">ผู้บันทึก</th></tr></thead>
-            <tbody class="divide-y divide-divider">
-              <tr v-for="record in records" :key="record.id" class="hover:bg-surface/70">
-                <td class="px-6 py-4"><p class="font-semibold text-ink">{{ cycleLabelFor(record.reference.cycleId) }}</p><p class="mt-1 text-xs text-muted">นิเทศครั้งที่ {{ record.reference.round }}</p></td>
-                <td class="whitespace-nowrap px-4 py-4 text-right tabular-nums">{{ formatCurrency(record.amounts.fuel) }}</td><td class="whitespace-nowrap px-4 py-4 text-right tabular-nums">{{ formatCurrency(record.amounts.accommodation) }}</td><td class="whitespace-nowrap px-4 py-4 text-right tabular-nums">{{ formatCurrency(record.amounts.allowance) }}</td><td class="whitespace-nowrap px-4 py-4 text-right font-bold tabular-nums">{{ formatCurrency(record.total) }}</td><td class="whitespace-nowrap px-4 py-4 text-muted">{{ formatDateTime(record.createdAt) }} น.</td><td class="px-4 py-4">{{ record.createdBy }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="mobile-card-list md:hidden">
-          <article v-for="record in records" :key="record.id" class="p-5">
-            <div class="flex items-start justify-between gap-3"><div><h4 class="font-semibold text-ink">{{ cycleLabelFor(record.reference.cycleId) }}</h4><p class="mt-1 text-xs text-muted">นิเทศครั้งที่ {{ record.reference.round }}</p></div><p class="whitespace-nowrap font-bold tabular-nums">{{ formatCurrency(record.total) }}</p></div>
-            <dl class="mt-4 grid grid-cols-3 gap-3 border-t border-divider pt-3 text-sm"><div><dt class="text-xs text-muted">ค่าน้ำมัน</dt><dd class="mt-1 tabular-nums">{{ formatCurrency(record.amounts.fuel) }}</dd></div><div><dt class="text-xs text-muted">ค่าที่พัก</dt><dd class="mt-1 tabular-nums">{{ formatCurrency(record.amounts.accommodation) }}</dd></div><div><dt class="text-xs text-muted">เบี้ยเลี้ยง</dt><dd class="mt-1 tabular-nums">{{ formatCurrency(record.amounts.allowance) }}</dd></div></dl>
-            <p class="mt-4 border-t border-divider pt-3 text-xs text-muted">{{ formatDateTime(record.createdAt) }} น. · {{ record.createdBy }}</p>
-          </article>
-        </div>
-      </template>
-    </UiCard>
+      <UiCard :padded="false">
+        <div class="flex items-center justify-between gap-4 border-b border-divider p-5 sm:p-6"><div class="flex items-center gap-3"><History :size="20" class="text-muted" /><div><h3 class="font-bold text-ink">ประวัติค่าใช้จ่าย</h3><p class="mt-1 text-sm text-muted">หนึ่งรายการล่าสุดต่อสายการนิเทศ</p></div></div><UiBadge tone="info">{{ records.length }} รายการ</UiBadge></div>
+        <AppEmptyState v-if="!records.length" class="m-6" title="ยังไม่มีรายการค่าใช้จ่าย" description="เลือกสายและบันทึกข้อมูล ค่าใช้จ่ายจะเก็บในฐานข้อมูล" />
+        <div v-else class="hidden overflow-x-auto md:block"><table class="w-full min-w-[900px] text-left text-sm"><caption class="sr-only">ประวัติค่าใช้จ่ายแยกตามสายการนิเทศ</caption><thead class="bg-surface text-xs text-muted"><tr><th class="px-6 py-3">สายการนิเทศ</th><th class="px-4 py-3 text-right">ห้องชาย / หญิง</th><th class="px-4 py-3 text-right">ค่าน้ำมัน</th><th class="px-4 py-3 text-right">ค่าที่พัก</th><th class="px-4 py-3 text-right">เบี้ยเลี้ยง</th><th class="px-4 py-3 text-right">รวม</th><th class="px-4 py-3">อัปเดต</th></tr></thead><tbody class="divide-y divide-divider"><tr v-for="record in records" :key="record.id" class="hover:bg-surface/70"><td class="px-6 py-4"><p class="font-semibold text-ink">{{ record.groupName }}</p><p class="mt-1 text-xs text-muted">{{ record.companyCount }} บริษัท · {{ record.lecturerCount }} อาจารย์</p></td><td class="px-4 py-4 text-right tabular-nums">{{ record.maleRoomCount }} / {{ record.femaleRoomCount }}</td><td class="px-4 py-4 text-right tabular-nums">{{ money(record.amounts.fuel) }}</td><td class="px-4 py-4 text-right tabular-nums">{{ money(record.amounts.accommodation) }}</td><td class="px-4 py-4 text-right tabular-nums">{{ money(record.amounts.allowance) }}</td><td class="px-4 py-4 text-right font-bold tabular-nums">{{ money(record.total) }}</td><td class="whitespace-nowrap px-4 py-4 text-muted">{{ dateTime(record.updatedAt) }}<p class="mt-1 text-xs">{{ record.createdBy }}</p></td></tr></tbody></table></div>
+        <div v-if="records.length" class="divide-y divide-divider md:hidden"><article v-for="record in records" :key="record.id" class="space-y-3 p-5"><div class="flex items-start justify-between gap-3"><div><h4 class="font-semibold text-ink">{{ record.groupName }}</h4><p class="mt-1 text-xs text-muted">{{ record.companyCount }} บริษัท · {{ record.lecturerCount }} อาจารย์</p></div><p class="whitespace-nowrap font-bold tabular-nums">{{ money(record.total) }}</p></div><dl class="grid grid-cols-2 gap-3 border-t border-divider pt-3 text-sm"><div><dt class="text-xs text-muted">ห้องชาย / หญิง</dt><dd class="mt-1">{{ record.maleRoomCount }} / {{ record.femaleRoomCount }}</dd></div><div><dt class="text-xs text-muted">ค่าที่พัก</dt><dd class="mt-1 tabular-nums">{{ money(record.amounts.accommodation) }}</dd></div><div><dt class="text-xs text-muted">ค่าน้ำมัน</dt><dd class="mt-1 tabular-nums">{{ money(record.amounts.fuel) }}</dd></div><div><dt class="text-xs text-muted">เบี้ยเลี้ยง</dt><dd class="mt-1 tabular-nums">{{ money(record.amounts.allowance) }}</dd></div></dl><p class="border-t border-divider pt-3 text-xs text-muted">{{ dateTime(record.updatedAt) }} · {{ record.createdBy }}</p></article></div>
+      </UiCard>
+    </template>
   </div>
 </template>

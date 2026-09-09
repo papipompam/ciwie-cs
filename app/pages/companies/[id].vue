@@ -7,7 +7,11 @@ definePageMeta({ title: 'รายละเอียดสถานประก�
 
 const route = useRoute()
 const { scenario } = useScenario()
-const { getCompanyRecord, getCompanyPlacements, getStudentProfile, updateCompany, deactivateCompany, restoreCompany, deleteCompany, updateCompanyStudent } = useSupervisionGroups()
+const {
+  getCompanyRecord, getCompanyPlacements, getStudentProfile, updateCompanyStudent,
+  loadPersistedCompanies, persistUpdateCompany, persistCompanyStatus,
+} = useSupervisionGroups()
+const { status: companiesFetchStatus, error: companiesFetchError, refresh: refreshCompanies } = await useAsyncData('company-records', loadPersistedCompanies)
 const { cycles, cycleCatalog } = useCoopCycles()
 const selectableCycleIds = new Set(cycles.map(cycle => cycle.id))
 const { showToast } = useToast()
@@ -15,7 +19,9 @@ const companyId = computed(() => String(route.params.id))
 const company = computed(() => getCompanyRecord(companyId.value))
 const placements = computed(() => company.value ? getCompanyPlacements(company.value.id) : [])
 const selectablePlacements = computed(() => placements.value.filter(placement => selectableCycleIds.has(placement.cycleId)))
-const effectiveViewState = computed(() => scenario.value.forceError ? 'error' : scenario.value.viewState)
+const effectiveViewState = computed(() => scenario.value.forceError || companiesFetchError.value
+  ? 'error'
+  : companiesFetchStatus.value === 'pending' ? 'loading' : scenario.value.viewState)
 const companyBasePath = computed(() => scenario.value.role === 'lecturer' ? '/lecturer/companies' : '/staff/companies')
 const isSaving = ref(false)
 const companyDialogOpen = ref(false)
@@ -38,7 +44,7 @@ const studentSchema = z.object({
   position: z.string().trim().min(1, 'กรุณากรอกตำแหน่งฝึกงาน').max(150, 'ตำแหน่งต้องไม่เกิน 150 ตัวอักษร'),
 })
 const companyInitialValue = computed<CompanyInput>(() => company.value
-  ? { name: company.value.name, branch: company.value.branch, province: company.value.province, region: company.value.region, address: company.value.address, contactName: company.value.contactName, contactPhone: company.value.contactPhone }
+  ? { name: company.value.name, branch: company.value.branch, province: company.value.province, region: company.value.region, address: company.value.address, contactName: company.value.contactName, contactPhone: company.value.contactPhone, latitude: company.value.latitude, longitude: company.value.longitude }
   : { name: '', branch: '', province: '', region: '', address: '', contactName: '', contactPhone: '' })
 const formatCycleLabel = (cycleId: string) => {
   return cycleCatalog.find(item => item.id === cycleId)?.label ?? cycleId
@@ -96,12 +102,13 @@ watch(company, value => { if (value) useHead({ title: `${value.name} · สถ�
 const retry = () => {
   scenario.value.forceError = false
   scenario.value.viewState = 'data'
+  void refreshCompanies()
 }
 const saveCompany = async (input: CompanyInput) => {
   if (!company.value || isSaving.value) return
   isSaving.value = true
   try {
-    updateCompany(company.value, input)
+    await persistUpdateCompany(company.value, input)
     showToast({ title: 'บันทึกข้อมูลสถานประกอบการแล้ว', description: company.value.name })
     companyDialogOpen.value = false
   } catch {
@@ -136,25 +143,29 @@ const saveStudent = async () => {
     isSaving.value = false
   }
 }
-const handleDeactivate = () => {
+const handleDeactivate = async () => {
   if (!company.value) return
-  deactivateCompany(company.value)
-  showToast({ title: 'ยุติการใช้งานสถานประกอบการแล้ว', description: 'ข้อมูลและประวัตินักศึกษายังคงอยู่' })
+  try {
+    await persistCompanyStatus(company.value, 'inactive')
+    showToast({ title: 'ยุติการใช้งานสถานประกอบการแล้ว', description: 'ข้อมูลและประวัตินักศึกษายังคงอยู่' })
+  }
+  catch { showToast({ title: 'เปลี่ยนสถานะไม่สำเร็จ', description: 'กรุณาลองอีกครั้ง' }) }
 }
-const handleRestore = () => {
+const handleRestore = async () => {
   if (!company.value) return
-  restoreCompany(company.value)
-  showToast({ title: 'เปิดใช้งานสถานประกอบการแล้ว', description: company.value.name })
+  try {
+    await persistCompanyStatus(company.value, 'active')
+    showToast({ title: 'เปิดใช้งานสถานประกอบการแล้ว', description: company.value.name })
+  }
+  catch { showToast({ title: 'เปลี่ยนสถานะไม่สำเร็จ', description: 'กรุณาลองอีกครั้ง' }) }
 }
 const handleDelete = async () => {
   if (!company.value) return
   try {
-    deleteCompany(company.value)
-    showToast({ title: 'ลบสถานประกอบการแล้ว', description: 'รายการที่ไม่มีข้อมูลอ้างอิงถูกลบออกจากระบบ' })
-    await navigateTo(companyBasePath.value)
-  } catch {
-    showToast({ title: 'ลบสถานประกอบการไม่ได้', description: 'สถานประกอบการนี้มีนักศึกษาหรือประวัติอ้างอิงอยู่' })
+    await persistCompanyStatus(company.value, 'inactive')
+    showToast({ title: 'ยุติการใช้งานสถานประกอบการแล้ว', description: 'เก็บข้อมูลเดิมไว้เพื่อรักษาประวัติอ้างอิง' })
   }
+  catch { showToast({ title: 'เปลี่ยนสถานะไม่สำเร็จ', description: 'กรุณาลองอีกครั้ง' }) }
 }
 </script>
 
@@ -202,7 +213,7 @@ const handleDelete = async () => {
         </template>
       </UiCard>
 
-      <UiCard class="mt-6"><h3 class="text-lg font-bold text-ink">สถานะข้อมูล</h3><p class="mt-1 text-sm leading-6 text-muted">สถานประกอบการที่มีนักศึกษาหรือประวัติอ้างอิงจะไม่ถูกลบถาวร</p><div class="mt-5 flex flex-wrap gap-2"><UiButton v-if="company.status === 'inactive'" variant="secondary" :icon="UserRoundCheck" @click="handleRestore">เปิดใช้งานอีกครั้ง</UiButton><UiDialog v-if="company.status === 'active' && placements.length" title="ยุติการใช้งานสถานประกอบการ" description="สถานประกอบการจะไม่ถูกเลือกสำหรับรายการใหม่ แต่ข้อมูลนักศึกษาและประวัติเดิมยังคงอยู่"><template #trigger><UiButton variant="danger" :icon="Trash2">ยุติการใช้งาน</UiButton></template><template #cancel><UiButton variant="ghost">ยกเลิก</UiButton></template><template #confirm><UiButton variant="danger" @click="handleDeactivate">ยืนยันยุติการใช้งาน</UiButton></template></UiDialog><UiDialog v-if="!placements.length" title="ลบสถานประกอบการ" description="รายการนี้ยังไม่มีนักศึกษาหรือข้อมูลอ้างอิง เมื่อลบแล้วจะไม่สามารถเรียกคืนได้"><template #trigger><UiButton variant="danger" :icon="Trash2">ลบสถานประกอบการ</UiButton></template><template #cancel><UiButton variant="ghost">ยกเลิก</UiButton></template><template #confirm><UiButton variant="danger" @click="handleDelete">ยืนยันลบ</UiButton></template></UiDialog></div></UiCard>
+      <UiCard class="mt-6"><h3 class="text-lg font-bold text-ink">สถานะข้อมูล</h3><p class="mt-1 text-sm leading-6 text-muted">ระบบเก็บประวัติไว้และใช้การยุติการใช้งานแทนการลบถาวร</p><div class="mt-5 flex flex-wrap gap-2"><UiButton v-if="company.status === 'inactive'" variant="secondary" :icon="UserRoundCheck" @click="handleRestore">เปิดใช้งานอีกครั้ง</UiButton><UiDialog v-if="company.status === 'active' && placements.length" title="ยุติการใช้งานสถานประกอบการ" description="สถานประกอบการจะไม่ถูกเลือกสำหรับรายการใหม่ แต่ข้อมูลนักศึกษาและประวัติเดิมยังคงอยู่"><template #trigger><UiButton variant="danger" :icon="Trash2">ยุติการใช้งาน</UiButton></template><template #cancel><UiButton variant="ghost">ยกเลิก</UiButton></template><template #confirm><UiButton variant="danger" @click="handleDeactivate">ยืนยันยุติการใช้งาน</UiButton></template></UiDialog><UiDialog v-if="!placements.length && company.status === 'active'" title="ยุติการใช้งานสถานประกอบการ" description="รายการจะไม่ถูกเลือกสำหรับงานใหม่ และสามารถเปิดใช้งานกลับมาได้ภายหลัง"><template #trigger><UiButton variant="danger" :icon="Trash2">ยุติการใช้งาน</UiButton></template><template #cancel><UiButton variant="ghost">ยกเลิก</UiButton></template><template #confirm><UiButton variant="danger" @click="handleDelete">ยืนยันยุติการใช้งาน</UiButton></template></UiDialog></div></UiCard>
 
       <UiDialog v-model:open="studentDialogOpen" size="lg" :title="`แก้ไขข้อมูลนักศึกษา ${selectedPlacement?.studentId ?? ''}`" description="ข้อมูลที่แก้ไขจะแสดงทั้งในหน้าสถานประกอบการและตารางนิเทศ">
         <form novalidate @submit.prevent="saveStudent"><div class="grid gap-5 sm:grid-cols-2"><div><UiSelect v-model="studentForm.prefix" :options="personPrefixOptions.student" label="คำนำหน้า" :error="studentErrors.prefix" required /></div><div><UiSelect v-model="studentForm.section" :options="studentSectionValues.map(value => ({ value, label: value }))" label="หมู่เรียน" :error="studentErrors.section" required /></div><div><UiInput v-model="studentForm.firstName" label="ชื่อ" :error="studentErrors.firstName" required /></div><div><UiInput v-model="studentForm.lastName" label="นามสกุล" :error="studentErrors.lastName" required /></div><div class="sm:col-span-2"><UiInput v-model="studentForm.position" label="ตำแหน่งฝึกงาน" :error="studentErrors.position" required /></div></div><div class="mt-6 flex justify-end gap-2 border-t border-divider pt-5"><UiButton variant="ghost" :disabled="isSaving" @click="selectedPlacement = null">ยกเลิก</UiButton><UiButton type="submit" :loading="isSaving">บันทึกข้อมูลนักศึกษา</UiButton></div></form>

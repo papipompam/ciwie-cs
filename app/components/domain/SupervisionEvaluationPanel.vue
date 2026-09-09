@@ -34,10 +34,10 @@ const {
   studentEvaluations,
   companyEvaluations,
   getStudentEvaluation,
-  submitStudentEvaluation,
+  persistStudentEvaluation,
   getCompanyEvaluation,
-  saveCompanyEvaluation,
-  submitCompanyEvaluation,
+  persistCompanyEvaluation,
+  loadPersistedEvaluations,
 } = useSupervisionEvaluations()
 
 const ratingSchema = z.enum(['1', '2', '3', '4', '5'])
@@ -71,6 +71,8 @@ const companyReviewing = ref(false)
 const isSaving = ref(false)
 const saveAllError = ref('')
 const companyDialogError = ref('')
+const evaluationsLoading = ref(true)
+const evaluationsLoadError = ref('')
 const stagedStudentEvaluations = ref<Record<string, StudentEvaluationInput>>({})
 const stagedCompanyEvaluation = ref<CompanyEvaluationInput | null>(null)
 const studentForm = reactive({
@@ -166,7 +168,7 @@ const openStudentEvaluation = (studentId: string) => {
   studentDialogOpen.value = true
 }
 watch(() => props.initialStudentId, (studentId) => {
-  if (props.studentOnly && studentId && props.students.some(student => student.studentId === studentId)) {
+  if (!evaluationsLoading.value && props.studentOnly && studentId && props.students.some(student => student.studentId === studentId)) {
     openStudentEvaluation(studentId)
   }
 }, { immediate: true })
@@ -189,8 +191,28 @@ const openCompanyEvaluation = () => {
   companyDialogOpen.value = true
 }
 watch(() => props.initialCompanyOpen, (open) => {
-  if (props.companyOnly && open) openCompanyEvaluation()
+  if (!evaluationsLoading.value && props.companyOnly && open) openCompanyEvaluation()
 }, { immediate: true })
+const hydrateEvaluations = async () => {
+  evaluationsLoading.value = true
+  evaluationsLoadError.value = ''
+  try {
+    await loadPersistedEvaluations(props.appointment.id)
+  } catch (error) {
+    const status = (error as { statusCode?: number, response?: { status?: number } }).statusCode
+      ?? (error as { response?: { status?: number } }).response?.status
+    if (status !== 404) evaluationsLoadError.value = 'โหลดผลประเมินที่บันทึกไว้ไม่สำเร็จ'
+  } finally {
+    evaluationsLoading.value = false
+  }
+}
+onMounted(async () => {
+  await hydrateEvaluations()
+  if (props.studentOnly && props.initialStudentId && props.students.some(student => student.studentId === props.initialStudentId)) {
+    openStudentEvaluation(props.initialStudentId)
+  }
+  if (props.companyOnly && props.initialCompanyOpen) openCompanyEvaluation()
+})
 const studentDraftInput = (): StudentEvaluationInput => ({
   ratings: validRatings(studentForm.ratings),
   strengths: studentForm.strengths,
@@ -215,13 +237,13 @@ const setStudentDialogOpen = (open: boolean) => {
     }
   }
 }
-const setCompanyDialogOpen = (open: boolean) => {
+const setCompanyDialogOpen = async (open: boolean) => {
   companyDialogOpen.value = open
   if (!open && isCompanyEvaluator.value && !companyLocked.value && hasCompanyDraftContent()) {
     stagedCompanyEvaluation.value = companyDraftInput()
     if (props.dialogOnly) {
       try {
-        saveCompanyEvaluation(props.appointment.id, props.currentLecturerId, stagedCompanyEvaluation.value)
+        await persistCompanyEvaluation(props.appointment.id, props.currentLecturerId, stagedCompanyEvaluation.value, 'draft')
       } catch {
         showToast({ title: 'บันทึกฉบับร่างไม่สำเร็จ', description: 'กรุณาเปิดแบบประเมินและลองบันทึกอีกครั้ง' })
       }
@@ -229,7 +251,7 @@ const setCompanyDialogOpen = (open: boolean) => {
   }
   if (!open && props.dialogOnly) emit('companyDialogClose')
 }
-const submitCompanyDialog = () => {
+const submitCompanyDialog = async () => {
   if (isSaving.value || !props.canManage) return
   companyDialogError.value = ''
   const parsed = companySubmitSchema.safeParse(companyDraftInput())
@@ -239,7 +261,7 @@ const submitCompanyDialog = () => {
   }
   isSaving.value = true
   try {
-    submitCompanyEvaluation(props.appointment.id, props.currentLecturerId, parsed.data)
+    await persistCompanyEvaluation(props.appointment.id, props.currentLecturerId, parsed.data, 'submitted')
     showToast({ title: 'บันทึกแบบประเมินสถานประกอบการแล้ว', description: 'คะแนนและความคิดเห็นถูกบันทึกเรียบร้อยแล้ว' })
     companyDialogOpen.value = false
     emit('companyDialogClose')
@@ -277,10 +299,10 @@ const submitAllEvaluations = async () => {
 
   isSaving.value = true
   try {
-    parsedStudents.forEach(({ student, parsed }) => {
-      if (parsed.success) submitStudentEvaluation(props.appointment.id, student.studentId, props.currentLecturerId, parsed.data)
-    })
-    if (parsedCompany?.success) submitCompanyEvaluation(props.appointment.id, props.currentLecturerId, parsedCompany.data)
+    for (const { student, parsed } of parsedStudents) {
+      if (parsed.success) await persistStudentEvaluation(props.appointment.id, student.studentId, props.currentLecturerId, parsed.data, 'submitted')
+    }
+    if (parsedCompany?.success) await persistCompanyEvaluation(props.appointment.id, props.currentLecturerId, parsedCompany.data, 'submitted')
     stagedStudentEvaluations.value = {}
     stagedCompanyEvaluation.value = null
     showToast({
@@ -297,6 +319,10 @@ const submitAllEvaluations = async () => {
 
 <template>
   <div>
+    <UiSkeleton v-if="evaluationsLoading && !dialogOnly" class="mb-4 h-16" aria-label="กำลังโหลดผลประเมินที่บันทึกไว้" />
+    <UiAlert v-else-if="evaluationsLoadError" class="mb-4" tone="danger" :title="evaluationsLoadError">
+      <UiButton class="mt-3" size="sm" variant="secondary" @click="hydrateEvaluations">ลองใหม่</UiButton>
+    </UiAlert>
     <UiCard v-if="!dialogOnly" :padded="false">
     <div class="border-b border-divider p-5 sm:p-6">
       <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

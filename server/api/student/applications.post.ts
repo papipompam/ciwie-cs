@@ -1,7 +1,7 @@
-import { canCreateStudentApplication, createStudentApplicationSchema, type StudentApplicationRecord } from '#shared/student-applications'
-import { mockStudentApplications } from '../../utils/mockStudentApplications'
-
-const currentPrototypeStudentId = '66123456701'
+import { Prisma } from '@prisma/client'
+import { createStudentApplicationSchema } from '#shared/student-applications'
+import { requireUserSession } from '../../utils/session'
+import { bangkokCalendarDate, getActiveEnrollment, toStudentApplicationRecord } from '../../utils/studentApplications'
 
 export default defineEventHandler(async (event) => {
   const parsed = createStudentApplicationSchema.safeParse(await readBody(event))
@@ -9,26 +9,36 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'INVALID_APPLICATION_DATA', data: parsed.error.flatten().fieldErrors })
   }
 
-  const ownApplications = mockStudentApplications.filter(item => item.studentId === currentPrototypeStudentId)
-  if (!canCreateStudentApplication(ownApplications)) {
-    throw createError({
-      statusCode: 409,
-      statusMessage: 'APPLICATION_ALREADY_ACTIVE',
-      message: 'มีบริษัทที่กำลังดำเนินการหรือยืนยันเลือกแล้ว กรอกใหม่ได้เมื่อบริษัทเดิมปฏิเสธเท่านั้น',
+  const user = await requireUserSession(event, ['student'])
+  const enrollment = await getActiveEnrollment(user.id)
+  try {
+    const application = await usePrisma().studentApplication.create({
+      data: {
+        enrollmentId: enrollment.id,
+        companyNameSnapshot: parsed.data.companyName,
+        companyLocation: parsed.data.companyLocation,
+        recipientNameSnapshot: parsed.data.recipientName,
+        letterAddressSnapshot: parsed.data.letterAddress,
+        latitude: parsed.data.latitude,
+        longitude: parsed.data.longitude,
+        provinceSnapshot: parsed.data.province,
+        positionTitle: parsed.data.position,
+        appliedDate: bangkokCalendarDate(),
+        status: 'SUBMITTED',
+        activeSlotKey: enrollment.id,
+      },
     })
+    setResponseStatus(event, 201)
+    return toStudentApplicationRecord(application, user.username)
   }
-
-  const now = new Date()
-  const application: StudentApplicationRecord = {
-    id: `APP-${Date.now()}`,
-    studentId: currentPrototypeStudentId,
-    ...parsed.data,
-    province: 'ไม่ระบุ',
-    appliedAt: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now),
-    status: 'submitted',
-    updatedAt: now.toISOString(),
+  catch (cause) {
+    if (cause instanceof Prisma.PrismaClientKnownRequestError && cause.code === 'P2002') {
+      throw createError({
+        statusCode: 409,
+        statusMessage: 'APPLICATION_ALREADY_ACTIVE',
+        message: 'มีบริษัทที่กำลังดำเนินการหรือยืนยันเลือกแล้ว กรอกใหม่ได้เมื่อบริษัทเดิมปฏิเสธเท่านั้น',
+      })
+    }
+    throw cause
   }
-  mockStudentApplications.unshift(application)
-  setResponseStatus(event, 201)
-  return application
 })

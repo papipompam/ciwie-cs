@@ -34,6 +34,7 @@ describe('company map coordinates', () => {
     companyName: 'บริษัทตัวอย่าง',
     position: 'นักพัฒนาเว็บไซต์',
     companyLocation: 'บุรีรัมย์',
+    province: 'บุรีรัมย์',
     recipientName: 'ผู้จัดการฝ่ายทรัพยากรบุคคล',
     letterAddress: 'บริษัทตัวอย่าง บุรีรัมย์ 31000',
     latitude: 14.9941234,

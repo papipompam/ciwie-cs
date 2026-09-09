@@ -7,7 +7,8 @@ useHead({ title: 'รายละเอียดนักศึกษา' })
 
 const route = useRoute()
 const { showToast } = useToast()
-const { findPerson, getStudentApplicationHistory, updatePerson } = usePeopleDirectory()
+const { findPerson, getStudentApplicationHistory, loadPersistedPeople, persistLecturerStudentName } = usePeopleDirectory()
+await loadPersistedPeople('student')
 const student = computed(() => findPerson('student', String(route.params.id)))
 if (!student.value) throw createError({ statusCode: 404, statusMessage: 'ไม่พบข้อมูลนักศึกษา' })
 const applications = computed(() => getStudentApplicationHistory(String(route.params.id)))
@@ -24,7 +25,7 @@ const save = async () => {
   if (!student.value) return
   isSaving.value = true
   try {
-    updatePerson(student.value, { id: student.value.id, cycle: student.value.cycle, ...result.data })
+    await persistLecturerStudentName(student.value, result.data)
     isEditing.value = false
     showToast({ title: 'แก้ไขชื่อ–นามสกุลแล้ว', description: 'ระบบบันทึกผู้ดำเนินการ ค่าเดิม และค่าใหม่ในประวัติ' })
   } catch {

@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, ref } from 'vue'
 import { useSupervisionGroups } from '../app/composables/useSupervisionGroups'
-import { useLetterBatches } from '../app/composables/useLetterBatches'
 import type { PlacementRequestPreview } from '../shared/placement-requests'
 
 const account = ref({ role: 'staff', name: 'เจ้าหน้าที่ทดสอบ' })
@@ -17,6 +16,7 @@ beforeEach(() => {
   vi.stubGlobal('useAuthPrototype', () => ({ currentAccount: account }))
   vi.stubGlobal('useScenario', () => ({ recordEvent: vi.fn() }))
   vi.stubGlobal('usePeopleDirectory', () => ({ people }))
+  vi.stubGlobal('$fetch', vi.fn())
 })
 afterEach(() => vi.unstubAllGlobals())
 
@@ -56,13 +56,10 @@ describe('staff supervision workflow', () => {
     expect(() => store.createSuggestedGroups('C1', 1, [['CO1'], ['CO1']])).toThrow()
     expect(store.groups.value).toHaveLength(0)
   })
-  it('blocks non-staff mutations and legacy letter issuance', () => {
+  it('blocks non-staff grouping mutations', () => {
     const store = setup()
     account.value.role = 'lecturer'
     expect(() => store.createSuggestedGroups('C1', 1, [['CO1']])).toThrow()
-    const letters = useLetterBatches()
-    expect(letters.canIssueLetter.value).toBe(false)
-    expect(() => letters.saveLetterBatch({ requestIds: [], letterDate: '2026-09-04', fileName: 'letter.pdf' })).toThrow('เฉพาะเจ้าหน้าที่')
   })
   it('registers the confirmed request coordinates and does not duplicate placements', () => {
     const store = useSupervisionGroups()
@@ -75,5 +72,22 @@ describe('staff supervision workflow', () => {
     expect(store.placements.value).toHaveLength(1)
     expect(store.getCompanies('C1')[0]).toMatchObject({ latitude: 15, longitude: 103, studentCount: 1 })
     expect(store.getCompanies('C2')).toHaveLength(0)
+  })
+
+  it('hydrates the grouping UI from persisted confirmed placements', async () => {
+    vi.mocked($fetch).mockResolvedValueOnce({
+      companies: [{
+        id: 'SITE-1', cycleId: 'C1', name: 'Company', branch: 'สำนักงานใหญ่', province: 'บุรีรัมย์', region: 'ภาคตะวันออกเฉียงเหนือ',
+        address: 'Address', contactName: 'HR', contactPhone: '-', status: 'active', latitude: 15, longitude: 103, studentCount: 1,
+        students: [{ id: 'R1', studentId: 'S1', studentName: 'นาย Test Student', prefix: 'นาย', firstName: 'Test', lastName: 'Student', section: '1', position: 'Dev' }],
+      }],
+      groups: [{ id: 'G1', cycleId: 'C1', round: 1, name: 'กลุ่มนิเทศ 1', lecturerIds: [], companyIds: ['SITE-1'], createdAt: '2026-09-09T00:00:00.000Z' }],
+      lecturers: [{ id: 'L1', name: 'อาจารย์ทดสอบ' }],
+    })
+    const store = useSupervisionGroups()
+    await store.loadPersistedGroups('C1', 1)
+    expect(store.groups.value.filter(group => group.cycleId === 'C1')).toHaveLength(1)
+    expect(store.getCompanies('C1')[0]).toMatchObject({ id: 'SITE-1', studentCount: 1, latitude: 15 })
+    expect(store.supervisionLecturers.value).toEqual([{ id: 'L1', name: 'อาจารย์ทดสอบ' }])
   })
 })

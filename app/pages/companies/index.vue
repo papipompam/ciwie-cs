@@ -6,13 +6,16 @@ definePageMeta({ title: 'ข้อมูลสถานประกอบกา�
 useHead({ title: 'ข้อมูลสถานประกอบการ' })
 
 const { scenario } = useScenario()
-const { companyRecords, getCompanyPlacements } = useSupervisionGroups()
+const { companyRecords, getCompanyPlacements, loadPersistedCompanies } = useSupervisionGroups()
+const { status: companiesFetchStatus, error: companiesFetchError, refresh: refreshCompanies } = await useAsyncData('company-records', loadPersistedCompanies)
 const search = ref('')
 const status = ref('all')
 const province = ref('all')
 const pageSize = ref('10')
 const currentPage = ref(1)
-const effectiveViewState = computed(() => scenario.value.forceError ? 'error' : scenario.value.viewState)
+const effectiveViewState = computed(() => scenario.value.forceError || companiesFetchError.value
+  ? 'error'
+  : companiesFetchStatus.value === 'pending' ? 'loading' : scenario.value.viewState)
 const companyBasePath = computed(() => scenario.value.role === 'lecturer' ? '/lecturer/companies' : '/staff/companies')
 const statusOptions = [
   { value: 'all', label: 'ทุกสถานะ' },
@@ -48,6 +51,7 @@ const resetFilters = () => {
 const retry = () => {
   scenario.value.forceError = false
   scenario.value.viewState = 'data'
+  void refreshCompanies()
 }
 </script>
 

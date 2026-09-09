@@ -9,7 +9,7 @@ useHead({ title: 'ตารางนิเทศ' })
 const { scenario } = useScenario()
 const { currentAccount } = useAuthPrototype()
 const { cycleId, round } = useSupervisionContext()
-const { appointments } = useSupervisionAppointments()
+const { appointments, loadPersistedAppointments } = useSupervisionAppointments()
 const { groups, getCompanies } = useSupervisionGroups()
 const { people } = usePeopleDirectory()
 const { studentEvaluations, companyEvaluations } = useSupervisionEvaluations()
@@ -36,8 +36,12 @@ const pageSize = ref('10')
 const currentPage = ref(1)
 const detailOpen = ref(false)
 const selectedAppointmentId = ref<string | null>(null)
+const appointmentsLoading = ref(true)
+const appointmentsLoadError = ref(false)
 
-const effectiveViewState = computed(() => scenario.value.forceError ? 'error' : scenario.value.viewState)
+const effectiveViewState = computed(() => scenario.value.forceError || appointmentsLoadError.value
+  ? 'error'
+  : appointmentsLoading.value ? 'loading' : scenario.value.viewState)
 const companies = computed(() => getCompanies(cycleId.value))
 const sourceAppointments = computed(() => scenario.value.viewState === 'empty'
   ? []
@@ -51,9 +55,13 @@ const pageSizeOptions = ['10', '20', '50', '100'].map(value => ({ value, label: 
 
 const companyFor = (companyId: string) => companies.value.find(company => company.id === companyId)
 const groupFor = (groupId: string) => groups.value.find(group => group.id === groupId)
+const companyName = (appointment: SupervisionAppointment) => companyFor(appointment.companyId)?.name ?? appointment.display?.companyName ?? appointment.companyId
+const companyBranch = (appointment: SupervisionAppointment) => companyFor(appointment.companyId)?.branch ?? appointment.display?.branchName ?? ''
+const companyProvince = (appointment: SupervisionAppointment) => companyFor(appointment.companyId)?.province ?? appointment.display?.province ?? ''
+const groupName = (appointment: SupervisionAppointment) => groupFor(appointment.groupId)?.name ?? appointment.display?.groupName ?? appointment.groupId
 const lecturerName = (lecturerId: string) => {
-  const lecturer = people.value.find(person => person.type === 'lecturer' && person.id === lecturerId)
-  return lecturer ? getPersonFullName(lecturer) : lecturerId
+  const lecturer = people.value.find(person => person.type === 'lecturer' && (person.id === lecturerId || person.accountId === lecturerId))
+  return lecturer ? getPersonFullName(lecturer) : appointments.value.flatMap(item => item.display?.lecturers ?? []).find(item => item.id === lecturerId)?.name ?? lecturerId
 }
 const evaluatorName = (evaluatorId: string) => {
   if (currentAccount.value?.id === evaluatorId) return currentAccount.value.name
@@ -63,7 +71,7 @@ const appointmentStudents = (appointment: SupervisionAppointment) => {
   const company = companyFor(appointment.companyId)
   return appointment.studentIds.map((studentId) => {
     const student = company?.students.find(item => item.studentId === studentId)
-    return student?.studentName ?? studentId
+    return student?.studentName ?? appointment.display?.students.find(item => item.id === studentId)?.name ?? studentId
   })
 }
 const formatDate = (date: string) => new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -75,6 +83,16 @@ const requiredEvaluationCount = (appointment: SupervisionAppointment) => {
   const evaluatorCount = appointment.result.actualLecturerIds.length || appointment.lecturerIds.length
   return evaluatorCount * appointment.studentIds.length + 1
 }
+
+const loadAppointments = async () => {
+  appointmentsLoading.value = true
+  appointmentsLoadError.value = false
+  try { await loadPersistedAppointments(cycleId.value, round.value) }
+  catch { appointmentsLoadError.value = true }
+  finally { appointmentsLoading.value = false }
+}
+onMounted(loadAppointments)
+watch([cycleId, round], loadAppointments)
 
 const summaryCards = computed(() => [
   { label: 'รายการนิเทศทั้งหมด', value: sourceAppointments.value.length, icon: CalendarDays, tone: 'bg-info-soft text-info' },
@@ -89,8 +107,8 @@ const filteredAppointments = computed(() => {
     .filter((item) => {
       const values = [
         item.id,
-        companyFor(item.companyId)?.name ?? '',
-        groupFor(item.groupId)?.name ?? '',
+        companyName(item),
+        groupName(item),
         ...item.lecturerIds.map(lecturerName),
         ...appointmentStudents(item),
       ]
@@ -122,6 +140,7 @@ const resetTable = () => {
 const retry = () => {
   scenario.value.forceError = false
   scenario.value.viewState = 'data'
+  void loadAppointments()
 }
 
 watch([searchQuery, statusFilter, pageSize, cycleId, round], () => { currentPage.value = 1 })
@@ -188,9 +207,9 @@ watch(pageCount, (count) => { if (currentPage.value > count) currentPage.value =
             <thead class="bg-surface text-xs font-semibold tracking-wide text-muted uppercase"><tr><th class="px-6 py-3">สถานประกอบการ</th><th class="px-4 py-3">วันนิเทศ</th><th class="px-4 py-3">กลุ่ม / อาจารย์</th><th class="px-4 py-3">นักศึกษา</th><th class="px-4 py-3">การประเมิน</th><th class="px-4 py-3">สถานะ</th><th class="w-28 px-4 py-3"><span class="sr-only">ดูข้อมูล</span></th></tr></thead>
             <tbody class="divide-y divide-divider">
               <tr v-for="appointment in paginatedAppointments" :key="appointment.id" class="hover:bg-surface/70">
-                <td class="px-6 py-4"><p class="font-semibold text-ink">{{ companyFor(appointment.companyId)?.name ?? appointment.companyId }}</p><p class="mt-1 text-xs text-muted">{{ companyFor(appointment.companyId)?.branch }} · {{ companyFor(appointment.companyId)?.province }}</p></td>
+                <td class="px-6 py-4"><p class="font-semibold text-ink">{{ companyName(appointment) }}</p><p class="mt-1 text-xs text-muted">{{ companyBranch(appointment) }} · {{ companyProvince(appointment) }}</p></td>
                 <td class="whitespace-nowrap px-4 py-4"><p class="font-medium text-ink">{{ formatDate(appointment.date) }}</p><p class="mt-1 text-xs text-muted">{{ appointment.id }}</p></td>
-                <td class="px-4 py-4"><p class="font-medium text-ink">{{ groupFor(appointment.groupId)?.name ?? appointment.groupId }}</p><p class="mt-1 text-xs text-muted">{{ appointment.lecturerIds.map(lecturerName).join(', ') || 'ยังไม่มีอาจารย์' }}</p></td>
+                <td class="px-4 py-4"><p class="font-medium text-ink">{{ groupName(appointment) }}</p><p class="mt-1 text-xs text-muted">{{ appointment.lecturerIds.map(lecturerName).join(', ') || 'ยังไม่มีอาจารย์' }}</p></td>
                 <td class="px-4 py-4"><p class="font-semibold text-ink">{{ appointment.studentIds.length }} คน</p><p class="mt-1 text-xs text-muted">ดูรายชื่อในรายละเอียด</p></td>
                 <td class="whitespace-nowrap px-4 py-4 text-muted"><template v-if="appointment.status === 'completed'">{{ submittedEvaluationCount(appointment) }} / {{ requiredEvaluationCount(appointment) }} รายการ</template><template v-else>ยังไม่เริ่ม</template></td>
                 <td class="whitespace-nowrap px-4 py-4"><UiBadge :tone="supervisionAppointmentStatusMeta[appointment.status].tone">{{ supervisionAppointmentStatusMeta[appointment.status].label }}</UiBadge></td>
@@ -201,7 +220,7 @@ watch(pageCount, (count) => { if (currentPage.value > count) currentPage.value =
         </div>
         <div class="divide-y divide-divider md:hidden">
           <article v-for="appointment in paginatedAppointments" :key="appointment.id" class="p-5">
-            <div class="flex items-start justify-between gap-3"><div class="min-w-0"><h3 class="font-semibold text-ink">{{ companyFor(appointment.companyId)?.name ?? appointment.companyId }}</h3><p class="mt-1 text-xs text-muted">{{ appointment.id }} · {{ groupFor(appointment.groupId)?.name }}</p></div><UiBadge :tone="supervisionAppointmentStatusMeta[appointment.status].tone">{{ supervisionAppointmentStatusMeta[appointment.status].label }}</UiBadge></div>
+            <div class="flex items-start justify-between gap-3"><div class="min-w-0"><h3 class="font-semibold text-ink">{{ companyName(appointment) }}</h3><p class="mt-1 text-xs text-muted">{{ appointment.id }} · {{ groupName(appointment) }}</p></div><UiBadge :tone="supervisionAppointmentStatusMeta[appointment.status].tone">{{ supervisionAppointmentStatusMeta[appointment.status].label }}</UiBadge></div>
             <p class="mt-3 text-sm text-muted">{{ formatDate(appointment.date) }} · นักศึกษา {{ appointment.studentIds.length }} คน</p>
             <div class="mt-4 flex justify-end border-t border-divider pt-3"><UiButton size="sm" variant="secondary" @click="openDetails(appointment)">ดูข้อมูล</UiButton></div>
           </article>
@@ -210,10 +229,10 @@ watch(pageCount, (count) => { if (currentPage.value > count) currentPage.value =
       </template>
     </UiCard>
 
-    <UiDialog v-model:open="detailOpen" size="xl" :title="selectedAppointment ? `รายละเอียด ${selectedAppointment.id}` : 'รายละเอียดการนิเทศ'" :description="selectedAppointment ? `${companyFor(selectedAppointment.companyId)?.name ?? selectedAppointment.companyId} · ${formatDate(selectedAppointment.date)}` : undefined">
+    <UiDialog v-model:open="detailOpen" size="xl" :title="selectedAppointment ? `รายละเอียด ${selectedAppointment.id}` : 'รายละเอียดการนิเทศ'" :description="selectedAppointment ? `${companyName(selectedAppointment)} · ${formatDate(selectedAppointment.date)}` : undefined">
       <div v-if="selectedAppointment" class="space-y-5">
         <div class="grid gap-3 sm:grid-cols-3">
-          <div class="rounded-control bg-surface p-4"><p class="text-xs font-medium text-muted">กลุ่มรับผิดชอบ</p><p class="mt-1 font-semibold text-ink">{{ groupFor(selectedAppointment.groupId)?.name ?? selectedAppointment.groupId }}</p></div>
+          <div class="rounded-control bg-surface p-4"><p class="text-xs font-medium text-muted">กลุ่มรับผิดชอบ</p><p class="mt-1 font-semibold text-ink">{{ groupName(selectedAppointment) }}</p></div>
           <div class="rounded-control bg-surface p-4"><p class="text-xs font-medium text-muted">สถานะ</p><UiBadge class="mt-2" :tone="supervisionAppointmentStatusMeta[selectedAppointment.status].tone">{{ supervisionAppointmentStatusMeta[selectedAppointment.status].label }}</UiBadge></div>
           <div class="rounded-control bg-surface p-4"><p class="text-xs font-medium text-muted">ความคืบหน้าการประเมิน</p><p class="mt-1 font-semibold text-ink">{{ selectedAppointment.status === 'completed' ? `${submittedEvaluationCount(selectedAppointment)} / ${requiredEvaluationCount(selectedAppointment)} รายการ` : 'ยังไม่เริ่ม' }}</p></div>
         </div>

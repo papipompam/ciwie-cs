@@ -10,18 +10,23 @@ const { showToast } = useToast()
 const { people } = usePeopleDirectory()
 const { cycleId, round, scheduleGroupId } = useSupervisionContext()
 const { groups, getCompanies } = useSupervisionGroups()
-const { appointments, completeAppointment } = useSupervisionAppointments()
-const currentLecturerId = 'L0012'
+const { currentAccount } = useAuthPrototype()
+const { appointments, loadPersistedAppointments, persistCompleteAppointment } = useSupervisionAppointments()
+const currentLecturerId = computed(() => currentAccount.value?.id ?? '')
 const completingAppointmentId = ref<string | null>(null)
+const appointmentsLoading = ref(true)
+const appointmentsLoadError = ref(false)
 const searchQuery = ref('')
-const effectiveViewState = computed(() => scenario.value.forceError ? 'error' : scenario.value.viewState)
+const effectiveViewState = computed(() => scenario.value.forceError || appointmentsLoadError.value
+  ? 'error'
+  : appointmentsLoading.value ? 'loading' : scenario.value.viewState)
 const groupOptions = computed(() => [
   { value: 'all', label: 'ทุกกลุ่ม' },
   ...groups.value
     .filter(group => group.cycleId === cycleId.value && group.round === round.value)
     .map(group => ({
       value: group.id,
-      label: group.lecturerIds.includes(currentLecturerId) ? `${group.name} (กลุ่มของฉัน)` : group.name,
+      label: group.lecturerIds.includes(currentLecturerId.value) ? `${group.name} (กลุ่มของฉัน)` : group.name,
     })),
 ])
 const selectedGroupFilterLabel = computed(() => groupOptions.value
@@ -37,8 +42,8 @@ const currentAppointments = computed(() => appointments.value
     const searchableText = [
       item.id,
       companyName(item.companyId),
-      company(item.companyId)?.branch,
-      company(item.companyId)?.province,
+      companyBranch(item.companyId),
+      companyProvince(item.companyId),
       groupName(item.groupId),
       ...item.lecturerIds.map(lecturerName),
       ...studentNames(item),
@@ -49,34 +54,39 @@ const currentAppointments = computed(() => appointments.value
 const companies = computed(() => getCompanies(cycleId.value))
 
 const company = (id: string) => companies.value.find(item => item.id === id)
-const companyName = (id: string) => company(id)?.name ?? id
-const groupName = (id: string) => groups.value.find(group => group.id === id)?.name ?? id
+const appointmentDisplay = (companyId: string) => appointments.value.find(item => item.companyId === companyId)?.display
+const companyName = (id: string) => company(id)?.name ?? appointmentDisplay(id)?.companyName ?? id
+const companyBranch = (id: string) => company(id)?.branch ?? appointmentDisplay(id)?.branchName ?? ''
+const companyProvince = (id: string) => company(id)?.province ?? appointmentDisplay(id)?.province ?? ''
+const groupName = (id: string) => groups.value.find(group => group.id === id)?.name
+  ?? appointments.value.find(item => item.groupId === id)?.display?.groupName ?? id
 const lecturerName = (id: string) => {
-  const lecturer = people.value.find(person => person.type === 'lecturer' && person.id === id)
-  return lecturer ? getPersonFullName(lecturer) : id
+  const lecturer = people.value.find(person => person.type === 'lecturer' && (person.id === id || person.accountId === id))
+  return lecturer ? getPersonFullName(lecturer) : appointments.value.flatMap(item => item.display?.lecturers ?? []).find(item => item.id === id)?.name ?? id
 }
 const studentNames = (appointment: SupervisionAppointment) => company(appointment.companyId)?.students
   .filter(student => appointment.studentIds.includes(student.studentId))
-  .map(student => student.studentName) ?? appointment.studentIds
+  .map(student => student.studentName) ?? appointment.display?.students.map(student => student.name) ?? appointment.studentIds
 const formatDate = (date: string) => new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium' }).format(new Date(`${date}T00:00:00+07:00`))
 const retry = () => {
   scenario.value.forceError = false
   scenario.value.viewState = 'data'
+  void loadAppointments()
 }
 const resetTable = () => {
   searchQuery.value = ''
   scheduleGroupId.value = 'all'
 }
-const isParticipating = (appointment: SupervisionAppointment) => appointment.lecturerIds.includes(currentLecturerId)
+const isParticipating = (appointment: SupervisionAppointment) => appointment.lecturerIds.includes(currentLecturerId.value)
 const isResponsibleGroup = (appointment: SupervisionAppointment) => groups.value
-  .find(group => group.id === appointment.groupId)?.lecturerIds.includes(currentLecturerId) ?? false
+  .find(group => group.id === appointment.groupId)?.lecturerIds.includes(currentLecturerId.value) ?? false
 const canComplete = (appointment: SupervisionAppointment) => ['published', 'postponed'].includes(appointment.status)
   && isParticipating(appointment)
-const completeSupervision = (appointment: SupervisionAppointment) => {
+const completeSupervision = async (appointment: SupervisionAppointment) => {
   if (!canComplete(appointment) || completingAppointmentId.value) return
   completingAppointmentId.value = appointment.id
   try {
-    completeAppointment(appointment.id, {
+    await persistCompleteAppointment(appointment.id, {
       summary: appointment.result.summary,
       issues: appointment.result.issues,
       suggestions: appointment.result.suggestions,
@@ -90,6 +100,21 @@ const completeSupervision = (appointment: SupervisionAppointment) => {
     completingAppointmentId.value = null
   }
 }
+const loadAppointments = async () => {
+  appointmentsLoading.value = true
+  appointmentsLoadError.value = false
+  try {
+    await loadPersistedAppointments(cycleId.value, round.value)
+  }
+  catch {
+    appointmentsLoadError.value = true
+  }
+  finally {
+    appointmentsLoading.value = false
+  }
+}
+onMounted(loadAppointments)
+watch([cycleId, round], loadAppointments)
 watchEffect(() => {
   if (!groupOptions.value.some(option => option.value === scheduleGroupId.value)) scheduleGroupId.value = 'all'
 })
@@ -142,7 +167,7 @@ watchEffect(() => {
             </thead>
             <tbody class="divide-y divide-divider">
               <tr v-for="item in currentAppointments" :key="item.id" class="hover:bg-surface/70">
-                <td class="px-5 py-4 align-top"><p class="font-semibold text-ink">{{ companyName(item.companyId) }}</p><p class="mt-1 text-xs leading-5 text-muted">{{ company(item.companyId)?.branch }} · {{ company(item.companyId)?.province }}</p></td>
+                <td class="px-5 py-4 align-top"><p class="font-semibold text-ink">{{ companyName(item.companyId) }}</p><p class="mt-1 text-xs leading-5 text-muted">{{ companyBranch(item.companyId) }} · {{ companyProvince(item.companyId) }}</p></td>
                 <td class="px-4 py-4 align-top"><p class="font-medium text-ink">{{ formatDate(item.date) }}</p><p class="mt-1 text-xs text-muted">{{ supervisionPeriodMeta[item.period].label }} · {{ item.id }}</p><UiBadge class="mt-2" :tone="supervisionAppointmentStatusMeta[item.status].tone">{{ supervisionAppointmentStatusMeta[item.status].label }}</UiBadge></td>
                 <td class="px-4 py-4 align-top"><p class="font-medium text-ink">{{ groupName(item.groupId) }}</p><UiBadge v-if="isResponsibleGroup(item)" class="mt-2" tone="info">กลุ่มของคุณ</UiBadge></td>
                 <td class="px-4 py-4 align-top"><div v-if="item.lecturerIds.length" class="space-y-1"><p v-for="id in item.lecturerIds" :key="id" class="text-sm leading-5 text-ink">{{ lecturerName(id) }}</p></div><p v-else class="text-sm text-danger">ยังไม่มีอาจารย์เข้าร่วม</p></td>
@@ -155,7 +180,7 @@ watchEffect(() => {
 
         <div class="mobile-card-list md:hidden">
           <article v-for="item in currentAppointments" :key="item.id" class="bg-canvas p-5">
-            <div class="flex items-start justify-between gap-3"><div class="min-w-0"><h3 class="font-semibold text-ink">{{ companyName(item.companyId) }}</h3><p class="mt-1 text-xs text-muted">{{ company(item.companyId)?.branch }} · {{ company(item.companyId)?.province }}</p></div><UiButton class="shrink-0" size="sm" variant="secondary" @click="navigateTo(`/lecturer/supervision/${item.id}`)">ดูข้อมูล</UiButton></div>
+            <div class="flex items-start justify-between gap-3"><div class="min-w-0"><h3 class="font-semibold text-ink">{{ companyName(item.companyId) }}</h3><p class="mt-1 text-xs text-muted">{{ companyBranch(item.companyId) }} · {{ companyProvince(item.companyId) }}</p></div><UiButton class="shrink-0" size="sm" variant="secondary" @click="navigateTo(`/lecturer/supervision/${item.id}`)">ดูข้อมูล</UiButton></div>
             <div class="mt-3 flex flex-wrap items-center gap-2"><UiBadge v-if="isResponsibleGroup(item)" tone="info">กลุ่มของคุณ</UiBadge><UiBadge :tone="supervisionAppointmentStatusMeta[item.status].tone">{{ supervisionAppointmentStatusMeta[item.status].label }}</UiBadge><span class="text-sm text-muted">{{ formatDate(item.date) }} · {{ supervisionPeriodMeta[item.period].label }}</span></div>
             <dl class="mt-3 grid gap-2 border-t border-divider pt-3 text-sm"><div><dt class="text-xs font-medium text-muted">กลุ่มรับผิดชอบ</dt><dd class="mt-1 text-ink">{{ groupName(item.groupId) }}</dd></div><div><dt class="text-xs font-medium text-muted">อาจารย์ผู้เข้าร่วม</dt><dd class="mt-1 text-ink">{{ item.lecturerIds.length ? item.lecturerIds.map(lecturerName).join(', ') : 'ยังไม่มีอาจารย์เข้าร่วม' }}</dd></div><div><dt class="text-xs font-medium text-muted">นักศึกษา</dt><dd class="mt-1 text-ink">{{ studentNames(item).join(', ') }} ({{ item.studentIds.length }} คน)</dd></div></dl>
             <UiButton v-if="canComplete(item)" class="mt-4 w-full" :icon="CheckCircle2" :loading="completingAppointmentId === item.id" @click="completeSupervision(item)">นิเทศเสร็จ</UiButton>

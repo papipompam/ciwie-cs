@@ -10,6 +10,7 @@ export const coordinatesSchema = z.object({
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
 })
+
 export const clusteringOptionsSchema = z.object({
   maxDistanceKm: z.coerce.number().positive('ระบุระยะมากกว่า 0 กม.').max(500, 'ระยะสูงสุด 500 กม.'),
   maxCompanies: z.coerce.number().int().min(1, 'อย่างน้อย 1 แห่ง').max(50, 'ไม่เกิน 50 แห่งต่อกลุ่ม'),
@@ -23,14 +24,17 @@ export const distanceKm = (a: { latitude: number, longitude: number }, b: { lati
 }
 
 // Complete-link agglomerative clustering: every pair respects the distance limit.
-// Straight-line distance is not driving distance or a travel-time estimate.
+// Distance is calculated along the earth's surface, not by road or travel time.
 export const clusterCompanies = (companies: LocatedCompany[], options: z.input<typeof clusteringOptionsSchema>) => {
   const { maxDistanceKm, maxCompanies } = clusteringOptionsSchema.parse(options)
   if (new Set(companies.map(company => company.id)).size !== companies.length) throw new Error('รหัสสถานประกอบการซ้ำ')
   const missingIds: string[] = []
   const located = companies.toSorted((a, b) => a.id.localeCompare(b.id)).flatMap(company => {
     const result = coordinatesSchema.safeParse(company)
-    if (!result.success) { missingIds.push(company.id); return [] }
+    if (!result.success) {
+      missingIds.push(company.id)
+      return []
+    }
     return [{ id: company.id, ...result.data }]
   })
   const clusters = located.map(company => [company])

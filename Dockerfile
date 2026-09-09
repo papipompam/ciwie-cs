@@ -28,7 +28,21 @@ COPY . .
 RUN pnpm run build
 
 # ==============================================================================
-# Stage 2: Production Runtime
+# Stage 2: Database migration runner
+# ==============================================================================
+FROM builder AS migrator
+
+CMD ["pnpm", "db:deploy"]
+
+# ==============================================================================
+# Stage 3: Production dependencies
+# ==============================================================================
+FROM builder AS production-deps
+
+RUN pnpm prune --prod --ignore-scripts
+
+# ==============================================================================
+# Stage 4: Production Runtime
 # ==============================================================================
 FROM node:22-alpine AS runner
 
@@ -40,9 +54,11 @@ ENV HOST=0.0.0.0
 
 # Install curl / wget for healthcheck
 RUN apk --no-cache add curl
+RUN mkdir -p /app/.data/uploads && chown -R node:node /app/.data
 
 # Copy built artifacts from builder stage
 COPY --from=builder --chown=node:node /app/.output ./.output
+COPY --from=production-deps --chown=node:node /app/node_modules ./node_modules
 
 # Use non-root user
 USER node

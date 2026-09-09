@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clusterCompanies, distanceKm } from './supervisionClustering'
+import { clusterCompanies, distanceKm } from '../../shared/supervision-clustering'
 
 describe('geographic complete-link clustering', () => {
   const companies = [
