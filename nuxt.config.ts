@@ -47,11 +47,6 @@ export default defineNuxtConfig({
       pathPrefix: false,
     },
   ],
-  nitro: {
-    externals: {
-      trace: false,
-    },
-  },
   vite: {
     plugins: [
       tailwindcss(),
