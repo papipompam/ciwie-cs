@@ -46,7 +46,7 @@
 | **Icons** | [Lucide Icons](https://lucide.dev/) (`@lucide/vue`) |
 | **Date & Time** | [date-fns](https://date-fns.org/) |
 | **Schema Validation** | [Zod](https://zod.dev/) |
-| **Database & ORM (ระยะ Backend)** | [MySQL 8.4 LTS](https://dev.mysql.com/doc/refman/8.4/en/) + [Prisma ORM](https://www.prisma.io/) |
+| **Database & ORM (ระยะ Backend)** | PostgreSQL (Supabase ใน Cloud) + [Prisma ORM](https://www.prisma.io/) |
 | **Authentication** | [nuxt-auth-utils](https://github.com/atinux/nuxt-auth-utils) (Session-based RBAC) |
 | **Data Processing** | [exceljs](https://github.com/exceljs/exceljs) + [papaparse](https://www.papaparse.com/) |
 | **DevOps & Deploy** | Docker (Multi-stage build) + Docker Compose |
@@ -70,13 +70,14 @@ ciwie-comsci/
 │   ├── middleware/               # Server-side Auth & RBAC Middleware
 │   └── utils/                    # Server Utilities
 ├── prisma/
-│   └── schema.prisma             # Deferred until the Backend phase
+│   ├── schema.prisma             # PostgreSQL data model
+│   └── migrations/                # PostgreSQL migrations
 ├── dosc/
 │   ├── requirement.md            # Requirement Documentation
 │   ├── architecture.md           # UI-first Architecture
 │   └── ui-plan.md                # UI Checkpoints and Acceptance Plan
 ├── Dockerfile                    # Multi-stage Production Dockerfile
-├── docker-compose.yml            # Legacy Backend scaffold; migrate as one unit later
+├── docker-compose.yml            # Local PostgreSQL + migration + app
 ├── nuxt.config.ts                # Nuxt Configuration
 ├── package.json
 └── AGENTS.md                     # Coding Guidelines for AI & Developers
@@ -89,7 +90,7 @@ ciwie-comsci/
 ### ความต้องการของระบบ (Prerequisites)
 - **Node.js**: `v20` หรือ `v22+`
 - **Package Manager**: `pnpm` (แนะนำเวอร์ชัน 10 ขึ้นไป)
-- ระยะ UI ยังไม่ต้องติดตั้งหรือเปิด Database
+- หากต้องการใช้ login และข้อมูลตัวอย่าง ให้เปิด PostgreSQL ด้วย Docker หรือกำหนด `DATABASE_URL`/`DIRECT_URL` ของ Supabase
 
 ### 1. โคลนโปรเจกต์และติดตั้ง Dependencies
 ```bash
@@ -104,16 +105,15 @@ pnpm dev
 ```
 เปิดเบราว์เซอร์และเข้าไปที่ `http://localhost:3000`
 
-ระยะ UI ยังไม่เปิดใช้ Session, Prisma หรือเครื่องมือนำเข้าไฟล์ใน runtime
-Dependency เหล่านี้จะติดตั้งและตั้งค่าพร้อมกันเมื่อเริ่ม Checkpoint ที่เกี่ยวข้อง
+Prisma ใช้ PostgreSQL แล้ว ส่วนการ login มหาวิทยาลัยจะเชื่อม SSO/LDAP ในระยะถัดไป
 
 ---
 
 ## 🐳 Docker และฐานข้อมูล
 
 ระยะ UI ให้รันด้วย `pnpm dev` เป็นหลัก หากใช้ Docker ให้ใช้ Compose project
-`cowier-demo` เพียงชุดเดียว: `cowier-app` ที่พอร์ต 3000 และ `cowier-mysql`
-ที่พอร์ต 3307 โดยฐานข้อมูลอยู่ใน volume `cowier-demo_mysql_data`
+`cowier-demo` เพียงชุดเดียว: `cowier-app` ที่พอร์ต 3000 และ `cowier-postgres`
+ที่พอร์ต 5432 โดยฐานข้อมูลอยู่ใน volume `cowier-demo_postgres_data`
 อย่าเปิด dev server และ Docker app บนพอร์ต 3000 พร้อมกัน
 
 ```bash
@@ -124,17 +124,25 @@ docker compose logs --tail 100 app
 docker compose stop
 ```
 
-ตั้งค่ารหัสผ่านใน `.env` ให้ตรงกับฐานข้อมูลเดิมก่อนเริ่ม Compose;
+ตั้งค่า `POSTGRES_PASSWORD` ใน `.env` ก่อนเริ่ม Compose;
 การเปลี่ยน environment ไม่ได้เปลี่ยนรหัสผ่านใน volume ที่สร้างแล้ว
 ห้ามใช้ `down -v` หรือ `volume prune` หากต้องการเก็บข้อมูล
-API สมัครบริษัทยังเป็น mock ไม่ได้บันทึกลง MySQL แม้ database container จะทำงาน
+API บางส่วนยังเป็น mock แม้ database container จะทำงาน
 
-หลัง cleanup วันที่ 2026-09-04 เก็บ volume `ciwie-comsci_mysql_data` ของชุดซ้ำไว้
-เพื่อกู้ข้อมูล ไม่ได้รวมข้อมูลเข้าฐานหลัก ส่วน container ชุดซ้ำถูกลบแล้ว
+ข้อมูล MySQL เดิมไม่ได้ถูกลบ และยังอยู่นอก Compose ชุด PostgreSQL นี้เพื่อป้องกันข้อมูลหาย
 แอปพอร์ต 3000 เดิมยังทำงานโดยมี Compose label เก่า `ciwie-comsci`;
 การ deploy ครั้งถัดไปต้องหยุดและลบเฉพาะ `cowier-app` เดิมก่อน `compose up`
 เพื่อให้ Compose สร้าง label ที่ถูกต้อง (ข้อมูล mock ใน memory จะหายเมื่อ restart)
-ไม่ต้องลบ `cowier-mysql` หรือ volume ใด ๆ
+ไม่ต้องลบ volume ใด ๆ หากต้องการเก็บข้อมูลเดิม
+
+### Supabase / Vercel
+
+ใน Supabase ให้คัดลอก connection string สองแบบจากหน้า Connect:
+
+- `DATABASE_URL`: pooled connection สำหรับ runtime ของ Vercel (มักใช้พอร์ต 6543 และ `pgbouncer=true`)
+- `DIRECT_URL`: direct connection สำหรับ Prisma migration (`pnpm db:deploy`)
+
+เพิ่มทั้งสองค่าเป็นตัวแปรลับใน Vercel โดยเลือก Environment ให้ตรงกับ deployment แล้ว deploy ใหม่ จากนั้นตรวจสอบด้วย `pnpm db:deploy` และ seed เฉพาะฐานข้อมูลทดสอบด้วย `ALLOW_DEMO_SEED=true pnpm db:seed`
 
 ---
 

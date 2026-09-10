@@ -1,24 +1,21 @@
 name: cowier-demo
 
 services:
-  # ==============================================================================
-  # MySQL 8.4 LTS Database Service
-  # ==============================================================================
-  mysql:
-    image: mysql:8.4
-    container_name: cowier-mysql
+  # PostgreSQL 17 database for local development. Production uses Supabase.
+  postgres:
+    image: postgres:17-alpine
+    container_name: cowier-postgres
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-ciwie_db}
-      MYSQL_USER: ${MYSQL_USER:-ciwie}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-ciwie}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-ciwie_root}
+      POSTGRES_DB: ${POSTGRES_DB:-ciwie_db}
+      POSTGRES_USER: ${POSTGRES_USER:-ciwie}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ciwie}
     ports:
-      - "${MYSQL_PORT:-3307}:3306"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "mysql -h localhost -u$${MYSQL_USER} -p$${MYSQL_PASSWORD} -D $${MYSQL_DATABASE} -e 'SELECT 1' --silent"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,9 +23,6 @@ services:
     networks:
       - cowier-network
 
-  # ==============================================================================
-  # Apply committed Prisma migrations before starting the application
-  # ==============================================================================
   migrate:
     build:
       context: .
@@ -37,16 +31,14 @@ services:
     image: cowier-demo-migrate:local
     restart: "no"
     environment:
-      DATABASE_URL: mysql://${MYSQL_USER:-ciwie}:${MYSQL_PASSWORD:-ciwie}@mysql:3306/${MYSQL_DATABASE:-ciwie_db}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ciwie}:${POSTGRES_PASSWORD:-ciwie}@postgres:5432/${POSTGRES_DB:-ciwie_db}
+      DIRECT_URL: postgresql://${POSTGRES_USER:-ciwie}:${POSTGRES_PASSWORD:-ciwie}@postgres:5432/${POSTGRES_DB:-ciwie_db}
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
     networks:
       - cowier-network
 
-  # ==============================================================================
-  # Nuxt 4 Application Service
-  # ==============================================================================
   app:
     build:
       context: .
@@ -58,7 +50,7 @@ services:
       - "${PORT:-3000}:3000"
     environment:
       NODE_ENV: production
-      DATABASE_URL: mysql://${MYSQL_USER:-ciwie}:${MYSQL_PASSWORD:-ciwie}@mysql:3306/${MYSQL_DATABASE:-ciwie_db}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ciwie}:${POSTGRES_PASSWORD:-ciwie}@postgres:5432/${POSTGRES_DB:-ciwie_db}
       NUXT_SESSION_PASSWORD: ${NUXT_SESSION_PASSWORD:-change_this_to_at_least_32_characters_long_secret_key}
       INITIAL_ACCOUNT_PASSWORD: ${INITIAL_ACCOUNT_PASSWORD:-change_this_initial_account_password}
       FILE_STORAGE_ROOT: /app/.data/uploads
@@ -72,12 +64,9 @@ services:
     volumes:
       - upload_data:/app/.data/uploads
 
-# ==============================================================================
-# Volumes & Networks
-# ==============================================================================
 volumes:
-  mysql_data:
-    name: cowier-demo_mysql_data
+  postgres_data:
+    name: cowier-demo_postgres_data
     driver: local
   upload_data:
     name: cowier-demo_upload_data

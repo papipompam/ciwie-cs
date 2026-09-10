@@ -1,6 +1,6 @@
 import { randomBytes, scrypt as scryptCallback } from 'node:crypto'
 import { promisify } from 'node:util'
-import { PrismaMariaDb } from '@prisma/adapter-mariadb'
+import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/client'
 import { demoPlacementRequest, demoStudentApplication } from './demo-data.mjs'
 
@@ -8,15 +8,8 @@ const scrypt = promisify(scryptCallback)
 if (process.env.ALLOW_DEMO_SEED !== 'true') {
   throw new Error('Refusing to create demo accounts unless ALLOW_DEMO_SEED=true')
 }
-const rawConnectionString = (process.env.DATABASE_URL ?? 'mysql://ciwie:ciwie@localhost:3307/ciwie_db').trim()
-let connectionString = rawConnectionString.replace(/^DATABASE_URL\s*=\s*/i, '')
-connectionString = connectionString.replace(/\\(["'`])/g, '$1').replace(/\\\//g, '/').replace(/\\u003a/gi, ':').replace(/\\u002f/gi, '/').replace(/\\r?\\n/g, '').replace(/[\r\n]/g, '').trim()
-const schemeIndex = connectionString.search(/(?:mariadb|mysql2?):\/\//i)
-if (schemeIndex >= 0) connectionString = connectionString.slice(schemeIndex)
-connectionString = connectionString.match(/^(?:mariadb|mysql2?):\/\/[^\s"'`}]*/i)?.[0] ?? connectionString
-connectionString = connectionString.replace(/^["'`]+|["'`}]+$/g, '').trim()
-  .replace(/^(?:mysql|mysql2):\/\//i, 'mariadb://')
-const prisma = new PrismaClient({ adapter: new PrismaMariaDb(connectionString) })
+const connectionString = (process.env.DIRECT_URL ?? process.env.DATABASE_URL ?? 'postgresql://ciwie:ciwie@localhost:5432/ciwie_db').trim()
+const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) })
 
 const hashPassword = async (password) => {
   const salt = randomBytes(16).toString('hex')

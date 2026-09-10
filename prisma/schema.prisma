@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
 }
 
 // =============================================================================
@@ -192,16 +192,16 @@ model User {
   cohortYear          Int?
   section             String?       @db.VarChar(50)
   failedLoginCount    Int           @default(0)
-  failedWindowAt      DateTime?     @db.DateTime(3)
-  lockedUntil         DateTime?     @db.DateTime(3)
+  failedWindowAt      DateTime?     @db.Timestamp(3)
+  lockedUntil         DateTime?     @db.Timestamp(3)
   sessionVersion      Int           @default(1)
-  passwordChangedAt   DateTime?     @db.DateTime(3)
-  suspendedAt         DateTime?     @db.DateTime(3)
-  terminatedAt        DateTime?     @db.DateTime(3)
-  lastLoginAt         DateTime?     @db.DateTime(3)
+  passwordChangedAt   DateTime?     @db.Timestamp(3)
+  suspendedAt         DateTime?     @db.Timestamp(3)
+  terminatedAt        DateTime?     @db.Timestamp(3)
+  lastLoginAt         DateTime?     @db.Timestamp(3)
   createdById         String?       @db.VarChar(30)
-  createdAt           DateTime      @default(now()) @db.DateTime(3)
-  updatedAt           DateTime      @updatedAt @db.DateTime(3)
+  createdAt           DateTime      @default(now()) @db.Timestamp(3)
+  updatedAt           DateTime      @updatedAt @db.Timestamp(3)
 
   createdBy                  User?                            @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   createdUsers               User[]                           @relation("UserCreatedBy")
@@ -247,7 +247,7 @@ model AuditLog {
   correlationId  String?  @db.VarChar(100)
   ipAddress      String?  @db.VarChar(45)
   userAgent      String?  @db.Text
-  occurredAt     DateTime @default(now()) @db.DateTime(3)
+  occurredAt     DateTime @default(now()) @db.Timestamp(3)
 
   actor User? @relation(fields: [actorAccountId], references: [id], onDelete: SetNull)
 
@@ -275,9 +275,9 @@ model CoopCycle {
   trainingStartDate DateTime        @db.Date
   trainingEndDate   DateTime        @db.Date
   status            CoopCycleStatus @default(DRAFT)
-  closedAt          DateTime?       @db.DateTime(3)
-  createdAt         DateTime        @default(now()) @db.DateTime(3)
-  updatedAt         DateTime        @updatedAt @db.DateTime(3)
+  closedAt          DateTime?       @db.Timestamp(3)
+  createdAt         DateTime        @default(now()) @db.Timestamp(3)
+  updatedAt         DateTime        @updatedAt @db.Timestamp(3)
 
   statusHistory     CoopCycleStatusHistory[]
   enrollments       CycleEnrollment[]
@@ -296,7 +296,7 @@ model CoopCycleStatusHistory {
   toStatus    CoopCycleStatus
   reason      String           @db.Text
   changedById String           @db.VarChar(30)
-  changedAt   DateTime         @default(now()) @db.DateTime(3)
+  changedAt   DateTime         @default(now()) @db.Timestamp(3)
 
   cycle     CoopCycle @relation(fields: [cycleId], references: [id], onDelete: Restrict)
   changedBy User      @relation(fields: [changedById], references: [id], onDelete: Restrict)
@@ -315,12 +315,12 @@ model CycleEnrollment {
   enrollmentStatus   CycleEnrollmentStatus @default(ACTIVE)
   workStatus         StudentWorkStatus     @default(NOT_STARTED)
   currentStudentKey  String?               @unique @db.VarChar(30)
-  joinedAt           DateTime              @default(now()) @db.DateTime(3)
-  exitedAt           DateTime?             @db.DateTime(3)
+  joinedAt           DateTime              @default(now()) @db.Timestamp(3)
+  exitedAt           DateTime?             @db.Timestamp(3)
   exitReason         String?               @db.Text
   createdById        String                @db.VarChar(30)
-  createdAt          DateTime              @default(now()) @db.DateTime(3)
-  updatedAt          DateTime              @updatedAt @db.DateTime(3)
+  createdAt          DateTime              @default(now()) @db.Timestamp(3)
+  updatedAt          DateTime              @updatedAt @db.Timestamp(3)
 
   cycle               CoopCycle            @relation(fields: [cycleId], references: [id], onDelete: Restrict)
   student             User                 @relation("EnrollmentStudent", fields: [studentId], references: [id], onDelete: Restrict)
@@ -344,8 +344,8 @@ model Province {
   code      String     @unique @db.VarChar(10)
   nameTh    String     @unique @db.VarChar(100)
   region    RegionCode?
-  createdAt DateTime   @default(now()) @db.DateTime(3)
-  updatedAt DateTime   @updatedAt @db.DateTime(3)
+  createdAt DateTime   @default(now()) @db.Timestamp(3)
+  updatedAt DateTime   @updatedAt @db.Timestamp(3)
 
   companySites CompanySite[]
 
@@ -360,9 +360,9 @@ model Company {
   taxId         String?       @db.VarChar(20)
   status        CompanyStatus @default(PENDING)
   createdById   String        @db.VarChar(30)
-  deactivatedAt DateTime?     @db.DateTime(3)
-  createdAt     DateTime      @default(now()) @db.DateTime(3)
-  updatedAt     DateTime      @updatedAt @db.DateTime(3)
+  deactivatedAt DateTime?     @db.Timestamp(3)
+  createdAt     DateTime      @default(now()) @db.Timestamp(3)
+  updatedAt     DateTime      @updatedAt @db.Timestamp(3)
 
   createdBy User          @relation("CompanyCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   sites     CompanySite[]
@@ -387,8 +387,8 @@ model CompanySite {
   contactPhone String?      @db.VarChar(50)
   contactEmail String?      @db.VarChar(255)
   recordStatus RecordStatus @default(ACTIVE)
-  createdAt    DateTime     @default(now()) @db.DateTime(3)
-  updatedAt    DateTime     @updatedAt @db.DateTime(3)
+  createdAt    DateTime     @default(now()) @db.Timestamp(3)
+  updatedAt    DateTime     @updatedAt @db.Timestamp(3)
 
   company             Company                   @relation(fields: [companyId], references: [id], onDelete: Restrict)
   province            Province                  @relation(fields: [provinceId], references: [id], onDelete: Restrict)
@@ -423,8 +423,8 @@ model StudentApplication {
   activeSlotKey       String?                  @unique @db.VarChar(30)
   details             String?                  @db.Text
   responseDate        DateTime?                @db.Date
-  createdAt           DateTime                 @default(now()) @db.DateTime(3)
-  updatedAt           DateTime                 @updatedAt @db.DateTime(3)
+  createdAt           DateTime                 @default(now()) @db.Timestamp(3)
+  updatedAt           DateTime                 @updatedAt @db.Timestamp(3)
 
   enrollment  CycleEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
   companySite CompanySite?    @relation(fields: [companySiteId], references: [id], onDelete: SetNull)
@@ -460,17 +460,17 @@ model PlacementRequest {
   status             PlacementRequestStatus @default(DRAFT)
   activeSlotKey      String?                @unique @db.VarChar(30)
   confirmedSlotKey   String?                @unique @db.VarChar(30)
-  submittedAt        DateTime?              @db.DateTime(3)
-  returnedAt         DateTime?              @db.DateTime(3)
-  completedAt        DateTime?              @db.DateTime(3)
-  cancelledAt        DateTime?              @db.DateTime(3)
+  submittedAt        DateTime?              @db.Timestamp(3)
+  returnedAt         DateTime?              @db.Timestamp(3)
+  completedAt        DateTime?              @db.Timestamp(3)
+  cancelledAt        DateTime?              @db.Timestamp(3)
   cancellationReason String?                @db.Text
   confirmedPosition  String?                @db.VarChar(150)
   resultNote         String?                @db.Text
   confirmedById      String?                @db.VarChar(30)
-  confirmedAt        DateTime?              @db.DateTime(3)
-  createdAt          DateTime               @default(now()) @db.DateTime(3)
-  updatedAt          DateTime               @updatedAt @db.DateTime(3)
+  confirmedAt        DateTime?              @db.Timestamp(3)
+  createdAt          DateTime               @default(now()) @db.Timestamp(3)
+  updatedAt          DateTime               @updatedAt @db.Timestamp(3)
 
   enrollment       CycleEnrollment                 @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
   studentApplication StudentApplication             @relation(fields: [studentApplicationId], references: [id], onDelete: Restrict)
@@ -495,7 +495,7 @@ model PlacementRequestStatusHistory {
   toStatus    PlacementRequestStatus
   reason      String?                 @db.Text
   changedById String                  @db.VarChar(30)
-  changedAt   DateTime                @default(now()) @db.DateTime(3)
+  changedAt   DateTime                @default(now()) @db.Timestamp(3)
 
   request   PlacementRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
   changedBy User             @relation(fields: [changedById], references: [id], onDelete: Restrict)
@@ -519,12 +519,12 @@ model LetterDocumentVersion {
   sha256            String                @db.Char(64)
   validationStatus  FileValidationStatus  @default(PENDING)
   validationError   String?               @db.Text
-  validatedAt       DateTime?             @db.DateTime(3)
+  validatedAt       DateTime?             @db.Timestamp(3)
   uploadedById      String                @db.VarChar(30)
-  uploadedAt        DateTime              @default(now()) @db.DateTime(3)
+  uploadedAt        DateTime              @default(now()) @db.Timestamp(3)
   replacementReason String?               @db.Text
   reviewedById      String?               @db.VarChar(30)
-  reviewedAt        DateTime?             @db.DateTime(3)
+  reviewedAt        DateTime?             @db.Timestamp(3)
   reviewNote        String?               @db.Text
 
   placementRequest PlacementRequest  @relation(fields: [placementRequestId], references: [id], onDelete: Restrict)
@@ -550,8 +550,8 @@ model SupervisionGroup {
   round       SupervisionRound
   name        String           @db.VarChar(150)
   createdById String           @db.VarChar(30)
-  createdAt   DateTime         @default(now()) @db.DateTime(3)
-  updatedAt   DateTime         @updatedAt @db.DateTime(3)
+  createdAt   DateTime         @default(now()) @db.Timestamp(3)
+  updatedAt   DateTime         @updatedAt @db.Timestamp(3)
 
   cycle     CoopCycle                  @relation(fields: [cycleId], references: [id], onDelete: Restrict)
   createdBy User                       @relation(fields: [createdById], references: [id], onDelete: Restrict)
@@ -585,8 +585,8 @@ model SupervisionExpense {
   totalAmount         Decimal          @db.Decimal(12, 2)
   lecturerSnapshot    Json
   createdById         String           @db.VarChar(30)
-  createdAt           DateTime         @default(now()) @db.DateTime(3)
-  updatedAt           DateTime         @updatedAt @db.DateTime(3)
+  createdAt           DateTime         @default(now()) @db.Timestamp(3)
+  updatedAt           DateTime         @updatedAt @db.Timestamp(3)
 
   group     SupervisionGroup @relation(fields: [groupId], references: [id], onDelete: Restrict)
   createdBy User             @relation("SupervisionExpenseCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
@@ -601,7 +601,7 @@ model SupervisionGroupLecturer {
   cycleId    String           @db.VarChar(30)
   round      SupervisionRound
   lecturerId String           @db.VarChar(30)
-  assignedAt DateTime         @default(now()) @db.DateTime(3)
+  assignedAt DateTime         @default(now()) @db.Timestamp(3)
 
   group    SupervisionGroup @relation(fields: [groupId, cycleId, round], references: [id, cycleId, round], onDelete: Restrict)
   lecturer User             @relation(fields: [lecturerId], references: [id], onDelete: Restrict)
@@ -617,7 +617,7 @@ model SupervisionGroupCompany {
   cycleId       String           @db.VarChar(30)
   round         SupervisionRound
   companySiteId String           @db.VarChar(30)
-  assignedAt    DateTime         @default(now()) @db.DateTime(3)
+  assignedAt    DateTime         @default(now()) @db.Timestamp(3)
 
   group        SupervisionGroup         @relation(fields: [groupId, cycleId, round], references: [id, cycleId, round], onDelete: Restrict)
   companySite  CompanySite              @relation(fields: [companySiteId], references: [id], onDelete: Restrict)
@@ -638,19 +638,19 @@ model SupervisionAppointment {
   splitReason         String?                      @db.Text
   postponementReason  String?                      @db.Text
   cancellationReason  String?                      @db.Text
-  publishedAt         DateTime?                    @db.DateTime(3)
-  completedAt         DateTime?                    @db.DateTime(3)
-  lockedAt            DateTime?                    @db.DateTime(3)
-  resultSummary       String?                      @db.LongText
-  resultIssues        String?                      @db.LongText
-  resultSuggestions   String?                      @db.LongText
-  companyRequirements String?                      @db.LongText
+  publishedAt         DateTime?                    @db.Timestamp(3)
+  completedAt         DateTime?                    @db.Timestamp(3)
+  lockedAt            DateTime?                    @db.Timestamp(3)
+  resultSummary       String?                      @db.Text
+  resultIssues        String?                      @db.Text
+  resultSuggestions   String?                      @db.Text
+  companyRequirements String?                      @db.Text
   resultRecordedById  String?                      @db.VarChar(30)
-  resultRecordedAt    DateTime?                    @db.DateTime(3)
+  resultRecordedAt    DateTime?                    @db.Timestamp(3)
   createdById         String                       @db.VarChar(30)
   publishedById       String?                      @db.VarChar(30)
-  createdAt           DateTime                     @default(now()) @db.DateTime(3)
-  updatedAt           DateTime                     @updatedAt @db.DateTime(3)
+  createdAt           DateTime                     @default(now()) @db.Timestamp(3)
+  updatedAt           DateTime                     @updatedAt @db.Timestamp(3)
 
   groupCompany      SupervisionGroupCompany          @relation(fields: [groupCompanyId], references: [id], onDelete: Restrict)
   createdBy         User                             @relation("AppointmentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
@@ -676,8 +676,8 @@ model SupervisionAppointmentLecturer {
   source        SupervisionParticipantSource
   role          SupervisionParticipantRole   @default(PARTICIPANT)
   isActual      Boolean                      @default(false)
-  addedAt       DateTime                     @default(now()) @db.DateTime(3)
-  confirmedAt   DateTime?                    @db.DateTime(3)
+  addedAt       DateTime                     @default(now()) @db.Timestamp(3)
+  confirmedAt   DateTime?                    @db.Timestamp(3)
 
   appointment SupervisionAppointment @relation(fields: [appointmentId], references: [id], onDelete: Restrict)
   lecturer    User                   @relation(fields: [lecturerId], references: [id], onDelete: Restrict)
@@ -691,7 +691,7 @@ model SupervisionAppointmentStudent {
   id                 String   @id @default(cuid()) @db.VarChar(30)
   appointmentId      String   @db.VarChar(30)
   placementRequestId String   @db.VarChar(30)
-  assignedAt         DateTime @default(now()) @db.DateTime(3)
+  assignedAt         DateTime @default(now()) @db.Timestamp(3)
 
   appointment        SupervisionAppointment @relation(fields: [appointmentId], references: [id], onDelete: Restrict)
   placementRequest   PlacementRequest       @relation(fields: [placementRequestId], references: [id], onDelete: Restrict)
@@ -713,19 +713,19 @@ model StudentEvaluation {
   evaluatorLecturerId  String           @db.VarChar(30)
   rubricVersion        Int              @default(1)
   status               EvaluationStatus @default(DRAFT)
-  responsibilityScore  Int?             @db.UnsignedTinyInt
-  disciplineScore      Int?             @db.UnsignedTinyInt
-  communicationScore   Int?             @db.UnsignedTinyInt
-  knowledgeScore       Int?             @db.UnsignedTinyInt
-  workQualityScore     Int?             @db.UnsignedTinyInt
-  problemSolvingScore  Int?             @db.UnsignedTinyInt
-  strengths            String?          @db.LongText
-  issues               String?          @db.LongText
-  suggestions          String?          @db.LongText
-  nextFollowUp         String?          @db.LongText
-  submittedAt          DateTime?        @db.DateTime(3)
-  createdAt            DateTime         @default(now()) @db.DateTime(3)
-  updatedAt            DateTime         @updatedAt @db.DateTime(3)
+  responsibilityScore  Int?             @db.SmallInt
+  disciplineScore      Int?             @db.SmallInt
+  communicationScore   Int?             @db.SmallInt
+  knowledgeScore       Int?             @db.SmallInt
+  workQualityScore     Int?             @db.SmallInt
+  problemSolvingScore  Int?             @db.SmallInt
+  strengths            String?          @db.Text
+  issues               String?          @db.Text
+  suggestions          String?          @db.Text
+  nextFollowUp         String?          @db.Text
+  submittedAt          DateTime?        @db.Timestamp(3)
+  createdAt            DateTime         @default(now()) @db.Timestamp(3)
+  updatedAt            DateTime         @updatedAt @db.Timestamp(3)
 
   appointmentStudent SupervisionAppointmentStudent @relation(fields: [appointmentStudentId], references: [id], onDelete: Restrict)
   evaluator          User                          @relation(fields: [evaluatorLecturerId], references: [id], onDelete: Restrict)
@@ -741,27 +741,27 @@ model CompanyEvaluation {
   evaluatorId                 String                 @db.VarChar(30)
   rubricVersion               Int                    @default(1)
   status                      EvaluationStatus       @default(DRAFT)
-  workRelevanceScore          Int?                   @db.UnsignedTinyInt
-  workChallengeScore          Int?                   @db.UnsignedTinyInt
-  learningOpportunityScore    Int?                   @db.UnsignedTinyInt
-  supervisorReadinessScore    Int?                   @db.UnsignedTinyInt
-  studentSupportScore         Int?                   @db.UnsignedTinyInt
-  environmentScore            Int?                   @db.UnsignedTinyInt
-  safetyScore                 Int?                   @db.UnsignedTinyInt
-  resourceReadinessScore      Int?                   @db.UnsignedTinyInt
-  allowanceScore              Int?                   @db.UnsignedTinyInt
-  transportationScore         Int?                   @db.UnsignedTinyInt
-  publicTransportScore        Int?                   @db.UnsignedTinyInt
-  nearbyAccommodationScore    Int?                   @db.UnsignedTinyInt
-  universityCoordinationScore Int?                   @db.UnsignedTinyInt
+  workRelevanceScore          Int?                   @db.SmallInt
+  workChallengeScore          Int?                   @db.SmallInt
+  learningOpportunityScore    Int?                   @db.SmallInt
+  supervisorReadinessScore    Int?                   @db.SmallInt
+  studentSupportScore         Int?                   @db.SmallInt
+  environmentScore            Int?                   @db.SmallInt
+  safetyScore                 Int?                   @db.SmallInt
+  resourceReadinessScore      Int?                   @db.SmallInt
+  allowanceScore              Int?                   @db.SmallInt
+  transportationScore         Int?                   @db.SmallInt
+  publicTransportScore        Int?                   @db.SmallInt
+  nearbyAccommodationScore    Int?                   @db.SmallInt
+  universityCoordinationScore Int?                   @db.SmallInt
   recommendation              CompanyRecommendation?
-  observations                String?                @db.LongText
-  companyRequirements         String?                @db.LongText
-  issues                      String?                @db.LongText
-  suggestions                 String?                @db.LongText
-  submittedAt                 DateTime?              @db.DateTime(3)
-  createdAt                   DateTime               @default(now()) @db.DateTime(3)
-  updatedAt                   DateTime               @updatedAt @db.DateTime(3)
+  observations                String?                @db.Text
+  companyRequirements         String?                @db.Text
+  issues                      String?                @db.Text
+  suggestions                 String?                @db.Text
+  submittedAt                 DateTime?              @db.Timestamp(3)
+  createdAt                   DateTime               @default(now()) @db.Timestamp(3)
+  updatedAt                   DateTime               @updatedAt @db.Timestamp(3)
 
   appointment SupervisionAppointment @relation(fields: [appointmentId], references: [id], onDelete: Restrict)
   evaluator   User                   @relation(fields: [evaluatorId], references: [id], onDelete: Restrict)
@@ -784,7 +784,7 @@ model Notification {
   placementRequestId String?              @db.VarChar(30)
   appointmentId      String?              @db.VarChar(30)
   createdById        String?              @db.VarChar(30)
-  createdAt          DateTime             @default(now()) @db.DateTime(3)
+  createdAt          DateTime             @default(now()) @db.Timestamp(3)
 
   placementRequest PlacementRequest?       @relation(fields: [placementRequestId], references: [id], onDelete: SetNull)
   appointment      SupervisionAppointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
@@ -801,8 +801,8 @@ model NotificationRecipient {
   id             String    @id @default(cuid()) @db.VarChar(30)
   notificationId String    @db.VarChar(30)
   accountId      String    @db.VarChar(30)
-  deliveredAt    DateTime  @default(now()) @db.DateTime(3)
-  readAt         DateTime? @db.DateTime(3)
+  deliveredAt    DateTime  @default(now()) @db.Timestamp(3)
+  readAt         DateTime? @db.Timestamp(3)
 
   notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
   account      User         @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -817,12 +817,12 @@ model CalendarEvent {
   eventType      CalendarEventType
   title          String            @db.VarChar(255)
   description    String?           @db.Text
-  startsAt       DateTime          @db.DateTime(3)
-  endsAt         DateTime?         @db.DateTime(3)
+  startsAt       DateTime          @db.Timestamp(3)
+  endsAt         DateTime?         @db.Timestamp(3)
   isAllDay       Boolean           @default(false)
   ownerAccountId String            @db.VarChar(30)
-  createdAt      DateTime          @default(now()) @db.DateTime(3)
-  updatedAt      DateTime          @updatedAt @db.DateTime(3)
+  createdAt      DateTime          @default(now()) @db.Timestamp(3)
+  updatedAt      DateTime          @updatedAt @db.Timestamp(3)
 
   owner User @relation(fields: [ownerAccountId], references: [id], onDelete: Cascade)
 
