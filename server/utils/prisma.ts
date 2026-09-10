@@ -15,22 +15,7 @@ export const toMariaDbConnectionString = (connectionString: string) => {
 
 export const toMariaDbConnectionConfig = (connectionString: string) => {
   const normalized = toMariaDbConnectionString(connectionString)
-  let url: URL
-  try {
-    url = new URL(normalized)
-  }
-  catch (error) {
-    console.error('[DEBUG-DBURL]', {
-      length: normalized.length,
-      scheme: normalized.match(/^[^:]+:/)?.[0] ?? null,
-      hasProtocol: normalized.includes('://'),
-      firstCode: normalized.charCodeAt(0),
-      lastCode: normalized.charCodeAt(normalized.length - 1),
-      braces: (normalized.match(/[{}]/g) ?? []).length,
-      newline: /\r|\n/.test(normalized),
-    })
-    throw error
-  }
+  const url = new URL(normalized)
   const config: Record<string, string | number> = {
     host: url.hostname,
     user: decodeURIComponent(url.username),
