@@ -9,11 +9,11 @@ if (process.env.ALLOW_DEMO_SEED !== 'true') {
   throw new Error('Refusing to create demo accounts unless ALLOW_DEMO_SEED=true')
 }
 const rawConnectionString = (process.env.DATABASE_URL ?? 'mysql://ciwie:ciwie@localhost:3307/ciwie_db').trim()
-const connectionString = rawConnectionString
-  .replace(/^DATABASE_URL\s*=\s*/i, '')
-  .replace(/\\(["'])/g, '$1')
-  .replace(/^["'`]+|["'`]+$/g, '')
-  .trim()
+let connectionString = rawConnectionString.replace(/^DATABASE_URL\s*=\s*/i, '')
+connectionString = connectionString.replace(/\\(["'`])/g, '$1').replace(/\\r?\\n/g, '').trim()
+const schemeIndex = connectionString.search(/(?:mariadb|mysql2?):\/\//i)
+if (schemeIndex >= 0) connectionString = connectionString.slice(schemeIndex)
+connectionString = connectionString.replace(/^["'`]+|["'`}]+$/g, '').trim()
   .replace(/^(?:mysql|mysql2):\/\//i, 'mariadb://')
 const prisma = new PrismaClient({ adapter: new PrismaMariaDb(connectionString) })
 

@@ -4,9 +4,12 @@ import { PrismaClient } from '@prisma/client'
 const prismaGlobal = globalThis as typeof globalThis & { cwiePrisma?: PrismaClient }
 
 export const toMariaDbConnectionString = (connectionString: string) => {
-  const withoutAssignment = connectionString.trim().replace(/^DATABASE_URL\s*=\s*/i, '')
-  const unquoted = withoutAssignment.replace(/\\(["'])/g, '$1').replace(/^["'`]+|["'`]+$/g, '').trim()
-  return unquoted.replace(/^(?:mysql|mysql2):\/\//i, 'mariadb://')
+  let normalized = connectionString.trim().replace(/^DATABASE_URL\s*=\s*/i, '')
+  normalized = normalized.replace(/\\(["'`])/g, '$1').replace(/\\r?\\n/g, '').trim()
+  const schemeIndex = normalized.search(/(?:mariadb|mysql2?):\/\//i)
+  if (schemeIndex >= 0) normalized = normalized.slice(schemeIndex)
+  normalized = normalized.replace(/^["'`]+|["'`}]+$/g, '').trim()
+  return normalized.replace(/^(?:mysql|mysql2):\/\//i, 'mariadb://')
 }
 
 export const toMariaDbConnectionConfig = (connectionString: string) => {
