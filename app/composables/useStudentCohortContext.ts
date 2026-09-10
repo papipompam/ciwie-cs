@@ -13,6 +13,20 @@ export const getStudentSemester = (cycle?: string): string => cycle?.split('/')[
 export const isStudentVisibleForCoopSemester = (cycle?: string): boolean =>
   !cycle || getStudentSemester(cycle) === selectableCoopSemester
 
+type StudentDirectoryPerson = {
+  firstName: string
+  lastName: string
+  section?: string
+}
+
+const sectionNumber = (section?: string) => Number(section?.match(/\d+/)?.[0] ?? Number.MAX_SAFE_INTEGER)
+
+export const compareStudentDirectoryPeople = (a: StudentDirectoryPerson, b: StudentDirectoryPerson): number => {
+  const sectionComparison = sectionNumber(a.section) - sectionNumber(b.section)
+  if (sectionComparison !== 0) return sectionComparison
+  return `${a.firstName}${a.lastName}`.localeCompare(`${b.firstName}${b.lastName}`, 'th')
+}
+
 export const useStudentCohortContext = () => {
   const { people } = usePeopleDirectory()
   const studentCohort = useState<string>('student-context-cohort', () => 'all')

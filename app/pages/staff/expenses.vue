@@ -9,6 +9,7 @@ useHead({ title: 'ค่าใช้จ่ายสายการนิเท�
 
 type InputKey = keyof SupervisionLineExpenseInput
 const { cycleId, cycleOptions, round, roundModel, roundOptions } = useSupervisionContext()
+const route = useRoute()
 const { groups, records, loadExpenses, saveExpense } = useSupervisionExpenses()
 const { showToast } = useToast()
 const selectedGroupId = ref('')
@@ -57,7 +58,9 @@ const fillForm = () => {
   clearErrors()
 }
 watch(groups, (items) => {
-  if (!items.some(group => group.id === selectedGroupId.value)) selectedGroupId.value = items[0]?.id ?? ''
+  const requestedGroup = typeof route.query.group === 'string' ? route.query.group : ''
+  if (requestedGroup && items.some(group => group.id === requestedGroup)) selectedGroupId.value = requestedGroup
+  else if (!items.some(group => group.id === selectedGroupId.value)) selectedGroupId.value = items[0]?.id ?? ''
 }, { immediate: true })
 watch(selectedGroupId, fillForm)
 

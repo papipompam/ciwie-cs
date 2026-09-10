@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Download, Plus, RotateCc
 import type { PeopleFileFormat } from '~/composables/usePeopleImport'
 import type { PersonType } from '~/composables/usePeopleDirectory'
 import { selectableCoopSemester } from '~/composables/useCoopCycles'
-import { isStudentVisibleForCoopSemester } from '~/composables/useStudentCohortContext'
+import { compareStudentDirectoryPeople, getStudentCohortYear, isStudentVisibleForCoopSemester } from '~/composables/useStudentCohortContext'
 import { getPageCount, paginateItems } from '~/utils/table'
 import { hasConfirmedPlacement as hasPlacement } from '~/utils/studentPlacementStatus'
 
@@ -16,6 +16,7 @@ const { currentAccount } = useAuthPrototype()
 const { people, loadPersistedPeople } = usePeopleDirectory()
 const { exportPeople } = usePeopleImport()
 const { studentCohort, studentCohortOptions, studentSection, studentSectionOptions, studentSemester, ensureAvailableStudentFilters } = useStudentCohortContext()
+const studentContextInitialized = useState<boolean>('staff-student-context-initialized', () => false)
 
 const personType = computed<PersonType>(() => route.params.type === 'lecturers' ? 'lecturer' : 'student')
 const isValidType = computed(() => ['students', 'lecturers'].includes(String(route.params.type)))
@@ -82,7 +83,9 @@ const filteredPeople = computed(() => {
     .filter(person => personType.value === 'student' || accountStatus.value === 'all' || person.accountStatus === accountStatus.value)
     .filter(person => personType.value !== 'student' || placementStatus.value === 'all' || hasPlacement(person) === (placementStatus.value === 'placed'))
     .sort((a, b) => {
-      const comparison = `${a.firstName}${a.lastName}`.localeCompare(`${b.firstName}${b.lastName}`, 'th')
+      const comparison = personType.value === 'student'
+        ? compareStudentDirectoryPeople(a, b)
+        : `${a.firstName}${a.lastName}`.localeCompare(`${b.firstName}${b.lastName}`, 'th')
       return sortDirection.value === 'asc' ? comparison : -comparison
     })
 })
@@ -100,6 +103,13 @@ watchEffect(() => {
   studentSemester.value = selectableCoopSemester
   ensureAvailableStudentFilters()
 })
+watch(studentCohortOptions, (options) => {
+  if (personType.value !== 'student' || studentContextInitialized.value) return
+  const currentYear = options.find(option => option.value !== 'all')?.value
+  if (!currentYear) return
+  studentCohort.value = currentYear
+  studentContextInitialized.value = true
+}, { immediate: true })
 
 const clearFilters = () => {
   search.value = ''
@@ -172,7 +182,7 @@ const handleExport = async () => {
           <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end xl:ml-auto">
             <div v-if="personType === 'student'" class="w-full sm:w-52"><UiSelect v-model="placementStatus" :options="placementStatusOptions" label="กรองสถานะที่ฝึกงาน" :label-visible="false" /></div>
             <div v-if="personType === 'student'" class="w-full sm:w-40"><UiSelect v-model="studentSection" :options="studentSectionOptions" label="กรองตามหมู่เรียน" :label-visible="false" /></div>
-            <div v-if="personType === 'student'" class="w-full sm:w-44"><UiSelect v-model="studentCohort" :options="academicYearOptions" label="กรองตามปีการศึกษา" :label-visible="false" /></div>
+            <div v-if="personType === 'student'" class="w-full sm:w-44"><UiSelect v-model="studentCohort" :options="academicYearOptions" label="เลือกปีการศึกษา" :label-visible="false" /></div>
             <div v-if="personType === 'lecturer'" class="w-full sm:w-52"><UiSelect :key="`record-${personType}`" v-model="recordStatus" :options="recordStatusOptions" :placeholder="recordStatusOptions.find(item => item.value === recordStatus)?.label" label="กรองสถานะข้อมูล" :label-visible="false" /></div>
             <div v-if="personType === 'lecturer'" class="w-full sm:w-56"><UiSelect :key="`account-${personType}`" v-model="accountStatus" :options="accountStatusOptions" :placeholder="accountStatusOptions.find(item => item.value === accountStatus)?.label" label="กรองสถานะบัญชี" :label-visible="false" /></div>
             <button type="button" class="inline-grid size-11 shrink-0 place-items-center rounded-control border border-divider bg-canvas text-ink transition-colors hover:bg-surface" aria-label="รีเซ็ตตาราง" title="รีเซ็ตตาราง" @click="resetTable"><RotateCcw :size="18" aria-hidden="true" /></button>
