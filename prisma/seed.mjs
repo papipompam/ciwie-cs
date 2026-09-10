@@ -10,9 +10,10 @@ if (process.env.ALLOW_DEMO_SEED !== 'true') {
 }
 const rawConnectionString = (process.env.DATABASE_URL ?? 'mysql://ciwie:ciwie@localhost:3307/ciwie_db').trim()
 let connectionString = rawConnectionString.replace(/^DATABASE_URL\s*=\s*/i, '')
-connectionString = connectionString.replace(/\\(["'`])/g, '$1').replace(/\\\//g, '/').replace(/\\r?\\n/g, '').replace(/[\r\n]/g, '').trim()
+connectionString = connectionString.replace(/\\(["'`])/g, '$1').replace(/\\\//g, '/').replace(/\\u003a/gi, ':').replace(/\\u002f/gi, '/').replace(/\\r?\\n/g, '').replace(/[\r\n]/g, '').trim()
 const schemeIndex = connectionString.search(/(?:mariadb|mysql2?):\/\//i)
 if (schemeIndex >= 0) connectionString = connectionString.slice(schemeIndex)
+connectionString = connectionString.match(/^(?:mariadb|mysql2?):\/\/[^\s"'`}]*/i)?.[0] ?? connectionString
 connectionString = connectionString.replace(/^["'`]+|["'`}]+$/g, '').trim()
   .replace(/^(?:mysql|mysql2):\/\//i, 'mariadb://')
 const prisma = new PrismaClient({ adapter: new PrismaMariaDb(connectionString) })
