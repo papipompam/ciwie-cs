@@ -61,6 +61,8 @@ const pageSize = ref('10')
 const currentPage = ref(1)
 const exportFormat = ref<PeopleFileFormat>('xlsx')
 const isExporting = ref(false)
+const importOpen = ref(false)
+const createOpen = ref(false)
 const effectiveViewState = computed(() => scenario.value.forceError || peopleFetchError.value
   ? 'error'
   : peopleFetchStatus.value === 'pending' ? 'loading' : scenario.value.viewState)
@@ -164,6 +166,7 @@ const handleExport = async () => {
     isExporting.value = false
   }
 }
+const handlePeopleUpdated = async () => { await refreshPeople() }
 </script>
 
 <template>
@@ -174,14 +177,20 @@ const handleExport = async () => {
         <p class="mt-1 text-sm leading-6 text-muted">ค้นหา เพิ่ม แก้ไข และจัดการสถานะข้อมูลกับบัญชีโดยไม่ลบประวัติเดิม</p>
       </div>
       <div class="flex flex-wrap gap-2 sm:justify-end">
-        <UiButton variant="secondary" :icon="Upload" @click="navigateTo({ path: '/staff/people/import', query: { type: personType } })">นำเข้าข้อมูล</UiButton>
+        <UiDialog v-model:open="importOpen" :title="`นำเข้าข้อมูล${context.title}`" description="เลือกไฟล์ ตรวจสอบ และยืนยันการนำเข้าได้ในหน้าต่างนี้" size="lg">
+          <template #trigger><UiButton variant="secondary" :icon="Upload">นำเข้าข้อมูล</UiButton></template>
+          <PeopleImportForm v-if="importOpen" :person-type="personType" @updated="handlePeopleUpdated" @close="importOpen = false" />
+        </UiDialog>
         <UiDialog :title="`ส่งออก${context.title}`" :description="exportDescription">
           <template #trigger><UiButton variant="secondary" :icon="Download">ส่งออกข้อมูล</UiButton></template>
           <UiSelect v-model="exportFormat" :options="exportFormatOptions" :placeholder="exportFormatOptions.find(item => item.value === exportFormat)?.label" label="รูปแบบไฟล์" />
           <template #cancel><UiButton variant="ghost">ยกเลิก</UiButton></template>
           <template #confirm><UiButton :loading="isExporting" :icon="Download" @click="handleExport">ดาวน์โหลดไฟล์</UiButton></template>
         </UiDialog>
-        <UiButton :icon="Plus" @click="navigateTo(`/staff/${route.params.type}/new`)">เพิ่ม{{ context.singular }}</UiButton>
+        <UiDialog v-model:open="createOpen" :title="`เพิ่ม${context.singular}`" description="ระบบจะสร้างบัญชีจากรหัส และกำหนดให้เปลี่ยนรหัสผ่านเมื่อเข้าสู่ระบบครั้งแรก" size="lg">
+          <template #trigger><UiButton :icon="Plus">เพิ่ม{{ context.singular }}</UiButton></template>
+          <PersonCreateForm v-if="createOpen" :person-type="personType" @saved="createOpen = false; handlePeopleUpdated()" />
+        </UiDialog>
       </div>
     </div>
 
@@ -213,7 +222,7 @@ const handleExport = async () => {
       <div v-else-if="!paginatedPeople.length" class="p-5 sm:p-6">
         <AppEmptyState :title="hasFilters ? 'ไม่พบข้อมูลที่ตรงกับตัวกรอง' : `ยังไม่มี${context.title}`" :description="hasFilters ? 'ลองเปลี่ยนคำค้นหรือล้างตัวกรองที่ใช้อยู่' : `เพิ่ม${context.singular}คนแรกเพื่อสร้างข้อมูลและบัญชีผู้ใช้`">
           <UiButton v-if="hasFilters" variant="secondary" @click="clearFilters">ล้างตัวกรอง</UiButton>
-          <UiButton v-else :icon="Plus" @click="navigateTo(`/staff/${route.params.type}/new`)">เพิ่ม{{ context.singular }}</UiButton>
+          <UiButton v-else :icon="Plus" @click="createOpen = true">เพิ่ม{{ context.singular }}</UiButton>
         </AppEmptyState>
       </div>
       <template v-else>
