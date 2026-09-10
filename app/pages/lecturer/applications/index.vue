@@ -36,7 +36,7 @@ const pageDescription = computed(() => isStaffView.value
   : 'ดูบริษัทที่นักศึกษาแต่ละคนยื่นสมัคร ตำแหน่ง และสถานะการตอบกลับล่าสุด')
 
 const searchQuery = ref('')
-const statusFilter = ref('all')
+const statusFilter = ref<'all' | TrackedApplicationStatus>('all')
 const provinceFilter = ref('all')
 const sortDirection = ref<'asc' | 'desc'>('desc')
 const pageSize = ref('10')
@@ -54,10 +54,15 @@ const effectiveViewState = computed(() => {
   if (scenario.value.viewState === 'loading' || (isStaffView.value && (applicationFetchStatus.value === 'pending' || peopleFetchStatus.value === 'pending'))) return 'loading'
   return scenario.value.viewState
 })
-const statusOptions = [
+const statusOptions = computed(() => [
   { value: 'all', label: 'ทุกสถานะ' },
-  ...trackedApplicationStatusOptions,
-]
+  ...(isStaffView.value
+    ? trackedApplicationStatusOptions
+    : [
+        { value: 'accepted', label: 'ยืนยันสถานประกอบการแล้ว' },
+        { value: 'rejected', label: 'ปฏิเสธ' },
+      ]),
+])
 const provinceOptions = computed(() => [
   { value: 'all', label: 'ทุกจังหวัด' },
   ...[...new Set(applications.value.map(application => application.province))]
@@ -112,10 +117,13 @@ const paginatedApplications = computed(() => paginateItems(filteredApplications.
 const resultStart = computed(() => filteredApplications.value.length ? (currentPage.value - 1) * pageSizeNumber.value + 1 : 0)
 const resultEnd = computed(() => Math.min(currentPage.value * pageSizeNumber.value, filteredApplications.value.length))
 const hasActiveFilters = computed(() => Boolean(searchQuery.value.trim()) || statusFilter.value !== 'all' || provinceFilter.value !== 'all')
-const activeStatusLabel = computed(() => statusOptions.find(option => option.value === statusFilter.value)?.label)
+const activeStatusLabel = computed(() => statusOptions.value.find(option => option.value === statusFilter.value)?.label)
 
 watch([searchQuery, statusFilter, provinceFilter, pageSize, studentCohort, studentSection, studentSemester], () => {
   currentPage.value = 1
+})
+watch(isStaffView, (staffView) => {
+  if (!staffView && !['all', 'accepted', 'rejected'].includes(statusFilter.value)) statusFilter.value = 'all'
 })
 watch(pageCount, (count) => {
   if (currentPage.value > count) currentPage.value = count
