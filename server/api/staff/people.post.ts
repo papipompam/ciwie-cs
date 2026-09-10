@@ -34,6 +34,7 @@ export default defineEventHandler(async (event) => {
       data: {
         username: input.id, passwordHash, role: input.type === 'student' ? 'STUDENT' : 'LECTURER', status: 'FIRST_LOGIN',
         namePrefix: input.prefix, firstName: input.firstName, lastName: input.lastName,
+        phone: input.phone, email: input.email,
         gender: input.gender === 'male' ? 'MALE' : input.gender === 'female' ? 'FEMALE' : null,
         section: input.type === 'student' ? input.section?.replace('หมู่ ', '') : null,
         cohortYear: input.type === 'student' ? cycle?.targetCohortYear ?? Number(`25${input.id.slice(0, 2)}`) : null,

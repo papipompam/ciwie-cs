@@ -188,6 +188,8 @@ model User {
   namePrefix          String        @db.VarChar(50)
   firstName           String        @db.VarChar(100)
   lastName            String        @db.VarChar(100)
+  phone               String?       @db.VarChar(30)
+  email               String?       @db.VarChar(254)
   gender              UserGender?
   cohortYear          Int?
   section             String?       @db.VarChar(50)

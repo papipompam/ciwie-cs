@@ -30,19 +30,19 @@ try {
   })
   await prisma.user.upsert({
     where: { id: 'lecturer-001' },
-    update: { gender: 'MALE', passwordHash: defaultPasswordHash, status: 'ACTIVE', passwordChangedAt: new Date() },
+    update: { gender: 'MALE', phone: '0891111100', email: 'lecturer001@example.ac.th', passwordHash: defaultPasswordHash, status: 'ACTIVE', passwordChangedAt: new Date() },
     create: {
       id: 'lecturer-001', username: 'lecturer001', passwordHash: defaultPasswordHash, role: 'LECTURER', status: 'ACTIVE',
-      namePrefix: 'อาจารย์', firstName: 'ผู้นิเทศ', lastName: '', gender: 'MALE',
+      namePrefix: 'อาจารย์', firstName: 'ผู้นิเทศ', lastName: '', phone: '0891111100', email: 'lecturer001@example.ac.th', gender: 'MALE',
       passwordChangedAt: new Date(), createdById: 'staff-001',
     },
   })
   await prisma.user.upsert({
     where: { id: 'student-001' },
-    update: { passwordHash: defaultPasswordHash, status: 'ACTIVE', passwordChangedAt: new Date() },
+    update: { phone: '0812345601', email: 'thanakrit@example.ac.th', passwordHash: defaultPasswordHash, status: 'ACTIVE', passwordChangedAt: new Date() },
     create: {
       id: 'student-001', username: '66123456701', passwordHash: defaultPasswordHash, role: 'STUDENT', status: 'ACTIVE',
-      namePrefix: 'นาย', firstName: 'ธนกฤต', lastName: 'พูนทรัพย์', cohortYear: 2566, section: '1',
+      namePrefix: 'นาย', firstName: 'ธนกฤต', lastName: 'พูนทรัพย์', phone: '0812345601', email: 'thanakrit@example.ac.th', cohortYear: 2566, section: '1',
       passwordChangedAt: new Date(), createdById: 'staff-001',
     },
   })
@@ -57,14 +57,14 @@ try {
       update: {
         passwordHash: defaultPasswordHash, status: index % 5 === 0 ? 'FIRST_LOGIN' : 'ACTIVE',
         namePrefix: index % 3 === 0 ? 'นาย' : index % 3 === 1 ? 'นางสาว' : 'นาง',
-        firstName: `นักศึกษา${number}`, lastName: 'ตัวอย่าง', gender: index % 2 === 0 ? 'MALE' : 'FEMALE',
+        firstName: `นักศึกษา${number}`, lastName: 'ตัวอย่าง', phone: `08${String(100000000 + number).slice(-8)}`, email: `student${String(number).padStart(2, '0')}@example.ac.th`, gender: index % 2 === 0 ? 'MALE' : 'FEMALE',
         cohortYear: 2566, section: index % 2 === 0 ? '1' : '2', recordStatus: 'ACTIVE',
       },
       create: {
         id: `student-demo-${String(index + 2).padStart(3, '0')}`, username, passwordHash: defaultPasswordHash,
         role: 'STUDENT', status: index % 5 === 0 ? 'FIRST_LOGIN' : 'ACTIVE',
         namePrefix: index % 3 === 0 ? 'นาย' : index % 3 === 1 ? 'นางสาว' : 'นาง',
-        firstName: `นักศึกษา${number}`, lastName: 'ตัวอย่าง', gender: index % 2 === 0 ? 'MALE' : 'FEMALE',
+        firstName: `นักศึกษา${number}`, lastName: 'ตัวอย่าง', phone: `08${String(100000000 + number).slice(-8)}`, email: `student${String(number).padStart(2, '0')}@example.ac.th`, gender: index % 2 === 0 ? 'MALE' : 'FEMALE',
         cohortYear: 2566, section: index % 2 === 0 ? '1' : '2', createdById: 'staff-001',
       },
     })
@@ -75,12 +75,12 @@ try {
       where: { id: `lecturer-${lecturerNumber}` },
       update: {
         passwordHash: defaultPasswordHash, status: 'ACTIVE', namePrefix: index % 2 === 0 ? 'อาจารย์' : 'ดร.',
-        firstName: `อาจารย์ตัวอย่าง${index + 1}`, lastName: 'นิเทศ', gender: index % 2 === 0 ? 'MALE' : 'FEMALE', recordStatus: 'ACTIVE',
+        firstName: `อาจารย์ตัวอย่าง${index + 1}`, lastName: 'นิเทศ', phone: `089${String(10000000 + index + 1).slice(-7)}`, email: `lecturer${index + 5}@example.ac.th`, gender: index % 2 === 0 ? 'MALE' : 'FEMALE', recordStatus: 'ACTIVE',
       },
       create: {
         id: `lecturer-${lecturerNumber}`, username: `lecturer${lecturerNumber}`, passwordHash: defaultPasswordHash,
         role: 'LECTURER', status: 'ACTIVE', namePrefix: index % 2 === 0 ? 'อาจารย์' : 'ดร.',
-        firstName: `อาจารย์ตัวอย่าง${index + 1}`, lastName: 'นิเทศ', gender: index % 2 === 0 ? 'MALE' : 'FEMALE', createdById: 'staff-001',
+        firstName: `อาจารย์ตัวอย่าง${index + 1}`, lastName: 'นิเทศ', phone: `089${String(10000000 + index + 1).slice(-7)}`, email: `lecturer${index + 5}@example.ac.th`, gender: index % 2 === 0 ? 'MALE' : 'FEMALE', createdById: 'staff-001',
       },
     })
   }
@@ -95,6 +95,27 @@ try {
       trainingEndDate: new Date('2027-02-28'), status: 'OPEN_FOR_REQUESTS',
     },
   })
+
+  // Put every generated student into the demo cycle so the directory can
+  // display both the student's coop cycle and section from persisted data.
+  for (let index = 0; index < 49; index += 1) {
+    const studentId = `student-demo-${String(index + 2).padStart(3, '0')}`
+    await prisma.cycleEnrollment.upsert({
+      where: { cycleId_studentId: { cycleId: 'CYCLE-2569-2', studentId } },
+      update: {
+        cohortYearSnapshot: 2566,
+        sectionSnapshot: index % 2 === 0 ? '1' : '2',
+        currentStudentKey: studentId,
+        enrollmentStatus: 'ACTIVE',
+      },
+      create: {
+        id: `ENROLLMENT-DEMO-${String(index + 2).padStart(3, '0')}`,
+        cycleId: 'CYCLE-2569-2', studentId, cohortYearSnapshot: 2566,
+        sectionSnapshot: index % 2 === 0 ? '1' : '2', currentStudentKey: studentId,
+        createdById: 'staff-001',
+      },
+    })
+  }
 
   await prisma.cycleEnrollment.upsert({
     where: { id: 'ENROLLMENT-001' },

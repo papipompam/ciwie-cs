@@ -24,6 +24,8 @@ export interface PersonRecord {
   prefix: PersonPrefix
   firstName: string
   lastName: string
+  phone?: string
+  email?: string
   gender?: 'male' | 'female'
   recordStatus: PersonRecordStatus
   accountStatus: AccountStatus
@@ -38,6 +40,8 @@ export interface PersonInput {
   prefix: PersonPrefix
   firstName: string
   lastName: string
+  phone?: string
+  email?: string
   gender?: 'male' | 'female'
   cycle?: string
   section?: StudentSection
@@ -60,6 +64,8 @@ const initialPeople: PersonRecord[] = [
     prefix: 'นาย',
     firstName: 'ธนกฤต',
     lastName: 'พูนทรัพย์',
+    phone: '0812345601',
+    email: 'thanakrit@example.ac.th',
     recordStatus: 'active',
     accountStatus: 'active',
     cycle: 'ภาคเรียนที่ 2/2569',
@@ -76,6 +82,8 @@ const initialPeople: PersonRecord[] = [
     prefix: 'นางสาว',
     firstName: 'ณัฐชา',
     lastName: 'ศรีสุข',
+    phone: '0812345602',
+    email: 'natcha@example.ac.th',
     recordStatus: 'active',
     accountStatus: 'first-login',
     cycle: 'ภาคเรียนที่ 2/2569',
@@ -89,6 +97,8 @@ const initialPeople: PersonRecord[] = [
     prefix: 'นาย',
     firstName: 'ปุณณภพ',
     lastName: 'วงศ์คำ',
+    phone: '0812345619',
+    email: 'punnapop@example.ac.th',
     recordStatus: 'inactive',
     accountStatus: 'terminated',
     cycle: 'ภาคเรียนที่ 1/2568',
@@ -102,6 +112,8 @@ const initialPeople: PersonRecord[] = [
     prefix: 'นางสาว',
     firstName: 'ภัทรวดี',
     lastName: 'คำแสน',
+    phone: '0812345604',
+    email: 'phattrawadee@example.ac.th',
     recordStatus: 'active',
     accountStatus: 'active',
     cycle: 'ภาคเรียนที่ 2/2569',
@@ -114,6 +126,8 @@ const initialPeople: PersonRecord[] = [
     prefix: 'นาย',
     firstName: 'ชยพล',
     lastName: 'พรมดี',
+    phone: '0812345608',
+    email: 'chayaphon@example.ac.th',
     recordStatus: 'active',
     accountStatus: 'active',
     cycle: 'ภาคเรียนที่ 2/2569',
@@ -126,6 +140,8 @@ const initialPeople: PersonRecord[] = [
     prefix: 'นางสาว',
     firstName: 'อรอนงค์',
     lastName: 'สายใจ',
+    phone: '0812345625',
+    email: 'aronong@example.ac.th',
     recordStatus: 'active',
     accountStatus: 'first-login',
     cycle: 'ภาคฤดูร้อน/2569',
@@ -138,6 +154,8 @@ const initialPeople: PersonRecord[] = [
     prefix: 'นาย',
     firstName: 'วรพล',
     lastName: 'อินทร์แก้ว',
+    phone: '0812345646',
+    email: 'woraphon@example.ac.th',
     recordStatus: 'active',
     accountStatus: 'active',
     cycle: 'ภาคฤดูร้อน/2569',
@@ -150,6 +168,8 @@ const initialPeople: PersonRecord[] = [
     prefix: 'นางสาว',
     firstName: 'พิชญาภา',
     lastName: 'วงศ์ดี',
+    phone: '0812345650',
+    email: 'pitchayapha@example.ac.th',
     recordStatus: 'active',
     accountStatus: 'first-login',
     cycle: 'ภาคเรียนที่ 1/2570',
@@ -162,6 +182,8 @@ const initialPeople: PersonRecord[] = [
     prefix: 'นาย',
     firstName: 'กฤตภาส',
     lastName: 'แสงแก้ว',
+    phone: '0812345703',
+    email: 'kritthaphat@example.ac.th',
     recordStatus: 'active',
     accountStatus: 'active',
     cycle: 'ภาคเรียนที่ 1/2570',
@@ -174,6 +196,8 @@ const initialPeople: PersonRecord[] = [
     prefix: 'ผศ.ดร.',
     firstName: 'สมชาย',
     lastName: 'ใจมั่น',
+    phone: '0891111101',
+    email: 'somchai@example.ac.th',
     gender: 'male',
     recordStatus: 'active',
     accountStatus: 'active',
@@ -185,6 +209,8 @@ const initialPeople: PersonRecord[] = [
     prefix: 'อาจารย์',
     firstName: 'อรทัย',
     lastName: 'บุญช่วย',
+    phone: '0891111102',
+    email: 'orathai@example.ac.th',
     gender: 'female',
     recordStatus: 'active',
     accountStatus: 'suspended',
@@ -196,6 +222,8 @@ const initialPeople: PersonRecord[] = [
     prefix: 'ดร.',
     firstName: 'กมลชนก',
     lastName: 'ศรีสวัสดิ์',
+    phone: '0891111103',
+    email: 'kamonchanok@example.ac.th',
     gender: 'female',
     recordStatus: 'active',
     accountStatus: 'active',
@@ -207,6 +235,8 @@ const initialPeople: PersonRecord[] = [
     prefix: 'อาจารย์',
     firstName: 'วรัญญา',
     lastName: 'ทองใบ',
+    phone: '0891111104',
+    email: 'waranya@example.ac.th',
     gender: 'female',
     recordStatus: 'active',
     accountStatus: 'active',
@@ -220,6 +250,8 @@ const initialPeople: PersonRecord[] = [
       prefix: index % 3 === 0 ? 'นาย' : index % 3 === 1 ? 'นางสาว' : 'นาง',
       firstName: `นักศึกษา${number}`,
       lastName: 'ตัวอย่าง',
+      phone: `08${String(100000000 + number).slice(-8)}`,
+      email: `student${String(number).padStart(2, '0')}@example.ac.th`,
       gender: index % 2 === 0 ? 'male' : 'female',
       recordStatus: 'active',
       accountStatus: index % 5 === 0 ? 'first-login' : 'active',
@@ -234,6 +266,8 @@ const initialPeople: PersonRecord[] = [
     prefix: index % 2 === 0 ? 'อาจารย์' : 'ดร.',
     firstName: `อาจารย์ตัวอย่าง${index + 1}`,
     lastName: 'นิเทศ',
+    phone: `089${String(10000000 + index + 1).slice(-7)}`,
+    email: `lecturer${index + 5}@example.ac.th`,
     gender: index % 2 === 0 ? 'male' : 'female',
     recordStatus: 'active',
     accountStatus: 'active',
@@ -333,6 +367,8 @@ export const usePeopleDirectory = () => {
       person.prefix !== input.prefix ? `คำนำหน้า ${person.prefix} → ${input.prefix}` : '',
       person.firstName !== input.firstName ? `ชื่อ ${person.firstName} → ${input.firstName}` : '',
       person.lastName !== input.lastName ? `นามสกุล ${person.lastName} → ${input.lastName}` : '',
+      person.phone !== input.phone ? `เบอร์โทร ${person.phone || '-'} → ${input.phone || '-'}` : '',
+      person.email !== input.email ? `อีเมล ${person.email || '-'} → ${input.email || '-'}` : '',
       person.cycle !== input.cycle ? `รอบ ${person.cycle || '-'} → ${input.cycle || '-'}` : '',
       person.section !== input.section ? `หมู่เรียน ${person.section || '-'} → ${input.section || '-'}` : '',
     ].filter(Boolean)

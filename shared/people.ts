@@ -11,6 +11,8 @@ export const personInputSchema = z.object({
   prefix: personPrefixSchema,
   firstName: z.string().trim().min(1).max(100),
   lastName: z.string().trim().max(100),
+  phone: z.string().trim().regex(/^[0-9+()\-\s]{8,30}$/, 'รูปแบบเบอร์โทรไม่ถูกต้อง').optional(),
+  email: z.string().trim().email('รูปแบบอีเมลไม่ถูกต้อง').max(254).optional(),
   gender: personGenderSchema.optional(),
   cycle: z.string().trim().max(150).optional(),
   section: z.enum(['หมู่ 1', 'หมู่ 2']).optional(),

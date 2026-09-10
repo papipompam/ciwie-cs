@@ -180,6 +180,10 @@ const handleImport = async () => {
       prefix: row.prefix,
       firstName: row.firstName,
       lastName: row.lastName,
+      ...(row.phone ? { phone: row.phone } : {}),
+      ...(row.email ? { email: row.email } : {}),
+      ...(row.cycle ? { cycle: row.cycle } : {}),
+      ...(row.section ? { section: row.section } : {}),
     })))
     result.value = { created: imported.created, updated: imported.updated, invalid: summary.value.invalid }
     credentials.value = imported.credentials

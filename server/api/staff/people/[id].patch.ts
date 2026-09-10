@@ -45,6 +45,7 @@ export default defineEventHandler(async (event) => {
         where: { id: current.id },
         data: {
           username: input.id, namePrefix: input.prefix, firstName: input.firstName, lastName: input.lastName,
+          phone: input.phone, email: input.email,
           gender: input.gender === 'male' ? 'MALE' : input.gender === 'female' ? 'FEMALE' : null,
           section: current.role === 'STUDENT' ? input.section?.replace('หมู่ ', '') : null,
         },

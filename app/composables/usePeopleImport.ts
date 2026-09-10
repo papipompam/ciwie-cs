@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { getStudentCohortYear } from './useStudentCohortContext'
 import { getStudentPlacementPosition, personPrefixOptions, personPrefixValues } from './usePeopleDirectory'
-import type { PersonPrefix, PersonRecord, PersonType } from './usePeopleDirectory'
+import type { PersonPrefix, PersonRecord, PersonType, StudentSection } from './usePeopleDirectory'
 
 export type PeopleFileFormat = 'csv' | 'xlsx'
 export type ImportRowStatus = 'new' | 'update' | 'invalid'
@@ -12,6 +12,10 @@ export interface PeopleImportRow {
   prefix: PersonPrefix | ''
   firstName: string
   lastName: string
+  phone?: string
+  email?: string
+  cycle?: string
+  section?: StudentSection
   status: ImportRowStatus
   reason: string
 }
@@ -27,6 +31,10 @@ const rowSchema = z.object({
   prefix: z.enum(personPrefixValues, { error: 'ไม่พบหรือคำนำหน้าไม่ถูกต้อง' }),
   firstName: z.string().trim().min(1, 'ไม่พบชื่อ'),
   lastName: z.string().trim().min(1, 'ไม่พบนามสกุล'),
+  phone: z.string().regex(/^[0-9+()\-\s]{8,30}$/, 'รูปแบบเบอร์โทรไม่ถูกต้อง').optional(),
+  email: z.string().email('รูปแบบอีเมลไม่ถูกต้อง').max(254).optional(),
+  cycle: z.string().max(150, 'รอบสหกิจยาวเกินไป').optional(),
+  section: z.enum(['หมู่ 1', 'หมู่ 2']).optional(),
 })
 
 const getHeaders = (type: PersonType) => ({
@@ -34,6 +42,9 @@ const getHeaders = (type: PersonType) => ({
   prefix: 'คำนำหน้า',
   firstName: 'ชื่อ',
   lastName: 'นามสกุล',
+  phone: 'เบอร์โทร',
+  email: 'อีเมล',
+  ...(type === 'student' ? { cycle: 'รอบสหกิจ', section: 'หมู่เรียน' } : {}),
 })
 
 const parseCsvRows = (value: string) => {
@@ -92,7 +103,10 @@ export const toPeopleWorksheetRows = (people: PersonRecord[], type: PersonType) 
           คำนำหน้าชื่อ: person.prefix,
           ชื่อ: person.firstName,
           นามสกุล: person.lastName,
+          ...(person.phone ? { เบอร์โทร: person.phone } : {}),
+          ...(person.email ? { อีเมล: person.email } : {}),
           รุ่น: getStudentCohortYear(person.id),
+          ...(person.cycle ? { รอบสหกิจ: person.cycle } : {}),
           หมู่เรียน: person.section ?? '',
           สถานประกอบการ: person.company ?? '',
           ตำแหน่งที่ฝึก: getStudentPlacementPosition(person.id, person.company),
@@ -104,6 +118,8 @@ export const toPeopleWorksheetRows = (people: PersonRecord[], type: PersonType) 
         คำนำหน้าชื่อ: person.prefix,
         ชื่อ: person.firstName,
         นามสกุล: person.lastName,
+        ...(person.phone ? { เบอร์โทร: person.phone } : {}),
+        ...(person.email ? { อีเมล: person.email } : {}),
       }
       return lecturerRow
     })
@@ -134,6 +150,16 @@ export const usePeopleImport = () => {
       prefix: readCell(row, ['คำนำหน้า', 'prefix', 'title']) as PersonPrefix | '',
       firstName: readCell(row, ['ชื่อ', 'first name', 'first_name', 'firstname']),
       lastName: readCell(row, ['นามสกุล', 'last name', 'last_name', 'lastname']),
+      phone: readCell(row, ['เบอร์โทร', 'โทรศัพท์', 'phone', 'mobile']) || undefined,
+      email: readCell(row, ['อีเมล', 'อีเมล์', 'email', 'e-mail']) || undefined,
+      cycle: type === 'student' ? readCell(row, ['รอบสหกิจ', 'รอบสหกิจศึกษา', 'cycle', 'coop cycle']) || undefined : undefined,
+      section: type === 'student'
+        ? ((() => {
+            const value = readCell(row, ['หมู่เรียน', 'หมู่', 'section', 'group'])
+            if (!value) return undefined
+            return (value.startsWith('หมู่ ') ? value : `หมู่ ${value}`) as StudentSection
+          })())
+        : undefined,
     }))
     const idCounts = normalized.reduce<Map<string, number>>((counts, row) => {
       if (row.id) counts.set(row.id, (counts.get(row.id) ?? 0) + 1)
@@ -191,6 +217,9 @@ export const usePeopleImport = () => {
       [headers.prefix]: type === 'student' ? 'นางสาว' : 'อาจารย์',
       [headers.firstName]: 'ตัวอย่าง',
       [headers.lastName]: 'ข้อมูล',
+      [headers.phone]: '0812345678',
+      [headers.email]: 'example@example.ac.th',
+      ...(type === 'student' ? { 'รอบสหกิจ': 'ภาคเรียนที่ 2/2569', 'หมู่เรียน': 'หมู่ 1' } : {}),
     }], `${type === 'student' ? 'student' : 'lecturer'}-import-template`, format)
   }
 
