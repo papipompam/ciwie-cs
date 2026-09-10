@@ -23,6 +23,7 @@ export default defineEventHandler(async (event) => {
     prisma.notificationRecipient.count({ where }),
   ])
   setResponseHeaders(event, {
+    'cache-control': 'no-store, max-age=0',
     'x-total-count': String(total),
     'x-page': String(query.data.page),
     'x-page-size': String(query.data.pageSize),

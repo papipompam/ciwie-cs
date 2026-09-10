@@ -37,6 +37,7 @@ const { default: readNotification } = await import('../server/api/notifications/
 describe('notification API', () => {
   it('lists only notifications delivered to the authenticated account', async () => {
     const result = await listNotifications({} as Parameters<typeof listNotifications>[0])
+    expect(setResponseHeaders).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ 'cache-control': expect.stringContaining('no-store') }))
     expect(result).toEqual([{
       id: 'NOTIFICATION-001', role: 'staff', title: 'มีคำร้องใหม่', description: 'นักศึกษาทดสอบ · บริษัททดสอบ',
       createdAt: deliveredAt.toISOString(), to: '/staff/requests', tone: 'info', readAt: null,

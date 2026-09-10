@@ -43,8 +43,20 @@ export const useNotifications = () => {
   const { data, status, error, refresh } = useFetch<AppNotification[]>('/api/notifications', { key: 'account-notifications' })
   watch(data, (items) => { if (items) notifications.value = items }, { immediate: true })
   watch(() => scenario.value.role, () => { void refresh() })
-  onMounted(() => startNotificationPolling(refresh))
-  onBeforeUnmount(() => stopNotificationPolling(refresh))
+  const refreshWhenVisible = () => {
+    if (document.visibilityState === 'visible') void refresh()
+  }
+  onMounted(() => {
+    startNotificationPolling(refresh)
+    void refresh()
+    window.addEventListener('focus', refreshWhenVisible)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+  })
+  onBeforeUnmount(() => {
+    stopNotificationPolling(refresh)
+    window.removeEventListener('focus', refreshWhenVisible)
+    document.removeEventListener('visibilitychange', refreshWhenVisible)
+  })
   const roleNotifications = computed(() => notifications.value
     .filter(item => item.role === scenario.value.role)
     .toSorted((a, b) => b.createdAt.localeCompare(a.createdAt)))
