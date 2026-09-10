@@ -59,6 +59,7 @@ const statusOptions = computed(() => [
   ...(isStaffView.value
     ? trackedApplicationStatusOptions
     : [
+        { value: 'submitted', label: 'รอดำเนินการ' },
         { value: 'accepted', label: 'ยืนยันสถานประกอบการแล้ว' },
         { value: 'rejected', label: 'ปฏิเสธ' },
       ]),
@@ -123,7 +124,7 @@ watch([searchQuery, statusFilter, provinceFilter, pageSize, studentCohort, stude
   currentPage.value = 1
 })
 watch(isStaffView, (staffView) => {
-  if (!staffView && !['all', 'accepted', 'rejected'].includes(statusFilter.value)) statusFilter.value = 'all'
+  if (!staffView && !['all', 'submitted', 'accepted', 'rejected'].includes(statusFilter.value)) statusFilter.value = 'all'
 })
 watch(pageCount, (count) => {
   if (currentPage.value > count) currentPage.value = count
