@@ -2,7 +2,7 @@ import { randomBytes, scrypt as scryptCallback } from 'node:crypto'
 import { promisify } from 'node:util'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/client'
-import { demoPlacementRequest, demoStudentApplication } from './demo-data.mjs'
+import { demoCompany, demoPlacementRequest, demoStudentApplication } from './demo-data.mjs'
 
 const scrypt = promisify(scryptCallback)
 if (process.env.ALLOW_DEMO_SEED !== 'true') {
@@ -67,10 +67,40 @@ try {
     },
   })
 
-  const demoApplication = await prisma.studentApplication.upsert({
+  await prisma.$transaction(async (transaction) => {
+    const demoProvince = await transaction.province.upsert({
+    where: { nameTh: demoCompany.province },
+    update: { region: 'NORTHEAST' },
+    create: { code: 'P-DEMO-BR', nameTh: demoCompany.province, region: 'NORTHEAST' },
+    select: { id: true },
+    })
+    await transaction.company.upsert({
+    where: { id: demoCompany.companyId },
+    update: { code: demoCompany.code, legalName: demoCompany.legalName, status: 'ACTIVE' },
+    create: {
+      id: demoCompany.companyId, code: demoCompany.code, legalName: demoCompany.legalName,
+      status: 'ACTIVE', createdById: 'staff-001',
+    },
+    })
+    await transaction.companySite.upsert({
+    where: { id: demoCompany.companySiteId },
+    update: {
+      companyId: demoCompany.companyId, branchName: demoCompany.branchName, address: demoCompany.address,
+      provinceId: demoProvince.id, contactName: demoCompany.contactName, contactPhone: demoCompany.contactPhone,
+      latitude: demoCompany.latitude, longitude: demoCompany.longitude, recordStatus: 'ACTIVE',
+    },
+    create: {
+      id: demoCompany.companySiteId, companyId: demoCompany.companyId, branchName: demoCompany.branchName,
+      address: demoCompany.address, provinceId: demoProvince.id, contactName: demoCompany.contactName,
+      contactPhone: demoCompany.contactPhone, latitude: demoCompany.latitude, longitude: demoCompany.longitude,
+    },
+    })
+
+    const demoApplication = await transaction.studentApplication.upsert({
     where: { id: demoStudentApplication.id },
     update: {
       enrollmentId: demoStudentApplication.enrollmentId,
+      companySiteId: demoStudentApplication.companySiteId,
       companyNameSnapshot: demoStudentApplication.companyNameSnapshot,
       companyLocation: demoStudentApplication.companyLocation,
       recipientNameSnapshot: demoStudentApplication.recipientNameSnapshot,
@@ -86,6 +116,7 @@ try {
     create: {
       id: demoStudentApplication.id,
       enrollmentId: demoStudentApplication.enrollmentId,
+      companySiteId: demoStudentApplication.companySiteId,
       companyNameSnapshot: demoStudentApplication.companyNameSnapshot,
       companyLocation: demoStudentApplication.companyLocation,
       recipientNameSnapshot: demoStudentApplication.recipientNameSnapshot,
@@ -98,14 +129,15 @@ try {
       status: demoStudentApplication.status,
       activeSlotKey: demoStudentApplication.activeSlotKey,
     },
-  })
+    })
 
-  await prisma.placementRequest.upsert({
+    await transaction.placementRequest.upsert({
     where: { id: demoPlacementRequest.id },
     update: {
       requestNo: demoPlacementRequest.requestNo,
       studentApplicationId: demoApplication.id,
       enrollmentId: demoPlacementRequest.enrollmentId,
+      companySiteId: demoCompany.companySiteId,
       companyNameSnapshot: demoPlacementRequest.companyNameSnapshot,
       companyLocationSnapshot: demoPlacementRequest.companyLocationSnapshot,
       provinceSnapshot: demoPlacementRequest.provinceSnapshot,
@@ -124,6 +156,7 @@ try {
       requestNo: demoPlacementRequest.requestNo,
       studentApplicationId: demoApplication.id,
       enrollmentId: demoPlacementRequest.enrollmentId,
+      companySiteId: demoCompany.companySiteId,
       companyNameSnapshot: demoPlacementRequest.companyNameSnapshot,
       companyLocationSnapshot: demoPlacementRequest.companyLocationSnapshot,
       provinceSnapshot: demoPlacementRequest.provinceSnapshot,
@@ -137,6 +170,7 @@ try {
       activeSlotKey: demoPlacementRequest.activeSlotKey,
       submittedAt: new Date(demoPlacementRequest.submittedAt),
     },
+    })
   })
 
   const demoNotification = await prisma.notification.upsert({

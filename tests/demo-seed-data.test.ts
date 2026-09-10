@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { demoPlacementRequest, demoStudentApplication } from '../prisma/demo-data.mjs'
+import { demoCompany, demoPlacementRequest, demoStudentApplication } from '../prisma/demo-data.mjs'
 
 describe('demo seed workflow fixtures', () => {
   it('includes linked application and placement request data for the staff and student views', () => {
@@ -9,5 +9,7 @@ describe('demo seed workflow fixtures', () => {
     expect(demoPlacementRequest.studentApplicationId).toBe(demoStudentApplication.id)
     expect(demoPlacementRequest.enrollmentId).toBe(demoStudentApplication.enrollmentId)
     expect(demoPlacementRequest.status).toBe('SUBMITTED')
+    expect(demoStudentApplication.companySiteId).toBe(demoCompany.companySiteId)
+    expect(demoCompany.legalName).toContain('บุรีรัมย์')
   })
 })

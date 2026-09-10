@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Download, Plus, RotateCc
 import type { PeopleFileFormat } from '~/composables/usePeopleImport'
 import type { PersonType } from '~/composables/usePeopleDirectory'
 import { selectableCoopSemester } from '~/composables/useCoopCycles'
+import { isStudentVisibleForCoopSemester } from '~/composables/useStudentCohortContext'
 import { getPageCount, paginateItems } from '~/utils/table'
 import { hasConfirmedPlacement as hasPlacement } from '~/utils/studentPlacementStatus'
 
@@ -73,7 +74,7 @@ const filteredPeople = computed(() => {
   return people.value
     .filter(person => person.type === personType.value)
     .filter(person => personType.value !== 'student' || studentCohort.value === 'all' || getStudentCohortYear(person.id) === studentCohort.value)
-    .filter(person => personType.value !== 'student' || getStudentSemester(person.cycle) === selectableCoopSemester)
+    .filter(person => personType.value !== 'student' || isStudentVisibleForCoopSemester(person.cycle))
     .filter(person => personType.value !== 'student' || studentSection.value === 'all' || person.section === studentSection.value)
     .filter(person => !keyword || [person.id, person.prefix, person.firstName, person.lastName, person.company]
       .some(value => value?.toLocaleLowerCase('th').includes(keyword)))

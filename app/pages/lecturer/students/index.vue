@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ChevronLeft, ChevronRight, Search } from '@lucide/vue'
-import { selectableCoopSemester } from '~/composables/useCoopCycles'
+import { isStudentVisibleForCoopSemester } from '~/composables/useStudentCohortContext'
 import { getPageCount, paginateItems } from '~/utils/table'
 
 definePageMeta({ title: 'ข้อมูลนักศึกษา', middleware: 'lecturer-prototype' })
@@ -27,7 +27,7 @@ const filteredStudents = computed(() => {
   return people.value
     .filter(person => person.type === 'student')
     .filter(person => studentCohort.value === 'all' || getStudentCohortYear(person.id) === studentCohort.value)
-    .filter(person => getStudentSemester(person.cycle) === selectableCoopSemester)
+    .filter(person => isStudentVisibleForCoopSemester(person.cycle))
     .filter(person => studentSection.value === 'all' || person.section === studentSection.value)
     .map((person) => {
       const cycleId = cycleIdFor(person.cycle)

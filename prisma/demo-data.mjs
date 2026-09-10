@@ -14,6 +14,21 @@ export const demoStudentApplication = {
   appliedDate: '2026-09-10',
   status: 'COMPLETED',
   activeSlotKey: 'DEMO-ENROLLMENT-001-ACTIVE',
+  companySiteId: 'DEMO-SITE-001',
+}
+
+export const demoCompany = {
+  companyId: 'DEMO-COMPANY-001',
+  companySiteId: 'DEMO-SITE-001',
+  code: 'DEMO-COMPANY-BURIRAM-DIGITAL',
+  legalName: 'บริษัท บุรีรัมย์ดิจิทัล จำกัด',
+  branchName: 'สำนักงานใหญ่',
+  address: '88/8 ถนนธานี ตำบลในเมือง อำเภอเมืองบุรีรัมย์ จังหวัดบุรีรัมย์ 31000',
+  province: 'บุรีรัมย์',
+  contactName: 'ผู้จัดการฝ่ายทรัพยากรบุคคล',
+  contactPhone: '044-611-208',
+  latitude: 14.993,
+  longitude: 103.102,
 }
 
 export const demoPlacementRequest = {
