@@ -115,6 +115,11 @@ const hasFilters = computed(() => Boolean(search.value) || (personType.value ===
 
 watch([search, recordStatus, accountStatus, placementStatus, sortDirection, pageSize, personType, studentAcademicYear, studentSection, studentSemester], () => { currentPage.value = 1 })
 watch(pageCount, count => { if (currentPage.value > count) currentPage.value = count })
+watch(currentAcademicYear, (year) => {
+  if (personType.value !== 'student') return
+  studentAcademicYear.value = year
+  studentSection.value = 'all'
+})
 watchEffect(() => {
   if (personType.value !== 'student') return
   if (!studentAcademicYear.value) studentAcademicYear.value = currentAcademicYear.value
