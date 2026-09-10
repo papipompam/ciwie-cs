@@ -11,6 +11,7 @@ definePageMeta({ title: 'ข้อมูลบุคคล', middleware: 'staff-
 const route = useRoute()
 const { scenario } = useScenario()
 const { showToast } = useToast()
+const { currentAccount } = useAuthPrototype()
 const { people, loadPersistedPeople } = usePeopleDirectory()
 const { exportPeople } = usePeopleImport()
 const { studentCohort, studentCohortOptions, studentSection, studentSectionOptions, studentSemester, ensureAvailableStudentFilters } = useStudentCohortContext()
@@ -18,10 +19,11 @@ const { studentCohort, studentCohortOptions, studentSection, studentSectionOptio
 const personType = computed<PersonType>(() => route.params.type === 'lecturers' ? 'lecturer' : 'student')
 const isValidType = computed(() => ['students', 'lecturers'].includes(String(route.params.type)))
 if (!isValidType.value) throw createError({ statusCode: 404, statusMessage: 'Page not found' })
+const peopleFetchKey = computed(() => `staff-people-${personType.value}-${currentAccount.value?.id ?? 'anonymous'}-${currentAccount.value?.status ?? 'signed-out'}`)
 const { status: peopleFetchStatus, error: peopleFetchError, refresh: refreshPeople } = await useAsyncData(
-  () => `staff-people-${personType.value}`,
+  peopleFetchKey,
   () => loadPersistedPeople(personType.value),
-  { watch: [personType] },
+  { watch: [personType, currentAccount] },
 )
 
 const context = computed(() => personType.value === 'student'
