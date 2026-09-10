@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Download, Plus, RotateCc
 import type { PeopleFileFormat } from '~/composables/usePeopleImport'
 import type { PersonType } from '~/composables/usePeopleDirectory'
 import { selectableCoopSemester } from '~/composables/useCoopCycles'
-import { compareStudentDirectoryPeople, getStudentCohortYear, isStudentVisibleForCoopSemester } from '~/composables/useStudentCohortContext'
+import { compareStudentDirectoryPeople, getDefaultStudentCohort, getStudentCohortYear, isStudentVisibleForCoopSemester } from '~/composables/useStudentCohortContext'
 import { getPageCount, paginateItems } from '~/utils/table'
 import { hasConfirmedPlacement as hasPlacement } from '~/utils/studentPlacementStatus'
 
@@ -105,8 +105,10 @@ watchEffect(() => {
 })
 watch(studentCohortOptions, (options) => {
   if (personType.value !== 'student' || studentContextInitialized.value) return
-  const currentYear = options.find(option => option.value !== 'all')?.value
-  if (!currentYear) return
+  const currentYear = getDefaultStudentCohort(people.value
+    .filter(person => person.type === 'student')
+    .map(person => ({ id: person.id, cycle: person.cycle })))
+  if (currentYear === 'all' || !options.some(option => option.value === currentYear)) return
   studentCohort.value = currentYear
   studentContextInitialized.value = true
 }, { immediate: true })

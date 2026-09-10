@@ -13,6 +13,14 @@ export const getStudentSemester = (cycle?: string): string => cycle?.split('/')[
 export const isStudentVisibleForCoopSemester = (cycle?: string): boolean =>
   !cycle || getStudentSemester(cycle) === selectableCoopSemester
 
+export const getDefaultStudentCohort = (students: Array<{ id: string, cycle?: string }>): string => {
+  const years = students
+    .filter(student => isStudentVisibleForCoopSemester(student.cycle))
+    .map(student => getStudentCohortYear(student.id))
+    .filter(year => year !== 'ไม่ระบุรุ่น')
+  return [...new Set(years)].sort((a, b) => b.localeCompare(a, 'th'))[0] ?? 'all'
+}
+
 type StudentDirectoryPerson = {
   firstName: string
   lastName: string

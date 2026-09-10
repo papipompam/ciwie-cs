@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compareStudentDirectoryPeople, isStudentVisibleForCoopSemester } from './useStudentCohortContext'
+import { compareStudentDirectoryPeople, getDefaultStudentCohort, isStudentVisibleForCoopSemester } from './useStudentCohortContext'
 
 describe('student directory cycle visibility', () => {
   it('keeps imported students visible before they are assigned to a coop cycle', () => {
@@ -30,5 +30,18 @@ describe('student directory ordering', () => {
     const sectionTwo = { firstName: 'สมชาย', lastName: 'ใจดี', section: 'หมู่ 2' }
 
     expect([unknownSection, sectionTwo].sort(compareStudentDirectoryPeople)).toEqual([sectionTwo, unknownSection])
+  })
+})
+
+describe('student directory default cohort', () => {
+  it('chooses the latest cohort that belongs to the current semester', () => {
+    expect(getDefaultStudentCohort([
+      { id: '67123456703', cycle: 'ภาคเรียนที่ 1/2570' },
+      { id: '66123456701', cycle: 'ภาคเรียนที่ 2/2569' },
+    ])).toBe('2566')
+  })
+
+  it('returns all when there are no students in the current semester', () => {
+    expect(getDefaultStudentCohort([{ id: '67123456703', cycle: 'ภาคเรียนที่ 1/2570' }])).toBe('all')
   })
 })
