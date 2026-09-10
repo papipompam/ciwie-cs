@@ -78,9 +78,42 @@ const parseCsvRows = (value: string) => {
   return rows.filter(row => row.some(cell => cell.trim()))
 }
 
+const normalizeHeader = (value: string) => value
+  .normalize('NFKC')
+  .replace(/^\uFEFF/, '')
+  .trim()
+  .toLocaleLowerCase('th')
+  .replace(/[^\p{L}\p{N}]+/gu, '')
+
+const columnAliases = {
+  id: ['รหัสนักศึกษา', 'รหัสนักเรียน', 'รหัสผู้เรียน', 'รหัสอาจารย์', 'รหัส', 'เลขประจำตัวนักศึกษา', 'student id', 'student code', 'student no', 'lecturer id', 'lecturer code', 'id'],
+  prefix: ['คำนำหน้าชื่อ', 'คำนำหน้า', 'ยศ', 'prefix', 'title'],
+  firstName: ['ชื่อจริง', 'ชื่อ', 'given name', 'first name', 'firstname'],
+  lastName: ['นามสกุล', 'ชื่อสกุล', 'surname', 'last name', 'lastname'],
+  phone: ['เบอร์โทรศัพท์', 'เบอร์โทร', 'เบอร์มือถือ', 'โทรศัพท์มือถือ', 'โทรศัพท์', 'มือถือ', 'โทร', 'phone number', 'phone', 'telephone', 'mobile phone', 'mobile'],
+  email: ['อีเมลแอดเดรส', 'อีเมล', 'อีเมล์', 'email address', 'e-mail', 'email', 'mail'],
+  cycle: ['รอบสหกิจศึกษา', 'รอบสหกิจ', 'รอบการฝึกงาน', 'รอบการศึกษา', 'ภาคการศึกษา', 'ภาคเรียน', 'semester', 'term', 'cycle', 'coop cycle'],
+  section: ['หมู่เรียนที่', 'หมู่เรียน', 'กลุ่มเรียน', 'กลุ่ม', 'ห้องเรียน', 'หมู่', 'section', 'class', 'group'],
+} as const
+
+const normalizedAliases = Object.fromEntries(Object.entries(columnAliases).map(([key, aliases]) => [key, aliases.map(normalizeHeader)])) as Record<keyof typeof columnAliases, string[]>
+
 const matrixToRecords = (matrix: unknown[][]) => {
-  const headers = (matrix[0] ?? []).map(value => String(value ?? '').trim())
-  return matrix.slice(1).map(row => Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ''])))
+  const headerRowIndex = matrix.findIndex((row) => {
+    const headers = row.map(value => normalizeHeader(String(value ?? '')))
+    const has = (aliases: string[]) => aliases.some(alias => headers.includes(alias))
+    return has(normalizedAliases.id) && has(normalizedAliases.firstName) && has(normalizedAliases.lastName)
+  })
+  if (headerRowIndex < 0) throw new Error('missing-header')
+
+  const headers = (matrix[headerRowIndex] ?? []).map((value, index) => {
+    const header = String(value ?? '').trim()
+    return header || `column-${index + 1}`
+  })
+  const records = matrix.slice(headerRowIndex + 1)
+    .filter(row => row.some(cell => String(cell ?? '').trim()))
+    .map(row => Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ''])))
+  return { records, headerRowIndex }
 }
 
 const escapeCsvCell = (value: string | number) => {
@@ -88,8 +121,9 @@ const escapeCsvCell = (value: string | number) => {
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text
 }
 
-const readCell = (row: Record<string, unknown>, aliases: string[]) => {
-  const entry = Object.entries(row).find(([key]) => aliases.includes(key.replace(/^\uFEFF/, '').trim().toLocaleLowerCase('th')))
+const readCell = (row: Record<string, unknown>, aliases: readonly string[]) => {
+  const expected = aliases.map(normalizeHeader)
+  const entry = Object.entries(row).find(([key]) => expected.includes(normalizeHeader(key)))
   return entry ? String(entry[1] ?? '').trim() : ''
 }
 
@@ -138,24 +172,23 @@ export const usePeopleImport = () => {
     const matrix = isCsv
       ? parseCsvRows(await file.text())
       : await import('read-excel-file/browser').then(({ readSheet }) => readSheet(file))
-    const rawRows = matrixToRecords(matrix)
+    const parsedMatrix = matrixToRecords(matrix)
+    const rawRows = parsedMatrix.records
     if (!rawRows.length) throw new Error('empty-workbook')
 
-    const idAliases = type === 'student'
-      ? ['รหัสนักศึกษา', 'รหัส', 'student id', 'student_id', 'id']
-      : ['รหัสอาจารย์', 'รหัส', 'lecturer id', 'lecturer_id', 'id']
+    const idAliases = columnAliases.id
     const normalized = rawRows.map((row, index) => ({
-      rowNumber: index + 2,
+      rowNumber: parsedMatrix.headerRowIndex + index + 2,
       id: readCell(row, idAliases),
-      prefix: readCell(row, ['คำนำหน้า', 'คำนำหน้าชื่อ', 'prefix', 'title']) as PersonPrefix | '',
-      firstName: readCell(row, ['ชื่อ', 'first name', 'first_name', 'firstname']),
-      lastName: readCell(row, ['นามสกุล', 'last name', 'last_name', 'lastname']),
-      phone: readCell(row, ['เบอร์โทร', 'โทรศัพท์', 'phone', 'mobile']) || undefined,
-      email: readCell(row, ['อีเมล', 'อีเมล์', 'email', 'e-mail']) || undefined,
-      cycle: type === 'student' ? readCell(row, ['รอบสหกิจ', 'รอบสหกิจศึกษา', 'cycle', 'coop cycle']) || undefined : undefined,
+      prefix: readCell(row, columnAliases.prefix) as PersonPrefix | '',
+      firstName: readCell(row, columnAliases.firstName),
+      lastName: readCell(row, columnAliases.lastName),
+      phone: readCell(row, columnAliases.phone) || undefined,
+      email: readCell(row, columnAliases.email) || undefined,
+      cycle: type === 'student' ? readCell(row, columnAliases.cycle) || undefined : undefined,
       section: type === 'student'
         ? ((() => {
-            const value = readCell(row, ['หมู่เรียน', 'หมู่', 'section', 'group'])
+            const value = readCell(row, columnAliases.section)
             if (!value) return undefined
             return (value.startsWith('หมู่ ') ? value : `หมู่ ${value}`) as StudentSection
           })())

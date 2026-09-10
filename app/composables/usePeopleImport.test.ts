@@ -34,6 +34,7 @@ describe('usePeopleImport', () => {
 
   it('อ่านหัวตารางจากไฟล์ส่งออกเดิมพร้อมรายละเอียดการติดต่อและรอบสหกิจได้', async () => {
     const csv = [
+      'รายชื่อนักศึกษาประจำรอบ',
       'รหัส,คำนำหน้าชื่อ,ชื่อ,นามสกุล,เบอร์โทร,อีเมล,รอบสหกิจ,หมู่เรียน',
       '66123456701,นาย,ธนกฤต,พูนทรัพย์,0812345601,thanakrit@example.ac.th,ภาคเรียนที่ 2/2569,หมู่ 1',
     ].join('\n')
@@ -43,7 +44,7 @@ describe('usePeopleImport', () => {
     const rows = await parseFile(file, 'student', new Set())
 
     expect(rows[0]).toMatchObject({
-      id: '66123456701', prefix: 'นาย', phone: '0812345601', email: 'thanakrit@example.ac.th',
+      rowNumber: 3, id: '66123456701', prefix: 'นาย', phone: '0812345601', email: 'thanakrit@example.ac.th',
       cycle: 'ภาคเรียนที่ 2/2569', section: 'หมู่ 1', status: 'new',
     })
   })
