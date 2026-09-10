@@ -3,8 +3,11 @@ import { PrismaClient } from '@prisma/client'
 
 const prismaGlobal = globalThis as typeof globalThis & { cwiePrisma?: PrismaClient }
 
-export const toMariaDbConnectionString = (connectionString: string) =>
-  connectionString.replace(/^mysql:\/\//i, 'mariadb://')
+export const toMariaDbConnectionString = (connectionString: string) => {
+  const trimmed = connectionString.trim()
+  const unquoted = trimmed.replace(/^(?:"([\s\S]*)"|'([\s\S]*)')$/, (_, doubleQuoted, singleQuoted) => doubleQuoted ?? singleQuoted)
+  return unquoted.replace(/^(?:mysql|mysql2):\/\//i, 'mariadb://')
+}
 
 const createPrismaClient = () => {
   const connectionString = toMariaDbConnectionString(

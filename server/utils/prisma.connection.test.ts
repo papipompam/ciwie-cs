@@ -6,4 +6,9 @@ describe('toMariaDbConnectionString', () => {
     expect(toMariaDbConnectionString('mysql://user:pass@example.com:3306/ciwie_db'))
       .toBe('mariadb://user:pass@example.com:3306/ciwie_db')
   })
+
+  it('strips quotes that were pasted into an environment variable value', () => {
+    expect(toMariaDbConnectionString('"mysql://user:pass@example.com:3306/ciwie_db"'))
+      .toBe('mariadb://user:pass@example.com:3306/ciwie_db')
+  })
 })

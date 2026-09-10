@@ -8,8 +8,10 @@ const scrypt = promisify(scryptCallback)
 if (process.env.ALLOW_DEMO_SEED !== 'true') {
   throw new Error('Refusing to create demo accounts unless ALLOW_DEMO_SEED=true')
 }
-const connectionString = (process.env.DATABASE_URL ?? 'mysql://ciwie:ciwie@localhost:3307/ciwie_db')
-  .replace(/^mysql:\/\//i, 'mariadb://')
+const rawConnectionString = (process.env.DATABASE_URL ?? 'mysql://ciwie:ciwie@localhost:3307/ciwie_db').trim()
+const connectionString = rawConnectionString
+  .replace(/^(?:"([\s\S]*)"|'([\s\S]*)')$/, (_, doubleQuoted, singleQuoted) => doubleQuoted ?? singleQuoted)
+  .replace(/^(?:mysql|mysql2):\/\//i, 'mariadb://')
 const prisma = new PrismaClient({ adapter: new PrismaMariaDb(connectionString) })
 
 const hashPassword = async (password) => {
