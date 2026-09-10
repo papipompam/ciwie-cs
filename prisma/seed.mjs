@@ -52,17 +52,19 @@ try {
   for (let index = 0; index < 49; index += 1) {
     const number = index + 2
     const username = `66${String(100000100 + index).padStart(9, '0')}`
+    const studentStatus = index % 5 === 0 ? 'FIRST_LOGIN' : 'ACTIVE'
+    const studentPasswordHash = studentStatus === 'FIRST_LOGIN' ? await hashPassword(username) : defaultPasswordHash
     await prisma.user.upsert({
       where: { username },
       update: {
-        passwordHash: defaultPasswordHash, status: index % 5 === 0 ? 'FIRST_LOGIN' : 'ACTIVE',
+        passwordHash: studentPasswordHash, status: studentStatus,
         namePrefix: index % 3 === 0 ? 'นาย' : index % 3 === 1 ? 'นางสาว' : 'นาง',
         firstName: `นักศึกษา${number}`, lastName: 'ตัวอย่าง', phone: `08${String(100000000 + number).slice(-8)}`, email: `student${String(number).padStart(2, '0')}@example.ac.th`, gender: index % 2 === 0 ? 'MALE' : 'FEMALE',
         cohortYear: 2566, section: index % 2 === 0 ? '1' : '2', recordStatus: 'ACTIVE',
       },
       create: {
-        id: `student-demo-${String(index + 2).padStart(3, '0')}`, username, passwordHash: defaultPasswordHash,
-        role: 'STUDENT', status: index % 5 === 0 ? 'FIRST_LOGIN' : 'ACTIVE',
+        id: `student-demo-${String(index + 2).padStart(3, '0')}`, username, passwordHash: studentPasswordHash,
+        role: 'STUDENT', status: studentStatus,
         namePrefix: index % 3 === 0 ? 'นาย' : index % 3 === 1 ? 'นางสาว' : 'นาง',
         firstName: `นักศึกษา${number}`, lastName: 'ตัวอย่าง', phone: `08${String(100000000 + number).slice(-8)}`, email: `student${String(number).padStart(2, '0')}@example.ac.th`, gender: index % 2 === 0 ? 'MALE' : 'FEMALE',
         cohortYear: 2566, section: index % 2 === 0 ? '1' : '2', createdById: 'staff-001',
