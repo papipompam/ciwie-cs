@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Building2, Calculator, ChevronLeft, ChevronRight, RotateCcw, Search, UsersRound, X } from '@lucide/vue'
+import { Building2, ChevronLeft, ChevronRight, RotateCcw, Search, UsersRound, X } from '@lucide/vue'
 import type { SupervisionCompany, SupervisionGroup } from '~/composables/useSupervisionGroups'
 import { getPageCount, paginateItems } from '~/utils/table'
 
@@ -110,20 +110,6 @@ const openCompanyDialog = (company: SupervisionCompany) => {
       <UiCard><p class="text-sm text-muted">สถานประกอบการ</p><p class="mt-2 text-3xl font-bold text-ink">{{ cycleCompanyCount }}</p><p class="mt-1 text-xs text-muted">แห่ง</p></UiCard>
       <UiCard><p class="text-sm text-muted">นักศึกษา</p><p class="mt-2 text-3xl font-bold text-ink">{{ cycleStudentCount }}</p><p class="mt-1 text-xs text-muted">คน</p></UiCard>
     </div>
-
-    <UiCard class="mb-6">
-      <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p class="text-sm font-bold text-ink">ลำดับการทำงาน</p>
-          <p class="mt-1 text-sm leading-6 text-muted">จัดกลุ่มสถานประกอบการให้เรียบร้อย แล้วเพิ่มอาจารย์ก่อนคำนวณค่าใช้จ่ายแยกแต่ละกลุ่ม</p>
-        </div>
-        <div class="flex flex-wrap gap-2 text-sm">
-          <span class="rounded-full bg-surface px-3 py-2 font-semibold text-ink">1 จัดกลุ่ม</span>
-          <span class="rounded-full bg-surface px-3 py-2 font-semibold text-ink">2 เพิ่มอาจารย์</span>
-          <NuxtLink to="/staff/expenses" class="inline-flex items-center gap-2 rounded-control border border-primary bg-primary px-3 py-2 font-semibold text-ink hover:bg-primary-hover"><Calculator :size="16" aria-hidden="true" />3 คำนวณค่าใช้จ่าย</NuxtLink>
-        </div>
-      </div>
-    </UiCard>
 
     <SupervisionGroupingAssistant :cycle-id="cycleId" :round="round" :disabled="effectiveViewState !== 'data'" />
     <UiTabs :tabs="supervisionTabs" default-value="groups" label="ข้อมูลการจัดกลุ่มนิเทศ" variant="plain">
