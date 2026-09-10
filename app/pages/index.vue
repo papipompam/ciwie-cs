@@ -103,8 +103,6 @@ const currentCycleDashboard: { staff: DashboardData, lecturer: DashboardData, st
     summary: [
       { label: 'สถานะคำร้อง', value: 'ยังไม่มี', hint: 'ยังไม่ได้ส่งคำร้องสถานประกอบการ', icon: ClipboardCheck },
       { label: 'สถานที่ฝึกงาน', value: 'ยังไม่มี', hint: 'ยังไม่ได้ยืนยันสถานประกอบการ', icon: Building2 },
-      { label: 'สถานะการปฏิบัติงาน', value: 'ยังไม่มี', hint: 'จะแสดงเมื่อมีข้อมูลการปฏิบัติงาน', icon: Users },
-      { label: 'นัดนิเทศถัดไป', value: 'ยังไม่มี', hint: 'จะแสดงเมื่ออาจารย์เผยแพร่ตารางนิเทศ', icon: CalendarDays },
     ],
     recentTitle: 'ความคืบหน้าของฉัน',
     primaryLabel: 'รายการ',
@@ -187,7 +185,6 @@ const studentDashboard = computed<DashboardData>(() => {
     summary: [
       { label: 'สถานะคำร้อง', value: status.label, hint: status.description, icon: ClipboardCheck },
       { label: 'สถานที่ฝึกงาน', value: request.application.companyName, hint: request.application.position, icon: Building2 },
-      ...currentCycleDashboard.student.summary.slice(2),
     ],
     recentItems: [{
       id: request.id,
@@ -231,7 +228,7 @@ const lecturerDashboard = computed<DashboardData>(() => ({
   secondaryLabel: '',
   recentItems: [],
 }))
-const summaryGridClass = 'sm:grid-cols-2 xl:grid-cols-4'
+const summaryGridClass = computed(() => scenario.value.role === 'student' ? 'sm:grid-cols-2 xl:grid-cols-2' : 'sm:grid-cols-2 xl:grid-cols-4')
 const effectiveViewState = computed(() => {
   if (scenario.value.forceError || (scenario.value.role === 'student' && studentRequestFetchError.value)) return 'error'
   if (scenario.value.role === 'student' && studentRequestFetchStatus.value === 'pending') return 'loading'
@@ -465,7 +462,7 @@ onBeforeUnmount(() => {
           <div class="flex items-start justify-between gap-3">
             <div>
               <p class="text-sm font-medium text-muted">{{ item.label }}</p>
-              <p class="mt-2 font-bold tracking-tight text-ink" :class="scenario.role === 'student' ? 'text-xl sm:text-2xl' : 'text-3xl'">{{ item.value }}</p>
+              <p class="mt-2 font-bold tracking-tight text-ink" :class="scenario.role === 'student' ? 'text-lg sm:text-xl' : 'text-3xl'">{{ item.value }}</p>
             </div>
             <div class="grid size-10 shrink-0 place-items-center rounded-control bg-surface text-muted">
               <component :is="item.icon" :size="20" aria-hidden="true" />
