@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Download, Plus, RotateCc
 import type { PeopleFileFormat } from '~/composables/usePeopleImport'
 import type { PersonType } from '~/composables/usePeopleDirectory'
 import { selectableCoopSemester } from '~/composables/useCoopCycles'
-import { compareStudentDirectoryPeople, getDefaultStudentCohort, getStudentCohortYear, isStudentVisibleForCoopSemester } from '~/composables/useStudentCohortContext'
+import { compareStudentDirectoryPeople, getStudentAcademicYear, isStudentVisibleForCoopSemester } from '~/composables/useStudentCohortContext'
 import { getPageCount, paginateItems } from '~/utils/table'
 import { hasConfirmedPlacement as hasPlacement } from '~/utils/studentPlacementStatus'
 
@@ -15,8 +15,9 @@ const { showToast } = useToast()
 const { currentAccount } = useAuthPrototype()
 const { people, loadPersistedPeople } = usePeopleDirectory()
 const { exportPeople } = usePeopleImport()
-const { studentCohort, studentCohortOptions, studentSection, studentSectionOptions, studentSemester, ensureAvailableStudentFilters } = useStudentCohortContext()
-const studentContextInitialized = useState<boolean>('staff-student-context-initialized', () => false)
+const { studentSection, studentSemester } = useStudentCohortContext()
+const { selectedCycle } = useCoopCycles()
+const studentAcademicYear = ref('')
 
 const personType = computed<PersonType>(() => route.params.type === 'lecturers' ? 'lecturer' : 'student')
 const isValidType = computed(() => ['students', 'lecturers'].includes(String(route.params.type)))
@@ -38,7 +39,23 @@ const recordStatus = ref('all')
 const accountStatus = ref('all')
 const placementStatus = ref('all')
 const placementStatusOptions = [{ value: 'all', label: 'ทุกสถานะที่ฝึกงาน' }, { value: 'placed', label: 'ได้ที่ฝึกงานแล้ว' }, { value: 'unplaced', label: 'ยังไม่ได้ที่ฝึกงาน' }]
-const academicYearOptions = computed(() => studentCohortOptions.value.map(option => option.value === 'all' ? { ...option, label: 'ปีการศึกษา' } : option))
+const currentAcademicYear = computed(() => selectedCycle.value.academicYear)
+const academicYearOptions = computed(() => {
+  const years = new Set(people.value
+    .filter(person => person.type === 'student')
+    .map(person => getStudentAcademicYear(person.cycle))
+    .filter((year): year is string => Boolean(year)))
+  years.add(currentAcademicYear.value)
+  return [{ value: 'all', label: 'ทุกปีการศึกษา' }, ...[...years].sort((a, b) => b.localeCompare(a, 'th')).map(year => ({ value: year, label: `ปีการศึกษา ${year}` }))]
+})
+const studentSectionOptions = computed(() => {
+  const sections = [...new Set(people.value
+    .filter(person => person.type === 'student')
+    .filter(person => studentAcademicYear.value === 'all' || getStudentAcademicYear(person.cycle) === studentAcademicYear.value)
+    .map(person => person.section)
+    .filter((section): section is NonNullable<typeof section> => Boolean(section)))].sort((a, b) => a.localeCompare(b, 'th', { numeric: true }))
+  return [{ value: 'all', label: 'ทุกหมู่' }, ...sections.map(section => ({ value: section, label: section }))]
+})
 const sortDirection = ref<'asc' | 'desc'>('asc')
 const pageSize = ref('10')
 const currentPage = ref(1)
@@ -74,7 +91,7 @@ const filteredPeople = computed(() => {
   const keyword = search.value.trim().toLocaleLowerCase('th')
   return people.value
     .filter(person => person.type === personType.value)
-    .filter(person => personType.value !== 'student' || studentCohort.value === 'all' || getStudentCohortYear(person.id) === studentCohort.value)
+    .filter(person => personType.value !== 'student' || studentAcademicYear.value === 'all' || getStudentAcademicYear(person.cycle) === studentAcademicYear.value)
     .filter(person => personType.value !== 'student' || isStudentVisibleForCoopSemester(person.cycle))
     .filter(person => personType.value !== 'student' || studentSection.value === 'all' || person.section === studentSection.value)
     .filter(person => !keyword || [person.id, person.prefix, person.firstName, person.lastName, person.company]
@@ -94,24 +111,16 @@ const pageCount = computed(() => getPageCount(filteredPeople.value.length, pageS
 const paginatedPeople = computed(() => paginateItems(filteredPeople.value, currentPage.value, pageSizeNumber.value))
 const resultStart = computed(() => filteredPeople.value.length ? (currentPage.value - 1) * pageSizeNumber.value + 1 : 0)
 const resultEnd = computed(() => Math.min(currentPage.value * pageSizeNumber.value, filteredPeople.value.length))
-const hasFilters = computed(() => Boolean(search.value) || (personType.value === 'lecturer' && (recordStatus.value !== 'all' || accountStatus.value !== 'all')) || (personType.value === 'student' && (placementStatus.value !== 'all' || studentSection.value !== 'all' || studentCohort.value !== 'all')))
+const hasFilters = computed(() => Boolean(search.value) || (personType.value === 'lecturer' && (recordStatus.value !== 'all' || accountStatus.value !== 'all')) || (personType.value === 'student' && (placementStatus.value !== 'all' || studentSection.value !== 'all' || studentAcademicYear.value !== currentAcademicYear.value)))
 
-watch([search, recordStatus, accountStatus, placementStatus, sortDirection, pageSize, personType, studentCohort, studentSection, studentSemester], () => { currentPage.value = 1 })
+watch([search, recordStatus, accountStatus, placementStatus, sortDirection, pageSize, personType, studentAcademicYear, studentSection, studentSemester], () => { currentPage.value = 1 })
 watch(pageCount, count => { if (currentPage.value > count) currentPage.value = count })
 watchEffect(() => {
   if (personType.value !== 'student') return
+  if (!studentAcademicYear.value) studentAcademicYear.value = currentAcademicYear.value
   studentSemester.value = selectableCoopSemester
-  ensureAvailableStudentFilters()
+  if (!studentSectionOptions.value.some(option => option.value === studentSection.value)) studentSection.value = 'all'
 })
-watch(studentCohortOptions, (options) => {
-  if (personType.value !== 'student' || studentContextInitialized.value) return
-  const currentYear = getDefaultStudentCohort(people.value
-    .filter(person => person.type === 'student')
-    .map(person => ({ id: person.id, cycle: person.cycle })))
-  if (currentYear === 'all' || !options.some(option => option.value === currentYear)) return
-  studentCohort.value = currentYear
-  studentContextInitialized.value = true
-}, { immediate: true })
 
 const clearFilters = () => {
   search.value = ''
@@ -120,7 +129,7 @@ const clearFilters = () => {
   placementStatus.value = 'all'
   if (personType.value === 'student') {
     studentSection.value = 'all'
-    studentCohort.value = 'all'
+    studentAcademicYear.value = currentAcademicYear.value
     studentSemester.value = selectableCoopSemester
   }
 }
@@ -184,7 +193,7 @@ const handleExport = async () => {
           <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end xl:ml-auto">
             <div v-if="personType === 'student'" class="w-full sm:w-52"><UiSelect v-model="placementStatus" :options="placementStatusOptions" label="กรองสถานะที่ฝึกงาน" :label-visible="false" /></div>
             <div v-if="personType === 'student'" class="w-full sm:w-40"><UiSelect v-model="studentSection" :options="studentSectionOptions" label="กรองตามหมู่เรียน" :label-visible="false" /></div>
-            <div v-if="personType === 'student'" class="w-full sm:w-44"><UiSelect v-model="studentCohort" :options="academicYearOptions" label="เลือกปีการศึกษา" :label-visible="false" /></div>
+            <div v-if="personType === 'student'" class="w-full sm:w-44"><UiSelect v-model="studentAcademicYear" :options="academicYearOptions" label="เลือกปีการศึกษา" :label-visible="false" /></div>
             <div v-if="personType === 'lecturer'" class="w-full sm:w-52"><UiSelect :key="`record-${personType}`" v-model="recordStatus" :options="recordStatusOptions" :placeholder="recordStatusOptions.find(item => item.value === recordStatus)?.label" label="กรองสถานะข้อมูล" :label-visible="false" /></div>
             <div v-if="personType === 'lecturer'" class="w-full sm:w-56"><UiSelect :key="`account-${personType}`" v-model="accountStatus" :options="accountStatusOptions" :placeholder="accountStatusOptions.find(item => item.value === accountStatus)?.label" label="กรองสถานะบัญชี" :label-visible="false" /></div>
             <button type="button" class="inline-grid size-11 shrink-0 place-items-center rounded-control border border-divider bg-canvas text-ink transition-colors hover:bg-surface" aria-label="รีเซ็ตตาราง" title="รีเซ็ตตาราง" @click="resetTable"><RotateCcw :size="18" aria-hidden="true" /></button>
