@@ -6,7 +6,7 @@ import type { PersonPrefix, PersonType } from '~/composables/usePeopleDirectory'
 const props = defineProps<{ personType: PersonType }>()
 const emit = defineEmits<{ updated: [], close: [] }>()
 const { people, persistImportPeople } = usePeopleDirectory()
-const { parseFile, downloadTemplate, downloadTemporaryCredentials } = usePeopleImport()
+const { parseFile, downloadTemplate, downloadInvalidRows, downloadTemporaryCredentials } = usePeopleImport()
 const { showToast } = useToast()
 const selectedFile = ref<File | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -40,6 +40,7 @@ const processFile = async (file: File) => {
 const handleFileChange = async (event: Event) => { const file = (event.target as HTMLInputElement).files?.[0]; if (file) await processFile(file) }
 const handleDownloadTemplate = async (format: PeopleFileFormat) => { try { await downloadTemplate(props.personType, format); showToast({ title: 'ดาวน์โหลดไฟล์ตัวอย่างแล้ว', description: `ไฟล์ ${format.toUpperCase()} สำหรับข้อมูล${context.value.plural}` }) } catch { showToast({ title: 'ดาวน์โหลดไฟล์ไม่สำเร็จ', description: 'กรุณาลองอีกครั้ง' }) } }
 const handleDownloadCredentials = async () => { try { await downloadTemporaryCredentials(credentials.value, props.personType); showToast({ title: 'ดาวน์โหลดรหัสผ่านชั่วคราวแล้ว', description: 'ส่งมอบไฟล์ผ่านช่องทางภายนอกและลบไฟล์หลังใช้งาน' }) } catch { showToast({ title: 'ดาวน์โหลดไฟล์ไม่สำเร็จ', description: 'กรุณาลองอีกครั้ง' }) } }
+const handleDownloadErrors = async () => { try { await downloadInvalidRows(rows.value, props.personType); showToast({ title: 'ดาวน์โหลดรายการไม่สำเร็จแล้ว', description: `${summary.value.invalid} รายการ พร้อมเหตุผล` }) } catch { showToast({ title: 'ดาวน์โหลดไฟล์ไม่สำเร็จ', description: 'กรุณาลองอีกครั้ง' }) } }
 const handleImport = async () => {
   if (!importableRows.value.length || isImporting.value) return
   isImporting.value = true
@@ -65,7 +66,7 @@ const handleImport = async () => {
       <p class="text-sm text-muted">{{ selectedFile?.name }} · ทั้งหมด {{ rows.length }} รายการ</p>
       <div class="mt-4 grid gap-3 sm:grid-cols-3"><div class="rounded-control bg-success-soft p-3"><p class="text-xs text-muted">พร้อมเพิ่ม/อัปเดต</p><p class="mt-1 text-xl font-bold text-success">{{ importableRows.length }}</p></div><div class="rounded-control bg-danger-soft p-3"><p class="text-xs text-muted">ไม่ถูกต้อง</p><p class="mt-1 text-xl font-bold text-danger">{{ summary.invalid }}</p></div></div>
       <p class="mt-4 max-h-40 overflow-y-auto rounded-control border border-divider p-3 text-sm leading-6 text-muted">{{ rows.slice(0, 8).map(row => `${row.id || '—'} · ${row.reason}`).join('\n') }}<span v-if="rows.length > 8">\n… และรายการอื่น</span></p>
-      <div class="mt-5 flex justify-end gap-2"><UiButton variant="ghost" :icon="RotateCcw" @click="reset">เลือกไฟล์ใหม่</UiButton><UiButton :icon="Upload" :loading="isImporting" :disabled="!importableRows.length" @click="handleImport">ยืนยันนำเข้า {{ importableRows.length }} รายการ</UiButton></div>
+      <div class="mt-5 flex flex-wrap justify-end gap-2"><UiButton v-if="summary.invalid" variant="secondary" @click="handleDownloadErrors">ดาวน์โหลดรายการไม่สำเร็จ</UiButton><UiButton variant="ghost" :icon="RotateCcw" @click="reset">เลือกไฟล์ใหม่</UiButton><UiButton :icon="Upload" :loading="isImporting" :disabled="!importableRows.length" @click="handleImport">ยืนยันนำเข้า {{ importableRows.length }} รายการ</UiButton></div>
     </template>
     <template v-else>
       <UiAlert tone="success" title="นำเข้าข้อมูลสำเร็จ">เพิ่มข้อมูลใหม่ {{ result.created }} รายการ และอัปเดตข้อมูลเดิม {{ result.updated }} รายการ</UiAlert>
