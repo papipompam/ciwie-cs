@@ -231,7 +231,7 @@ const handleImport = async () => {
       <div class="grid gap-6 lg:grid-cols-[18rem_1fr]">
         <div>
           <UiSelect v-model="selectedType" :options="typeOptions" :placeholder="typeOptions.find(item => item.value === selectedType)?.label" label="ประเภทข้อมูล" />
-          <p class="mt-3 text-xs leading-5 text-muted">ไฟล์ต้องมีคอลัมน์ {{ context.idLabel }}, ชื่อ และนามสกุล ตามไฟล์ตัวอย่าง</p>
+          <p class="mt-3 text-xs leading-5 text-muted">ระบบจะจับคู่ข้อมูลจากชื่อหัวคอลัมน์ ไม่ยึดตำแหน่งคอลัมน์ ไฟล์ต้องมี {{ context.idLabel }}, ชื่อ และนามสกุล ส่วนเบอร์โทร อีเมล รอบสหกิจ และหมู่เรียนเป็นข้อมูลเพิ่มเติม</p>
         </div>
         <div>
           <label for="people-import-file" class="block text-sm font-semibold text-ink">ไฟล์ข้อมูล <span class="text-danger" aria-hidden="true">*</span></label>
