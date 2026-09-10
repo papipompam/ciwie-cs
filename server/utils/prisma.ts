@@ -9,11 +9,24 @@ export const toMariaDbConnectionString = (connectionString: string) => {
   return unquoted.replace(/^(?:mysql|mysql2):\/\//i, 'mariadb://')
 }
 
+export const toMariaDbConnectionConfig = (connectionString: string) => {
+  const url = new URL(toMariaDbConnectionString(connectionString))
+  const config: Record<string, string | number> = {
+    host: url.hostname,
+    user: decodeURIComponent(url.username),
+    password: decodeURIComponent(url.password),
+    database: decodeURIComponent(url.pathname.slice(1)),
+  }
+  if (url.port) config.port = Number(url.port)
+  for (const [key, value] of url.searchParams) config[key] = value
+  return config
+}
+
 const createPrismaClient = () => {
   const connectionString = toMariaDbConnectionString(
     process.env.DATABASE_URL ?? 'mysql://ciwie:ciwie@localhost:3307/ciwie_db',
   )
-  return new PrismaClient({ adapter: new PrismaMariaDb(connectionString) })
+  return new PrismaClient({ adapter: new PrismaMariaDb(toMariaDbConnectionConfig(connectionString)) })
 }
 
 export const usePrisma = () => {
