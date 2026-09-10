@@ -49,6 +49,32 @@ describe('usePeopleImport', () => {
     })
   })
 
+  it('รองรับไฟล์ที่ไม่มีคำนำหน้าและใช้ชื่อกับนามสกุลแยกคอลัมน์', async () => {
+    const csv = [
+      'รหัสนักศึกษา,ชื่อ,นามสกุล,สถานะข้อมูล',
+      '66123456701,ธนกฤต,พูนทรัพย์,ใช้งาน',
+    ].join('\n')
+    const file = new File([csv], 'students-without-prefix.csv', { type: 'text/csv' }) as unknown as globalThis.File
+    const { parseFile } = usePeopleImport()
+
+    const rows = await parseFile(file, 'student', new Set())
+
+    expect(rows[0]).toMatchObject({ id: '66123456701', prefix: 'นาย', firstName: 'ธนกฤต', lastName: 'พูนทรัพย์', status: 'new' })
+  })
+
+  it('แยกชื่อเต็มจากคอลัมน์ชื่อเมื่อไฟล์ไม่มีคอลัมน์นามสกุล', async () => {
+    const csv = [
+      'รหัส,คำนำหน้าชื่อ,ชื่อ,รุ่น,หมู่เรียน',
+      '650112230002,นาย,ก่อกุศล บาลวรเศรษฐ์,2565,หมู่ 1',
+    ].join('\n')
+    const file = new File([csv], 'students-full-name.csv', { type: 'text/csv' }) as unknown as globalThis.File
+    const { parseFile } = usePeopleImport()
+
+    const rows = await parseFile(file, 'student', new Set())
+
+    expect(rows[0]).toMatchObject({ id: '650112230002', firstName: 'ก่อกุศล', lastName: 'บาลวรเศรษฐ์', status: 'new' })
+  })
+
   it('ส่งออกข้อมูลนักศึกษาครบทุกข้อมูลหลักโดยไม่รวมข้อมูลยืนยันตัวตน', () => {
     const student: PersonRecord = {
       id: '66123456701',

@@ -16,6 +16,7 @@ export interface PeopleImportRow {
   email?: string
   cycle?: string
   section?: StudentSection
+  note?: string
   status: ImportRowStatus
   reason: string
 }
@@ -102,7 +103,7 @@ const matrixToRecords = (matrix: unknown[][]) => {
   const headerRowIndex = matrix.findIndex((row) => {
     const headers = row.map(value => normalizeHeader(String(value ?? '')))
     const has = (aliases: string[]) => aliases.some(alias => headers.includes(alias))
-    return has(normalizedAliases.id) && has(normalizedAliases.firstName) && has(normalizedAliases.lastName)
+    return has(normalizedAliases.id) && has(normalizedAliases.firstName)
   })
   if (headerRowIndex < 0) throw new Error('missing-header')
 
@@ -125,6 +126,12 @@ const readCell = (row: Record<string, unknown>, aliases: readonly string[]) => {
   const expected = aliases.map(normalizeHeader)
   const entry = Object.entries(row).find(([key]) => expected.includes(normalizeHeader(key)))
   return entry ? String(entry[1] ?? '').trim() : ''
+}
+
+const splitFullName = (value: string) => {
+  const parts = value.trim().split(/\s+/).filter(Boolean)
+  if (parts.length < 2) return { firstName: value.trim(), lastName: '' }
+  return { firstName: parts.slice(0, -1).join(' '), lastName: parts.at(-1) ?? '' }
 }
 
 export const toPeopleWorksheetRows = (people: PersonRecord[], type: PersonType) => {
@@ -177,23 +184,37 @@ export const usePeopleImport = () => {
     if (!rawRows.length) throw new Error('empty-workbook')
 
     const idAliases = columnAliases.id
-    const normalized = rawRows.map((row, index) => ({
-      rowNumber: parsedMatrix.headerRowIndex + index + 2,
-      id: readCell(row, idAliases),
-      prefix: readCell(row, columnAliases.prefix) as PersonPrefix | '',
-      firstName: readCell(row, columnAliases.firstName),
-      lastName: readCell(row, columnAliases.lastName),
-      phone: readCell(row, columnAliases.phone) || undefined,
-      email: readCell(row, columnAliases.email) || undefined,
-      cycle: type === 'student' ? readCell(row, columnAliases.cycle) || undefined : undefined,
-      section: type === 'student'
-        ? ((() => {
-            const value = readCell(row, columnAliases.section)
-            if (!value) return undefined
-            return (value.startsWith('หมู่ ') ? value : `หมู่ ${value}`) as StudentSection
-          })())
-        : undefined,
-    }))
+    const normalized = rawRows.map((row, index) => {
+      const rawName = readCell(row, columnAliases.firstName)
+      const rawLastName = readCell(row, columnAliases.lastName)
+      const suppliedPrefix = readCell(row, columnAliases.prefix) as PersonPrefix | ''
+      const embeddedPrefix = personPrefixValues.find(prefix => rawName.startsWith(`${prefix} `))
+      const prefix = suppliedPrefix || embeddedPrefix || (type === 'student' ? 'นาย' : 'อาจารย์')
+      const nameWithoutPrefix = embeddedPrefix ? rawName.slice(embeddedPrefix.length).trim() : rawName
+      const splitName = rawLastName ? { firstName: nameWithoutPrefix, lastName: rawLastName } : splitFullName(nameWithoutPrefix)
+      const notes = [
+        !suppliedPrefix ? `ใช้คำนำหน้าเริ่มต้น ${prefix}` : '',
+        !rawLastName && splitName.lastName ? 'แยกชื่อเต็มเป็นชื่อและนามสกุล' : '',
+      ].filter(Boolean)
+      return {
+        rowNumber: parsedMatrix.headerRowIndex + index + 2,
+        id: readCell(row, idAliases),
+        prefix: prefix as PersonPrefix,
+        firstName: splitName.firstName,
+        lastName: splitName.lastName,
+        phone: readCell(row, columnAliases.phone) || undefined,
+        email: readCell(row, columnAliases.email) || undefined,
+        cycle: type === 'student' ? readCell(row, columnAliases.cycle) || undefined : undefined,
+        section: type === 'student'
+          ? ((() => {
+              const value = readCell(row, columnAliases.section)
+              if (!value) return undefined
+              return (value.startsWith('หมู่ ') ? value : `หมู่ ${value}`) as StudentSection
+            })())
+          : undefined,
+        note: notes.join(' · '),
+      }
+    })
     const idCounts = normalized.reduce<Map<string, number>>((counts, row) => {
       if (row.id) counts.set(row.id, (counts.get(row.id) ?? 0) + 1)
       return counts
@@ -215,9 +236,9 @@ export const usePeopleImport = () => {
         return { ...row, status: 'invalid' as const, reason: 'รหัสซ้ำมากกว่าหนึ่งแถวภายในไฟล์' }
       }
       if (existingIds.has(row.id)) {
-        return { ...row, status: 'update' as const, reason: 'พบรหัสเดิมในระบบ จะอัปเดตคำนำหน้าและชื่อ–นามสกุลโดยคงบัญชีเดิม' }
+        return { ...row, status: 'update' as const, reason: `พบรหัสเดิมในระบบ จะอัปเดตข้อมูลบุคคลโดยคงบัญชีเดิม${row.note ? ` · ${row.note}` : ''}` }
       }
-      return { ...row, status: 'new' as const, reason: 'ข้อมูลครบถ้วน พร้อมสร้างข้อมูลและบัญชีใหม่' }
+      return { ...row, status: 'new' as const, reason: `ข้อมูลครบถ้วน พร้อมสร้างข้อมูลและบัญชีใหม่${row.note ? ` · ${row.note}` : ''}` }
     })
   }
 
