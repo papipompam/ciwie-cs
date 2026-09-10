@@ -22,6 +22,11 @@ describe('toMariaDbConnectionString', () => {
       .toBe('mariadb://user:pass@example.com:3306/ciwie_db')
   })
 
+  it('unescapes JSON-style slashes in the URL', () => {
+    expect(toMariaDbConnectionString('mysql:\\/\\/user:pass@example.com:3306/ciwie_db'))
+      .toBe('mariadb://user:pass@example.com:3306/ciwie_db')
+  })
+
   it('converts the URL to a driver config object', () => {
     expect(toMariaDbConnectionConfig('mysql://user:p%40ss@example.com:3307/ciwie_db?ssl=true'))
       .toEqual({ host: 'example.com', user: 'user', password: 'p@ss', database: 'ciwie_db', port: 3307, ssl: 'true' })

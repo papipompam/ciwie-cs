@@ -5,7 +5,7 @@ const prismaGlobal = globalThis as typeof globalThis & { cwiePrisma?: PrismaClie
 
 export const toMariaDbConnectionString = (connectionString: string) => {
   let normalized = connectionString.trim().replace(/^DATABASE_URL\s*=\s*/i, '')
-  normalized = normalized.replace(/\\(["'`])/g, '$1').replace(/\\r?\\n/g, '').trim()
+  normalized = normalized.replace(/\\(["'`])/g, '$1').replace(/\\\//g, '/').replace(/\\r?\\n/g, '').replace(/[\r\n]/g, '').trim()
   const schemeIndex = normalized.search(/(?:mariadb|mysql2?):\/\//i)
   if (schemeIndex >= 0) normalized = normalized.slice(schemeIndex)
   normalized = normalized.replace(/^["'`]+|["'`}]+$/g, '').trim()
