@@ -142,12 +142,12 @@ export const usePeopleImport = () => {
     if (!rawRows.length) throw new Error('empty-workbook')
 
     const idAliases = type === 'student'
-      ? ['รหัสนักศึกษา', 'student id', 'student_id', 'id']
-      : ['รหัสอาจารย์', 'lecturer id', 'lecturer_id', 'id']
+      ? ['รหัสนักศึกษา', 'รหัส', 'student id', 'student_id', 'id']
+      : ['รหัสอาจารย์', 'รหัส', 'lecturer id', 'lecturer_id', 'id']
     const normalized = rawRows.map((row, index) => ({
       rowNumber: index + 2,
       id: readCell(row, idAliases),
-      prefix: readCell(row, ['คำนำหน้า', 'prefix', 'title']) as PersonPrefix | '',
+      prefix: readCell(row, ['คำนำหน้า', 'คำนำหน้าชื่อ', 'prefix', 'title']) as PersonPrefix | '',
       firstName: readCell(row, ['ชื่อ', 'first name', 'first_name', 'firstname']),
       lastName: readCell(row, ['นามสกุล', 'last name', 'last_name', 'lastname']),
       phone: readCell(row, ['เบอร์โทร', 'โทรศัพท์', 'phone', 'mobile']) || undefined,

@@ -32,6 +32,22 @@ describe('usePeopleImport', () => {
     expect(rows[4]?.reason).toContain('ไม่พบนามสกุล')
   })
 
+  it('อ่านหัวตารางจากไฟล์ส่งออกเดิมพร้อมรายละเอียดการติดต่อและรอบสหกิจได้', async () => {
+    const csv = [
+      'รหัส,คำนำหน้าชื่อ,ชื่อ,นามสกุล,เบอร์โทร,อีเมล,รอบสหกิจ,หมู่เรียน',
+      '66123456701,นาย,ธนกฤต,พูนทรัพย์,0812345601,thanakrit@example.ac.th,ภาคเรียนที่ 2/2569,หมู่ 1',
+    ].join('\n')
+    const file = new File([csv], 'students-export.csv', { type: 'text/csv' }) as unknown as globalThis.File
+    const { parseFile } = usePeopleImport()
+
+    const rows = await parseFile(file, 'student', new Set())
+
+    expect(rows[0]).toMatchObject({
+      id: '66123456701', prefix: 'นาย', phone: '0812345601', email: 'thanakrit@example.ac.th',
+      cycle: 'ภาคเรียนที่ 2/2569', section: 'หมู่ 1', status: 'new',
+    })
+  })
+
   it('ส่งออกข้อมูลนักศึกษาครบทุกข้อมูลหลักโดยไม่รวมข้อมูลยืนยันตัวตน', () => {
     const student: PersonRecord = {
       id: '66123456701',
