@@ -73,7 +73,11 @@ export default defineEventHandler(async (event) => {
       const input = accountAction.data
       if (input.action === 'reset-password') {
         await transaction.user.update({
-          where: { id: current.id }, data: { passwordHash: await hashPassword(input.temporaryPassword), status: 'FIRST_LOGIN', sessionVersion: { increment: 1 } },
+          where: { id: current.id },
+          data: {
+            passwordHash: await hashPassword(input.temporaryPassword), status: 'FIRST_LOGIN', sessionVersion: { increment: 1 },
+            failedLoginCount: 0, failedWindowAt: null, lockedUntil: null,
+          },
         })
         action = 'รีเซ็ตรหัสผ่าน'; detail = 'ยกเลิก Session เดิมและบังคับเปลี่ยนรหัสผ่าน'
       }

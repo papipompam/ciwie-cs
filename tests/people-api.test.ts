@@ -139,6 +139,18 @@ describe('people APIs', () => {
     })
   })
 
+  it('clears login lockout when resetting a password', async () => {
+    body = { action: 'reset-password', temporaryPassword: '660112230062' }
+    await updatePerson({} as Parameters<typeof updatePerson>[0])
+    expect(updateUser).toHaveBeenCalledWith({
+      where: { id: 'student-internal-1' },
+      data: expect.objectContaining({
+        status: 'FIRST_LOGIN', sessionVersion: { increment: 1 },
+        failedLoginCount: 0, failedWindowAt: null, lockedUntil: null,
+      }),
+    })
+  })
+
   it('keeps lecturer student-name editing separate from document-review permission', async () => {
     sessionUser = { id: 'lecturer-1', role: 'lecturer' }
     body = { prefix: 'นาย', firstName: 'ชื่อใหม่', lastName: 'นามสกุลใหม่' }
