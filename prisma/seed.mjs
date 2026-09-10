@@ -47,6 +47,44 @@ try {
     },
   })
 
+  // Additional deterministic accounts keep the demo directory useful for
+  // pagination, section sorting, and lecturer grouping previews.
+  for (let index = 0; index < 49; index += 1) {
+    const number = index + 2
+    const username = `66${String(100000100 + index).padStart(9, '0')}`
+    await prisma.user.upsert({
+      where: { username },
+      update: {
+        passwordHash: defaultPasswordHash, status: index % 5 === 0 ? 'FIRST_LOGIN' : 'ACTIVE',
+        namePrefix: index % 3 === 0 ? 'นาย' : index % 3 === 1 ? 'นางสาว' : 'นาง',
+        firstName: `นักศึกษา${number}`, lastName: 'ตัวอย่าง', gender: index % 2 === 0 ? 'MALE' : 'FEMALE',
+        cohortYear: 2566, section: index % 2 === 0 ? '1' : '2', recordStatus: 'ACTIVE',
+      },
+      create: {
+        id: `student-demo-${String(index + 2).padStart(3, '0')}`, username, passwordHash: defaultPasswordHash,
+        role: 'STUDENT', status: index % 5 === 0 ? 'FIRST_LOGIN' : 'ACTIVE',
+        namePrefix: index % 3 === 0 ? 'นาย' : index % 3 === 1 ? 'นางสาว' : 'นาง',
+        firstName: `นักศึกษา${number}`, lastName: 'ตัวอย่าง', gender: index % 2 === 0 ? 'MALE' : 'FEMALE',
+        cohortYear: 2566, section: index % 2 === 0 ? '1' : '2', createdById: 'staff-001',
+      },
+    })
+  }
+  for (let index = 0; index < 7; index += 1) {
+    const lecturerNumber = String(index + 2).padStart(3, '0')
+    await prisma.user.upsert({
+      where: { id: `lecturer-${lecturerNumber}` },
+      update: {
+        passwordHash: defaultPasswordHash, status: 'ACTIVE', namePrefix: index % 2 === 0 ? 'อาจารย์' : 'ดร.',
+        firstName: `อาจารย์ตัวอย่าง${index + 1}`, lastName: 'นิเทศ', gender: index % 2 === 0 ? 'MALE' : 'FEMALE', recordStatus: 'ACTIVE',
+      },
+      create: {
+        id: `lecturer-${lecturerNumber}`, username: `lecturer${lecturerNumber}`, passwordHash: defaultPasswordHash,
+        role: 'LECTURER', status: 'ACTIVE', namePrefix: index % 2 === 0 ? 'อาจารย์' : 'ดร.',
+        firstName: `อาจารย์ตัวอย่าง${index + 1}`, lastName: 'นิเทศ', gender: index % 2 === 0 ? 'MALE' : 'FEMALE', createdById: 'staff-001',
+      },
+    })
+  }
+
   await prisma.coopCycle.upsert({
     where: { id: 'CYCLE-2569-2' },
     update: {},

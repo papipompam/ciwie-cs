@@ -212,6 +212,33 @@ const initialPeople: PersonRecord[] = [
     accountStatus: 'active',
     activities: [{ id: 'ACT-009', action: 'สร้างข้อมูลและบัญชี', detail: 'บัญชีอาจารย์พร้อมใช้งาน', actor: 'นางสาวพิมพ์ชนก ใจดี', occurredAt: '2026-08-18T13:45:00+07:00' }],
   },
+  ...Array.from({ length: 41 }, (_, index): PersonRecord => {
+    const number = index + 10
+    return {
+      id: `66${String(100000100 + index).padStart(9, '0')}`,
+      type: 'student',
+      prefix: index % 3 === 0 ? 'นาย' : index % 3 === 1 ? 'นางสาว' : 'นาง',
+      firstName: `นักศึกษา${number}`,
+      lastName: 'ตัวอย่าง',
+      gender: index % 2 === 0 ? 'male' : 'female',
+      recordStatus: 'active',
+      accountStatus: index % 5 === 0 ? 'first-login' : 'active',
+      cycle: 'ภาคเรียนที่ 2/2569',
+      section: index % 2 === 0 ? 'หมู่ 1' : 'หมู่ 2',
+      activities: [{ id: `ACT-DEMO-${String(index + 1).padStart(3, '0')}`, action: 'สร้างข้อมูลและบัญชี', detail: 'ข้อมูลตัวอย่างสำหรับทดสอบหน้าจอ', actor: 'นางสาวพิมพ์ชนก ใจดี', occurredAt: '2026-09-01T09:00:00+07:00' }],
+    }
+  }),
+  ...Array.from({ length: 4 }, (_, index): PersonRecord => ({
+    id: `L00${31 + index}`,
+    type: 'lecturer',
+    prefix: index % 2 === 0 ? 'อาจารย์' : 'ดร.',
+    firstName: `อาจารย์ตัวอย่าง${index + 1}`,
+    lastName: 'นิเทศ',
+    gender: index % 2 === 0 ? 'male' : 'female',
+    recordStatus: 'active',
+    accountStatus: 'active',
+    activities: [{ id: `ACT-LECTURER-${String(index + 1).padStart(3, '0')}`, action: 'สร้างข้อมูลและบัญชี', detail: 'ข้อมูลตัวอย่างสำหรับทดสอบหน้าจอ', actor: 'นางสาวพิมพ์ชนก ใจดี', occurredAt: '2026-09-01T09:00:00+07:00' }],
+  })),
 ]
 
 const applicationHistory: Record<string, StudentApplicationHistory[]> = {
