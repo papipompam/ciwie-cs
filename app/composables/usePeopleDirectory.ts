@@ -1,4 +1,4 @@
-import { peopleResponseSchema, personRecordSchema } from '#shared/people'
+import { peopleImportResponseSchema, peopleResponseSchema, personRecordSchema } from '#shared/people'
 import { requestAwareFetch } from '../utils/requestAwareFetch'
 
 export type PersonType = 'student' | 'lecturer'
@@ -373,6 +373,20 @@ export const usePeopleDirectory = () => {
     return person
   }
 
+  const persistImportPeople = async (type: PersonType, inputs: PersonInput[]) => {
+    const result = peopleImportResponseSchema.parse(await requestAwareFetch('/api/staff/people/import', {
+      method: 'POST', body: { type, people: inputs },
+    }))
+    // Do not discard the one-time credentials if the follow-up directory refresh fails.
+    try {
+      await loadPersistedPeople(type)
+    }
+    catch (error) {
+      console.error(error)
+    }
+    return result
+  }
+
   const persistUpdatePerson = async (person: PersonRecord, input: PersonInput) => {
     const updated = personRecordSchema.parse(await requestAwareFetch(`/api/staff/people/${encodeURIComponent(person.id)}`, { method: 'PATCH', body: input }))
     Object.assign(person, updated)
@@ -409,6 +423,7 @@ export const usePeopleDirectory = () => {
     importPeople,
     loadPersistedPeople,
     persistCreatePerson,
+    persistImportPeople,
     persistUpdatePerson,
     persistAccountAction,
     persistLecturerStudentName,

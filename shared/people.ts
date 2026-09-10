@@ -24,6 +24,24 @@ export const personAccountActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('reset-password'), temporaryPassword: z.string().min(8).max(200) }).strict(),
 ])
 
+export const peopleImportRequestSchema = z.object({
+  type: personTypeSchema,
+  people: z.array(personInputSchema).min(1).max(1000),
+}).strict()
+
+export const peopleImportCredentialSchema = z.object({
+  username: z.string(),
+  name: z.string(),
+  temporaryPassword: z.string(),
+}).strict()
+
+export const peopleImportResponseSchema = z.object({
+  created: z.number().int().nonnegative(),
+  updated: z.number().int().nonnegative(),
+  duplicates: z.array(z.string()),
+  credentials: z.array(peopleImportCredentialSchema),
+}).strict()
+
 export const lecturerStudentNameSchema = z.object({
   prefix: z.enum(studentPersonPrefixes),
   firstName: z.string().trim().min(1).max(100),

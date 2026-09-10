@@ -16,6 +16,12 @@ export interface PeopleImportRow {
   reason: string
 }
 
+export interface PeopleImportCredential {
+  username: string
+  name: string
+  temporaryPassword: string
+}
+
 const rowSchema = z.object({
   id: z.string().trim().min(1, 'ไม่พบรหัส'),
   prefix: z.enum(personPrefixValues, { error: 'ไม่พบหรือคำนำหน้าไม่ถูกต้อง' }),
@@ -102,6 +108,13 @@ export const toPeopleWorksheetRows = (people: PersonRecord[], type: PersonType) 
       return lecturerRow
     })
 }
+
+export const toTemporaryCredentialWorksheetRows = (credentials: PeopleImportCredential[]) => credentials.map(credential => ({
+  รหัสผู้ใช้: credential.username,
+  ชื่อ: credential.name,
+  รหัสผ่านชั่วคราว: credential.temporaryPassword,
+  สถานะบัญชี: 'FIRST_LOGIN',
+}))
 
 export const usePeopleImport = () => {
   const parseFile = async (file: File, type: PersonType, existingIds: Set<string>): Promise<PeopleImportRow[]> => {
@@ -197,5 +210,13 @@ export const usePeopleImport = () => {
     })), `${type === 'student' ? 'student' : 'lecturer'}-import-errors`, 'csv')
   }
 
-  return { parseFile, downloadTemplate, exportPeople, downloadInvalidRows }
+  const downloadTemporaryCredentials = async (credentials: PeopleImportCredential[], type: PersonType) => {
+    await downloadWorkbook(
+      toTemporaryCredentialWorksheetRows(credentials),
+      `${type === 'student' ? 'students' : 'lecturers'}-temporary-passwords`,
+      'xlsx',
+    )
+  }
+
+  return { parseFile, downloadTemplate, exportPeople, downloadInvalidRows, downloadTemporaryCredentials }
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Download, FileSpreadsheet, RotateCcw, Search, Upload, X } from '@lucide/vue'
-import type { ImportRowStatus, PeopleFileFormat, PeopleImportRow } from '~/composables/usePeopleImport'
+import type { ImportRowStatus, PeopleFileFormat, PeopleImportCredential, PeopleImportRow } from '~/composables/usePeopleImport'
 import type { PersonPrefix, PersonType } from '~/composables/usePeopleDirectory'
 import { getPageCount, paginateItems } from '~/utils/table'
 
@@ -10,8 +10,8 @@ useHead({ title: 'นำเข้าข้อมูลบุคคล' })
 const route = useRoute()
 const { scenario } = useScenario()
 const { showToast } = useToast()
-const { people, importPeople } = usePeopleDirectory()
-const { parseFile, downloadTemplate, downloadInvalidRows } = usePeopleImport()
+const { people, loadPersistedPeople, persistImportPeople } = usePeopleDirectory()
+const { parseFile, downloadTemplate, downloadInvalidRows, downloadTemporaryCredentials } = usePeopleImport()
 
 const selectedType = ref<PersonType>(route.query.type === 'lecturer' ? 'lecturer' : 'student')
 const selectedFile = ref<File | null>(null)
@@ -22,6 +22,8 @@ const parseError = ref('')
 const isProcessing = ref(false)
 const isImporting = ref(false)
 const result = ref({ created: 0, updated: 0, invalid: 0 })
+const credentials = ref<PeopleImportCredential[]>([])
+const duplicateIds = ref<string[]>([])
 const search = ref('')
 const statusFilter = ref<'all' | ImportRowStatus>('all')
 const pageSize = ref('10')
@@ -72,7 +74,12 @@ watch([search, statusFilter, pageSize], () => { currentPage.value = 1 })
 watch(pageCount, count => { if (currentPage.value > count) currentPage.value = count })
 watch(selectedType, async (type) => {
   resetImport()
+  if (!import.meta.dev) await loadPersistedPeople(type)
   await navigateTo({ path: route.path, query: { type } }, { replace: true })
+})
+
+onMounted(async () => {
+  if (!import.meta.dev) await loadPersistedPeople(selectedType.value)
 })
 
 const clearFilters = () => {
@@ -84,6 +91,8 @@ const resetImport = () => {
   selectedFile.value = null
   rows.value = []
   parseError.value = ''
+  credentials.value = []
+  duplicateIds.value = []
   stage.value = 'upload'
   clearFilters()
   currentPage.value = 1
@@ -151,17 +160,30 @@ const handleDownloadErrors = async () => {
   }
 }
 
+const handleDownloadCredentials = async () => {
+  try {
+    await downloadTemporaryCredentials(credentials.value, selectedType.value)
+    showToast({ title: 'ดาวน์โหลดรหัสผ่านชั่วคราวแล้ว', description: 'ส่งมอบไฟล์ผ่านช่องทางภายนอกและลบไฟล์หลังใช้งาน' })
+  }
+  catch (error) {
+    console.error(error)
+    showToast({ title: 'ดาวน์โหลดไฟล์ไม่สำเร็จ', description: 'กรุณาลองอีกครั้ง' })
+  }
+}
+
 const handleImport = async () => {
   if (!importableRows.value.length || isImporting.value) return
   isImporting.value = true
   try {
-    const imported = importPeople(selectedType.value, importableRows.value.map(row => ({
+    const imported = await persistImportPeople(selectedType.value, importableRows.value.map(row => ({
       id: row.id,
       prefix: row.prefix,
       firstName: row.firstName,
       lastName: row.lastName,
     })))
-    result.value = { ...imported, invalid: summary.value.invalid }
+    result.value = { created: imported.created, updated: imported.updated, invalid: summary.value.invalid }
+    credentials.value = imported.credentials
+    duplicateIds.value = imported.duplicates
     stage.value = 'complete'
     confirmOpen.value = false
     showToast({ title: 'นำเข้าข้อมูลสำเร็จ', description: `ดำเนินการแล้ว ${imported.created + imported.updated} รายการ` })
@@ -264,8 +286,14 @@ const handleImport = async () => {
 
     <UiCard v-else>
       <UiAlert tone="success" title="นำเข้าข้อมูลสำเร็จ">ระบบดำเนินการเฉพาะรายการที่ผ่านการตรวจ และคงรายการไม่ถูกต้องไว้นอกระบบ</UiAlert>
+      <UiAlert v-if="duplicateIds.length" class="mt-4" tone="info" title="พบรหัสที่มีบัญชีอยู่แล้ว">
+        ข้ามการสร้างบัญชีซ้ำ {{ duplicateIds.length }} รายการ และคงรหัสผ่านเดิมไว้: {{ duplicateIds.join(', ') }}
+      </UiAlert>
+      <UiAlert v-if="credentials.length" class="mt-4" tone="warning" title="รหัสผ่านชั่วคราวพร้อมดาวน์โหลด">
+        ระบบสร้างรหัสผ่านชั่วคราวให้บัญชีใหม่ {{ credentials.length }} รายการ กรุณาดาวน์โหลดไฟล์ Excel ส่งมอบผ่านช่องทางที่ปลอดภัย แล้วลบไฟล์หลังใช้งาน
+      </UiAlert>
       <dl class="mt-6 grid gap-4 sm:grid-cols-3"><div class="rounded-control bg-surface p-4"><dt class="text-sm text-muted">เพิ่มข้อมูลและบัญชีใหม่</dt><dd class="mt-2 text-3xl font-bold text-ink">{{ result.created }}</dd></div><div class="rounded-control bg-surface p-4"><dt class="text-sm text-muted">อัปเดตข้อมูลเดิม</dt><dd class="mt-2 text-3xl font-bold text-ink">{{ result.updated }}</dd></div><div class="rounded-control bg-surface p-4"><dt class="text-sm text-muted">ไม่นำเข้า</dt><dd class="mt-2 text-3xl font-bold text-ink">{{ result.invalid }}</dd></div></dl>
-      <div class="mt-6 flex flex-wrap gap-2"><UiButton @click="navigateTo(`/staff/${context.route}`)">ดูข้อมูล{{ context.plural }}</UiButton><UiButton variant="secondary" @click="resetImport">นำเข้าไฟล์อื่น</UiButton><UiButton v-if="result.invalid" variant="secondary" :icon="Download" @click="handleDownloadErrors">ดาวน์โหลดรายการไม่สำเร็จ</UiButton></div>
+      <div class="mt-6 flex flex-wrap gap-2"><UiButton @click="navigateTo(`/staff/${context.route}`)">ดูข้อมูล{{ context.plural }}</UiButton><UiButton v-if="credentials.length" variant="secondary" :icon="FileSpreadsheet" @click="handleDownloadCredentials">ดาวน์โหลดรหัสผ่านชั่วคราว (Excel)</UiButton><UiButton variant="secondary" @click="resetImport">นำเข้าไฟล์อื่น</UiButton><UiButton v-if="result.invalid" variant="secondary" :icon="Download" @click="handleDownloadErrors">ดาวน์โหลดรายการไม่สำเร็จ</UiButton></div>
     </UiCard>
 
     <UiDialog v-model:open="confirmOpen" title="ยืนยันการนำเข้าข้อมูล" :description="`ระบบจะดำเนินการ ${importableRows.length} รายการ และไม่นำเข้ารายการที่ไม่ถูกต้อง ${summary.invalid} รายการ`" :close-on-confirm="false">

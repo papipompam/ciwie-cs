@@ -1,9 +1,18 @@
 import { File } from 'node:buffer'
 import { describe, expect, it } from 'vitest'
-import { toPeopleWorksheetRows, usePeopleImport } from './usePeopleImport'
+import { toPeopleWorksheetRows, toTemporaryCredentialWorksheetRows, usePeopleImport } from './usePeopleImport'
 import type { PersonRecord } from './usePeopleDirectory'
 
 describe('usePeopleImport', () => {
+  it('เตรียมข้อมูลรหัสผ่านชั่วคราวสำหรับส่งออก Excel โดยระบุสถานะครั้งแรก', () => {
+    expect(toTemporaryCredentialWorksheetRows([{ username: '66123456888', name: 'นางสาว ทดสอบ นำเข้า', temporaryPassword: 'Abc234567890XYZ' }])).toEqual([{
+      รหัสผู้ใช้: '66123456888',
+      ชื่อ: 'นางสาว ทดสอบ นำเข้า',
+      รหัสผ่านชั่วคราว: 'Abc234567890XYZ',
+      สถานะบัญชี: 'FIRST_LOGIN',
+    }])
+  })
+
   it('แยกรายการใหม่ ข้อมูลเดิม และรหัสซ้ำในไฟล์ได้ถูกต้อง', async () => {
     const csv = [
       'รหัสนักศึกษา,คำนำหน้า,ชื่อ,นามสกุล',
