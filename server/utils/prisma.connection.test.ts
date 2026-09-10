@@ -11,4 +11,9 @@ describe('toMariaDbConnectionString', () => {
     expect(toMariaDbConnectionString('"mysql://user:pass@example.com:3306/ciwie_db"'))
       .toBe('mariadb://user:pass@example.com:3306/ciwie_db')
   })
+
+  it('handles escaped quotes and a pasted dotenv assignment', () => {
+    expect(toMariaDbConnectionString('DATABASE_URL=\\"mysql2://user:pass@example.com:3306/ciwie_db\\"'))
+      .toBe('mariadb://user:pass@example.com:3306/ciwie_db')
+  })
 })
