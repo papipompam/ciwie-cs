@@ -117,6 +117,15 @@ const matrixToRecords = (matrix: unknown[][]) => {
   return { records, headerRowIndex }
 }
 
+const extractSheetMatrix = (value: unknown): unknown[][] => {
+  if (!Array.isArray(value)) return []
+  if (value.every(item => Array.isArray(item))) return value as unknown[][]
+  const sheet = value.find((item): item is { data: unknown[][] } => (
+    Boolean(item) && typeof item === 'object' && 'data' in item && Array.isArray(item.data)
+  ))
+  return sheet?.data ?? []
+}
+
 const escapeCsvCell = (value: string | number) => {
   const text = String(value)
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text
@@ -178,7 +187,7 @@ export const usePeopleImport = () => {
     const isCsv = file.name.toLocaleLowerCase().endsWith('.csv')
     const matrix = isCsv
       ? parseCsvRows(await file.text())
-      : await import('read-excel-file/browser').then(({ readSheet }) => readSheet(file))
+      : extractSheetMatrix(await import('read-excel-file/browser').then(({ readSheet }) => readSheet(file)))
     const parsedMatrix = matrixToRecords(matrix)
     const rawRows = parsedMatrix.records
     if (!rawRows.length) throw new Error('empty-workbook')

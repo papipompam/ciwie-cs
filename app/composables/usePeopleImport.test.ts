@@ -1,7 +1,17 @@
 import { File } from 'node:buffer'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { toPeopleWorksheetRows, toTemporaryCredentialWorksheetRows, usePeopleImport } from './usePeopleImport'
 import type { PersonRecord } from './usePeopleDirectory'
+
+vi.mock('read-excel-file/browser', () => ({
+  readSheet: async () => [{
+    sheet: 'Sheet1',
+    data: [
+      ['รหัส', 'คำนำหน้าชื่อ', 'ชื่อ', 'นามสกุล', 'รุ่น', 'หมู่เรียน'],
+      [660112230062, 'นางสาว', 'ชลธิชา', 'ศรีเชื้อ', 2566, 'หมู่ 2'],
+    ],
+  }],
+}))
 
 describe('usePeopleImport', () => {
   it('เตรียมข้อมูลรหัสผ่านชั่วคราวสำหรับส่งออก Excel โดยระบุสถานะครั้งแรก', () => {
@@ -73,6 +83,17 @@ describe('usePeopleImport', () => {
     const rows = await parseFile(file, 'student', new Set())
 
     expect(rows[0]).toMatchObject({ id: '650112230002', firstName: 'ก่อกุศล', lastName: 'บาลวรเศรษฐ์', status: 'new' })
+  })
+
+  it('อ่านข้อมูลจากรูปแบบผลลัพธ์ Excel ที่มี sheet และ data ได้', async () => {
+    const file = new File(['excel-binary-placeholder'], 'students.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    }) as unknown as globalThis.File
+    const { parseFile } = usePeopleImport()
+
+    const rows = await parseFile(file, 'student', new Set())
+
+    expect(rows[0]).toMatchObject({ id: '660112230062', firstName: 'ชลธิชา', lastName: 'ศรีเชื้อ', status: 'new' })
   })
 
   it('ส่งออกข้อมูลนักศึกษาครบทุกข้อมูลหลักโดยไม่รวมข้อมูลยืนยันตัวตน', () => {
