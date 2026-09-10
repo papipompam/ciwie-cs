@@ -29,15 +29,25 @@ export default defineEventHandler(async (event) => {
   await prisma.$transaction(async (transaction) => {
     for (const person of people) {
       let cycle: { id: string, targetCohortYear: number } | null = null
-      if (type === 'student' && person.cycle) {
-        if (!cycleCache.has(person.cycle)) {
-          cycleCache.set(person.cycle, await transaction.coopCycle.findFirst({
-            where: { OR: [{ label: person.cycle }, { code: person.cycle }] },
-            select: { id: true, targetCohortYear: true },
-          }))
+      const cohortYear = type === 'student' ? person.cohortYear ?? getCohortYear(person.id) : null
+      if (type === 'student') {
+        const cycleKey = person.cycle ? `label:${person.cycle}` : `cohort:${cohortYear ?? 'unknown'}`
+        if (!cycleCache.has(cycleKey)) {
+          cycleCache.set(cycleKey, person.cycle
+            ? await transaction.coopCycle.findFirst({
+              where: { OR: [{ label: person.cycle }, { code: person.cycle }] },
+              select: { id: true, targetCohortYear: true },
+            })
+            : cohortYear
+              ? await transaction.coopCycle.findFirst({
+                where: { targetCohortYear: cohortYear, status: { in: ['OPEN_FOR_REQUESTS', 'TRAINING'] } },
+                orderBy: { academicYear: 'desc' },
+                select: { id: true, targetCohortYear: true },
+              })
+              : null)
         }
-        cycle = cycleCache.get(person.cycle) ?? null
-        if (!cycle) throw createError({ statusCode: 400, statusMessage: 'COOP_CYCLE_NOT_FOUND' })
+        cycle = cycleCache.get(cycleKey) ?? null
+        if (person.cycle && !cycle) throw createError({ statusCode: 400, statusMessage: 'COOP_CYCLE_NOT_FOUND' })
       }
       const existing = await transaction.user.findUnique({ where: { username: person.id }, select: { id: true, role: true } })
       if (existing) {
@@ -51,7 +61,7 @@ export default defineEventHandler(async (event) => {
               ...(person.email !== undefined ? { email: person.email } : {}),
               ...(person.gender !== undefined ? { gender: person.gender === 'male' ? 'MALE' as const : 'FEMALE' as const } : {}),
               ...(type === 'student' && person.section !== undefined ? { section: person.section.replace('หมู่ ', '') } : {}),
-              ...(cycle ? { cohortYear: cycle.targetCohortYear } : {}),
+              ...(type === 'student' && (cycle || cohortYear) ? { cohortYear: cycle?.targetCohortYear ?? cohortYear } : {}),
             },
           })
           if (type === 'student' && cycle) {
@@ -87,7 +97,7 @@ export default defineEventHandler(async (event) => {
           email: person.email,
           gender: person.gender === 'male' ? 'MALE' : person.gender === 'female' ? 'FEMALE' : null,
           section: type === 'student' ? person.section?.replace('หมู่ ', '') : null,
-          cohortYear: type === 'student' ? cycle?.targetCohortYear ?? getCohortYear(person.id) : null,
+          cohortYear: type === 'student' ? cycle?.targetCohortYear ?? cohortYear : null,
           createdById: staff.id,
         },
         select: { id: true },

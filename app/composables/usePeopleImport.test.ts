@@ -93,7 +93,7 @@ describe('usePeopleImport', () => {
 
     const rows = await parseFile(file, 'student', new Set())
 
-    expect(rows[0]).toMatchObject({ id: '660112230062', firstName: 'ชลธิชา', lastName: 'ศรีเชื้อ', status: 'new' })
+    expect(rows[0]).toMatchObject({ id: '660112230062', firstName: 'ชลธิชา', lastName: 'ศรีเชื้อ', cohortYear: 2566, status: 'new' })
   })
 
   it('ส่งออกข้อมูลนักศึกษาครบทุกข้อมูลหลักโดยไม่รวมข้อมูลยืนยันตัวตน', () => {

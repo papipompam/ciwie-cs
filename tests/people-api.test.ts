@@ -21,7 +21,7 @@ vi.stubGlobal('useRuntimeConfig', () => ({ initialAccountPassword: 'Cwie@2569' }
 vi.stubGlobal('createError', (details: { statusCode: number, statusMessage: string }) => Object.assign(new Error(details.statusMessage), details))
 
 const findMany = vi.fn(async () => [person])
-const findUser = vi.fn(async ({ where }: { where: { username?: string } }) => where.username === 'new-student' ? null : ({ id: 'student-internal-1', username: '66123456701', role: 'STUDENT', status: 'ACTIVE', recordStatus: 'ACTIVE' }))
+const findUser = vi.fn(async ({ where }: { where: { username?: string } }) => where.username === 'new-student' || where.username === '66199999999' ? null : ({ id: 'student-internal-1', username: '66123456701', role: 'STUDENT', status: 'ACTIVE', recordStatus: 'ACTIVE' }))
 const findStudent = vi.fn(async () => ({ id: 'student-internal-1' }))
 const createUser = vi.fn(async () => ({ id: 'student-new' }))
 const updateUser = vi.fn(async () => ({ id: 'student-internal-1' }))
@@ -42,7 +42,7 @@ vi.stubGlobal('usePrisma', () => ({
   auditLog: { findMany: findAudits },
   coopCycle: { findFirst: findCycle },
   $transaction: vi.fn(async (callback: (transaction: unknown) => unknown) => callback({
-    user: { create: createUser, update: updateUser, findUniqueOrThrow: findPerson },
+    user: { create: createUser, update: updateUser, findUnique: findUser, findUniqueOrThrow: findPerson },
     coopCycle: { findFirst: findCycle },
     cycleEnrollment: { create: createEnrollment, upsert: upsertEnrollment, updateMany: updateEnrollments },
     auditLog: { create: createAudit, findMany: findAudits },
@@ -54,6 +54,7 @@ const { default: createPerson } = await import('../server/api/staff/people.post'
 const { default: updatePerson } = await import('../server/api/staff/people/[id].patch')
 const { default: lecturerUpdateStudent } = await import('../server/api/people/[id].patch')
 const { default: listSharedPeople } = await import('../server/api/people.get')
+const { default: importPeople } = await import('../server/api/staff/people/import.post')
 
 beforeEach(() => {
   body = {}
@@ -83,6 +84,20 @@ describe('people APIs', () => {
     }) }))
     expect(createEnrollment).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ studentId: 'student-new', cycleId: 'CYCLE-1' }) }))
     expect(createAudit).toHaveBeenCalled()
+  })
+
+  it('assigns imported students without a cycle to the open cycle matching their cohort', async () => {
+    body = {
+      type: 'student',
+      people: [{ id: '66199999999', prefix: 'นาย', firstName: 'นำเข้า', lastName: 'ทดสอบ', section: 'หมู่ 1' }],
+    }
+    await importPeople({} as Parameters<typeof importPeople>[0])
+    expect(findCycle).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ targetCohortYear: 2566 }),
+    }))
+    expect(createEnrollment).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ studentId: 'student-new', cycleId: 'CYCLE-1' }),
+    }))
   })
 
   it('rejects a lecturer prefix for a student account', async () => {

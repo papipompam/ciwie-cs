@@ -26,6 +26,7 @@ export interface PersonRecord {
   lastName: string
   phone?: string
   email?: string
+  cohortYear?: number
   gender?: 'male' | 'female'
   recordStatus: PersonRecordStatus
   accountStatus: AccountStatus

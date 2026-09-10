@@ -13,6 +13,7 @@ export const personInputSchema = z.object({
   lastName: z.string().trim().max(100),
   phone: z.string().trim().regex(/^[0-9+()\-\s]{8,30}$/, 'รูปแบบเบอร์โทรไม่ถูกต้อง').optional(),
   email: z.string().trim().email('รูปแบบอีเมลไม่ถูกต้อง').max(254).optional(),
+  cohortYear: z.coerce.number().int().min(2500).max(3000).optional(),
   gender: personGenderSchema.optional(),
   cycle: z.string().trim().max(150).optional(),
   section: z.enum(['หมู่ 1', 'หมู่ 2']).optional(),

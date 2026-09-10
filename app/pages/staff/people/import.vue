@@ -182,6 +182,7 @@ const handleImport = async () => {
       lastName: row.lastName,
       ...(row.phone ? { phone: row.phone } : {}),
       ...(row.email ? { email: row.email } : {}),
+      ...(row.cohortYear ? { cohortYear: row.cohortYear } : {}),
       ...(row.cycle ? { cycle: row.cycle } : {}),
       ...(row.section ? { section: row.section } : {}),
     })))

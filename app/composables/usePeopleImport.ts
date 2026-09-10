@@ -14,6 +14,7 @@ export interface PeopleImportRow {
   lastName: string
   phone?: string
   email?: string
+  cohortYear?: number
   cycle?: string
   section?: StudentSection
   note?: string
@@ -94,6 +95,7 @@ const columnAliases = {
   phone: ['เบอร์โทรศัพท์', 'เบอร์โทร', 'เบอร์มือถือ', 'โทรศัพท์มือถือ', 'โทรศัพท์', 'มือถือ', 'โทร', 'phone number', 'phone', 'telephone', 'mobile phone', 'mobile'],
   email: ['อีเมลแอดเดรส', 'อีเมล', 'อีเมล์', 'email address', 'e-mail', 'email', 'mail'],
   cycle: ['รอบสหกิจศึกษา', 'รอบสหกิจ', 'รอบการฝึกงาน', 'รอบการศึกษา', 'ภาคการศึกษา', 'ภาคเรียน', 'semester', 'term', 'cycle', 'coop cycle'],
+  cohortYear: ['รุ่นปีการศึกษา', 'รุ่นปี', 'รุ่น', 'ปีรุ่น', 'cohort year', 'cohort'],
   section: ['หมู่เรียนที่', 'หมู่เรียน', 'กลุ่มเรียน', 'กลุ่ม', 'ห้องเรียน', 'หมู่', 'section', 'class', 'group'],
 } as const
 
@@ -213,6 +215,12 @@ export const usePeopleImport = () => {
         lastName: splitName.lastName,
         phone: readCell(row, columnAliases.phone) || undefined,
         email: readCell(row, columnAliases.email) || undefined,
+        cohortYear: (() => {
+          const value = readCell(row, columnAliases.cohortYear)
+          if (!value) return undefined
+          const parsed = Number(value.replace(/[^0-9]/g, ''))
+          return Number.isInteger(parsed) ? parsed : undefined
+        })(),
         cycle: type === 'student' ? readCell(row, columnAliases.cycle) || undefined : undefined,
         section: type === 'student'
           ? ((() => {
