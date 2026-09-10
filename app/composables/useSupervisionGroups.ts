@@ -204,6 +204,11 @@ export const useSupervisionGroups = () => {
     const data = await requestAwareFetch('/api/staff/supervision/groups', {
       query: { cycleId, round },
     }) as { companies: SupervisionCompanyDto[], groups: SupervisionGroupDto[], lecturers: SupervisionLecturerDto[] }
+    // Keep the local demo workflow usable when the development database has no placement records yet.
+    if (import.meta.dev && data.companies.length === 0 && data.groups.length === 0) {
+      supervisionLecturers.value = data.lecturers
+      return data
+    }
     syncPersistedContext(cycleId, data)
     return data
   }

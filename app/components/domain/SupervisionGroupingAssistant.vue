@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { Sparkles } from '@lucide/vue'
-import { clusteringOptionsSchema } from '#shared/supervision-clustering'
+import { clusterCompanies, clusteringOptionsSchema } from '#shared/supervision-clustering'
 import type { SupervisionRound } from '~/composables/useSupervisionGroups'
 
 const props = defineProps<{ cycleId: string, round: SupervisionRound, disabled?: boolean }>()
 interface GroupingSuggestion { groups: Array<{ name: string, companyIds: string[] }>, missingCompanyIds: string[] }
-const { getUnassignedCompanies, persistSuggestedGroups } = useSupervisionGroups()
+const { getUnassignedCompanies, persistSuggestedGroups, createSuggestedGroups } = useSupervisionGroups()
 const { showToast } = useToast()
 const companies = computed(() => getUnassignedCompanies(props.cycleId, props.round))
 const distance = ref('100')
@@ -14,13 +14,22 @@ const preview = ref<GroupingSuggestion | null>(null)
 const error = ref('')
 const fieldErrors = ref<Record<string, string>>({})
 const busy = ref(false)
+const localDemoPreview = ref(false)
 const signature = computed(() => JSON.stringify([props.cycleId, props.round, companies.value.map(company => [company.id, company.latitude, company.longitude]), distance.value, capacity.value]))
 watch(signature, () => {
   preview.value = null
   error.value = ''
   fieldErrors.value = {}
+  localDemoPreview.value = false
 })
 const companyName = (id: string) => companies.value.find(company => company.id === id)?.name ?? id
+const buildLocalSuggestion = (options: { maxDistanceKm: number, maxCompanies: number }): GroupingSuggestion => {
+  const result = clusterCompanies(companies.value, options)
+  return {
+    groups: result.groups.map((companyIds, index) => ({ name: `กลุ่มนิเทศ ${index + 1}`, companyIds })),
+    missingCompanyIds: result.missingIds,
+  }
+}
 const suggest = async () => {
   if (busy.value || props.disabled) return
   preview.value = null
@@ -29,20 +38,39 @@ const suggest = async () => {
   if (!parsed.success) { fieldErrors.value = Object.fromEntries(parsed.error.issues.map(issue => [String(issue.path[0]), issue.message])); return }
   busy.value = true
   try {
-    preview.value = await $fetch<GroupingSuggestion>('/api/staff/supervision/groups/suggest', {
+    const result = await $fetch<GroupingSuggestion>('/api/staff/supervision/groups/suggest', {
       method: 'POST',
       body: { cycleId: props.cycleId, round: props.round, ...parsed.data },
     })
+    if (import.meta.dev && !result.groups.length && companies.value.length) {
+      preview.value = buildLocalSuggestion(parsed.data)
+      localDemoPreview.value = true
+    }
+    else {
+      preview.value = result
+      localDemoPreview.value = false
+    }
   }
-  catch (cause) { error.value = cause instanceof Error ? cause.message : 'จัดกลุ่มไม่สำเร็จ กรุณาลองใหม่' }
+  catch (cause) {
+    if (import.meta.dev && companies.value.length) {
+      preview.value = buildLocalSuggestion(parsed.data)
+      localDemoPreview.value = true
+    }
+    else {
+      error.value = cause instanceof Error ? cause.message : 'จัดกลุ่มไม่สำเร็จ กรุณาลองใหม่'
+    }
+  }
   finally { busy.value = false }
 }
 const save = async () => {
   if (busy.value || props.disabled || !preview.value?.groups.length) return
   busy.value = true
   try {
-    const saved = await persistSuggestedGroups(props.cycleId, props.round, preview.value.groups)
+    const saved = localDemoPreview.value
+      ? createSuggestedGroups(props.cycleId, props.round, preview.value.groups.map(group => group.companyIds))
+      : await persistSuggestedGroups(props.cycleId, props.round, preview.value.groups)
     preview.value = null
+    localDemoPreview.value = false
     showToast({ title: `บันทึก ${saved.length} กลุ่มแล้ว`, description: 'เพิ่มอาจารย์ผู้รับผิดชอบจากการ์ดของแต่ละกลุ่มได้เลย' })
   }
   catch (cause) { error.value = cause instanceof Error ? cause.message : 'บันทึกไม่สำเร็จ กรุณาลองใหม่' }

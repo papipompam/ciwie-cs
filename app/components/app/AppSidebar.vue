@@ -48,7 +48,7 @@ const navigationGroups = computed<NavigationGroup[]>(() => [
             { label: "ข้อมูลนักศึกษา", to: "/staff/students", icon: GraduationCap, exact: false },
             { label: "ข้อมูลอาจารย์", to: "/staff/lecturers", icon: Presentation, exact: false },
             { label: "ข้อมูลสถานประกอบการ", to: "/staff/companies", icon: Building2, exact: false },
-            { label: "การสมัครสหกิจ", to: "/staff/applications", icon: BriefcaseBusiness, exact: false },
+            { label: "ข้อมูลการสมัครสหกิจ", to: "/staff/applications", icon: BriefcaseBusiness, exact: false },
             { label: "คำร้องและหนังสือ", to: "/staff/requests", icon: FileCheck2, exact: false },
           ],
         },
@@ -86,7 +86,7 @@ const navigationGroups = computed<NavigationGroup[]>(() => [
         {
           label: "ข้อมูลประกอบงาน",
           items: [
-            { label: "การสมัครสหกิจ", to: "/lecturer/applications", icon: BriefcaseBusiness, exact: false },
+            { label: "ข้อมูลการสมัครสหกิจ", to: "/lecturer/applications", icon: BriefcaseBusiness, exact: false },
             { label: "ข้อมูลนักศึกษา", to: "/lecturer/students", icon: GraduationCap, exact: false },
             { label: "สถานประกอบการ", to: "/lecturer/companies", icon: Building2, exact: false },
           ],

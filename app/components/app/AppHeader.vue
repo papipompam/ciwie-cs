@@ -34,7 +34,7 @@ const pageTitle = computed(() => {
   if (/^\/(staff|lecturer)\/companies/.test(path)) return 'ข้อมูลสถานประกอบการ'
   if (path.startsWith('/lecturer/evaluations')) return route.query.type === 'company' ? 'ประเมินสถานประกอบการ' : 'ประเมินนักศึกษา'
   if (path.startsWith('/lecturer/supervision')) return 'ตารางนิเทศ'
-  if (path.startsWith('/staff/applications')) return 'การสมัครสหกิจของนักศึกษา'
+  if (path.startsWith('/staff/applications')) return 'ข้อมูลการสมัครสหกิจของนักศึกษา'
   if (path === '/staff/supervision') return 'ตารางนิเทศ'
   if (path.startsWith('/staff/supervision/groups/new')) return 'สร้างกลุ่มอาจารย์นิเทศ'
   if (path.startsWith('/staff/supervision/groups')) return 'จัดกลุ่มอาจารย์นิเทศ'

@@ -35,8 +35,8 @@ const toolbarGridClass = computed(() => showsStudentCohort.value
   : 'sm:w-[17rem]')
 const contextLabel = computed(() => {
   if (route.path.startsWith('/lecturer/students')) return 'บริบทข้อมูลนักศึกษา'
-  if (route.path.startsWith('/lecturer/applications')) return 'บริบทการสมัครสหกิจ'
-  if (route.path.startsWith('/staff/applications')) return 'บริบทการสมัครสหกิจ'
+  if (route.path.startsWith('/lecturer/applications')) return 'บริบทข้อมูลการสมัครสหกิจ'
+  if (route.path.startsWith('/staff/applications')) return 'บริบทข้อมูลการสมัครสหกิจ'
   if (route.path.startsWith('/lecturer/evaluations')) return 'บริบทการประเมิน'
   if (route.path.startsWith('/lecturer/supervision')) return 'บริบทตารางนิเทศ'
   if (route.path === '/staff/supervision') return 'บริบทตารางนิเทศ'

@@ -7,11 +7,11 @@ import type { StudentApplication, StudentApplicationStatusGroup, TrackedApplicat
 import { getPageCount, paginateItems } from '~/utils/table'
 
 definePageMeta({
-  title: 'การสมัครสหกิจของนักศึกษา',
+  title: 'ข้อมูลการสมัครสหกิจของนักศึกษา',
   middleware: 'applications-prototype',
   alias: ['/staff/applications'],
 })
-useHead({ title: 'การสมัครสหกิจของนักศึกษา' })
+useHead({ title: 'ข้อมูลการสมัครสหกิจของนักศึกษา' })
 
 const { scenario } = useScenario()
 const { people, loadPersistedPeople } = usePeopleDirectory()
@@ -169,7 +169,7 @@ const formatDate = (date: string) => new Intl.DateTimeFormat('th-TH', {
 <template>
   <div>
     <div class="mb-6">
-      <h2 class="text-2xl font-bold tracking-tight text-ink sm:text-3xl">การสมัครสหกิจของนักศึกษา</h2>
+      <h2 class="text-2xl font-bold tracking-tight text-ink sm:text-3xl">ข้อมูลการสมัครสหกิจของนักศึกษา</h2>
       <p class="mt-1 text-sm leading-6 text-muted">{{ pageDescription }}</p>
     </div>
 

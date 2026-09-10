@@ -1,18 +1,22 @@
 <script setup lang="ts">
 import { ChevronLeft, ChevronRight, Plus, RotateCcw, Search } from '@lucide/vue'
+import type { CompanyInput } from '~/composables/useSupervisionGroups'
 import { getPageCount, paginateItems } from '~/utils/table'
 
 definePageMeta({ title: 'ข้อมูลสถานประกอบการ', middleware: 'company-prototype', alias: ['/staff/companies', '/lecturer/companies'] })
 useHead({ title: 'ข้อมูลสถานประกอบการ' })
 
 const { scenario } = useScenario()
-const { companyRecords, getCompanyPlacements, loadPersistedCompanies } = useSupervisionGroups()
+const { showToast } = useToast()
+const { companyRecords, getCompanyPlacements, loadPersistedCompanies, persistCreateCompany } = useSupervisionGroups()
 const { status: companiesFetchStatus, error: companiesFetchError, refresh: refreshCompanies } = await useAsyncData('company-records', loadPersistedCompanies)
 const search = ref('')
 const status = ref('all')
 const province = ref('all')
 const pageSize = ref('10')
 const currentPage = ref(1)
+const createDialogOpen = ref(false)
+const isCreating = ref(false)
 const effectiveViewState = computed(() => scenario.value.forceError || companiesFetchError.value
   ? 'error'
   : companiesFetchStatus.value === 'pending' ? 'loading' : scenario.value.viewState)
@@ -53,13 +57,33 @@ const retry = () => {
   scenario.value.viewState = 'data'
   void refreshCompanies()
 }
+const handleCreate = async (input: CompanyInput) => {
+  if (isCreating.value) return
+  isCreating.value = true
+  try {
+    const company = await persistCreateCompany(input)
+    showToast({ title: 'เพิ่มสถานประกอบการแล้ว', description: `${company.id} · ${company.name}` })
+    createDialogOpen.value = false
+    await refreshCompanies()
+  }
+  catch (error) {
+    console.error(error)
+    showToast({ title: 'เพิ่มสถานประกอบการไม่สำเร็จ', description: 'กรุณาตรวจสอบข้อมูลแล้วลองอีกครั้ง' })
+  }
+  finally {
+    isCreating.value = false
+  }
+}
 </script>
 
 <template>
   <div>
     <header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div><p class="text-sm font-semibold text-primary">ข้อมูลกลาง</p><h2 class="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-3xl">ข้อมูลสถานประกอบการ</h2><p class="mt-1 text-sm leading-6 text-muted">จัดการข้อมูลติดต่อและเปิดดูประวัตินักศึกษาฝึกงานในแต่ละแห่ง</p></div>
-      <UiButton class="shrink-0" :icon="Plus" @click="navigateTo(`${companyBasePath}/new`)">เพิ่มสถานประกอบการ</UiButton>
+      <UiDialog v-model:open="createDialogOpen" title="เพิ่มสถานประกอบการ" description="กรอกข้อมูลเพื่อเพิ่มรายการใหม่สำหรับคำร้องและการจัดกลุ่มนิเทศ" size="xl">
+        <template #trigger><UiButton class="shrink-0" :icon="Plus">เพิ่มสถานประกอบการ</UiButton></template>
+        <CompanyForm v-if="createDialogOpen" :submitting="isCreating" submit-label="บันทึกสถานประกอบการ" @submit="handleCreate" @cancel="createDialogOpen = false" />
+      </UiDialog>
     </header>
 
     <UiCard :padded="false">
