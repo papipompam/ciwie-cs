@@ -251,7 +251,7 @@ const handleImport = async () => {
       </div>
 
       <UiAlert v-if="summary.update" class="mb-5" tone="info" title="พบรหัสเดิมในระบบ">
-        รายการเหล่านี้นำเข้าได้ โดยระบบจะอัปเดตเฉพาะคำนำหน้าและชื่อ–นามสกุล และไม่สร้างบัญชีใหม่หรือเปลี่ยนรหัสผ่านเดิม
+        รายการเหล่านี้นำเข้าได้ โดยระบบจะอัปเดตข้อมูลของบัญชีเดิม และไม่สร้างบัญชีใหม่หรือเปลี่ยนรหัสผ่านเดิม
       </UiAlert>
 
       <UiCard :padded="false">
@@ -294,14 +294,14 @@ const handleImport = async () => {
         ข้ามการสร้างบัญชีซ้ำ {{ duplicateIds.length }} รายการ และคงรหัสผ่านเดิมไว้: {{ duplicateIds.join(', ') }}
       </UiAlert>
       <UiAlert v-if="credentials.length" class="mt-4" tone="warning" title="รหัสผ่านชั่วคราวพร้อมดาวน์โหลด">
-        ระบบสร้างรหัสผ่านชั่วคราวให้บัญชีใหม่ {{ credentials.length }} รายการ กรุณาดาวน์โหลดไฟล์ Excel ส่งมอบผ่านช่องทางที่ปลอดภัย แล้วลบไฟล์หลังใช้งาน
+        ระบบสร้างรหัสผ่านชั่วคราวให้บัญชีใหม่ {{ credentials.length }} รายการ (นักศึกษาใช้รหัสนักศึกษาเป็นรหัสผ่านชั่วคราว) กรุณาดาวน์โหลดไฟล์ Excel ส่งมอบผ่านช่องทางที่ปลอดภัย แล้วลบไฟล์หลังใช้งาน
       </UiAlert>
       <dl class="mt-6 grid gap-4 sm:grid-cols-3"><div class="rounded-control bg-surface p-4"><dt class="text-sm text-muted">เพิ่มข้อมูลและบัญชีใหม่</dt><dd class="mt-2 text-3xl font-bold text-ink">{{ result.created }}</dd></div><div class="rounded-control bg-surface p-4"><dt class="text-sm text-muted">อัปเดตข้อมูลเดิม</dt><dd class="mt-2 text-3xl font-bold text-ink">{{ result.updated }}</dd></div><div class="rounded-control bg-surface p-4"><dt class="text-sm text-muted">ไม่นำเข้า</dt><dd class="mt-2 text-3xl font-bold text-ink">{{ result.invalid }}</dd></div></dl>
       <div class="mt-6 flex flex-wrap gap-2"><UiButton @click="navigateTo(`/staff/${context.route}`)">ดูข้อมูล{{ context.plural }}</UiButton><UiButton v-if="credentials.length" variant="secondary" :icon="FileSpreadsheet" @click="handleDownloadCredentials">ดาวน์โหลดรหัสผ่านชั่วคราว (Excel)</UiButton><UiButton variant="secondary" @click="resetImport">นำเข้าไฟล์อื่น</UiButton><UiButton v-if="result.invalid" variant="secondary" :icon="Download" @click="handleDownloadErrors">ดาวน์โหลดรายการไม่สำเร็จ</UiButton></div>
     </UiCard>
 
     <UiDialog v-model:open="confirmOpen" title="ยืนยันการนำเข้าข้อมูล" :description="`ระบบจะดำเนินการ ${importableRows.length} รายการ และไม่นำเข้ารายการที่ไม่ถูกต้อง ${summary.invalid} รายการ`" :close-on-confirm="false">
-      <UiAlert v-if="summary.update" tone="info" title="มีข้อมูลเดิมที่ต้องอัปเดต">{{ summary.update }} รายการจะเปลี่ยนเฉพาะคำนำหน้าและชื่อ–นามสกุล โดยคงบัญชีและรหัสผ่านเดิม</UiAlert>
+      <UiAlert v-if="summary.update" tone="info" title="มีข้อมูลเดิมที่ต้องอัปเดต">{{ summary.update }} รายการจะอัปเดตข้อมูลบุคคล โดยคงบัญชีและรหัสผ่านเดิม</UiAlert>
       <template #cancel><UiButton variant="ghost">กลับไปตรวจสอบ</UiButton></template>
       <template #confirm><UiButton :loading="isImporting" :disabled="!importableRows.length" @click="handleImport">ยืนยันนำเข้า</UiButton></template>
     </UiDialog>

@@ -18,8 +18,14 @@ export default defineEventHandler(async (event) => {
   if (!allowedPrefixes.includes(input.prefix)) throw createError({ statusCode: 400, statusMessage: 'PERSON_PREFIX_INVALID' })
   const config = useRuntimeConfig(event)
   const initialPassword = z.string().min(8).safeParse(config.initialAccountPassword)
-  if (!initialPassword.success) throw createError({ statusCode: 500, statusMessage: 'INITIAL_ACCOUNT_PASSWORD_NOT_CONFIGURED' })
-  const passwordHash = await hashPassword(initialPassword.data)
+  if (input.type === 'lecturer' && !initialPassword.success) throw createError({ statusCode: 500, statusMessage: 'INITIAL_ACCOUNT_PASSWORD_NOT_CONFIGURED' })
+  // Student IDs are already unique and known to staff, so use the ID as the
+  // initial temporary password for student accounts. Other account types keep
+  // using the configured initial password.
+  const temporaryPassword = input.type === 'student'
+    ? input.id
+    : initialPassword.success ? initialPassword.data : ''
+  const passwordHash = await hashPassword(temporaryPassword)
   const prisma = usePrisma()
   if (await prisma.user.findUnique({ where: { username: input.id }, select: { id: true } })) {
     throw createError({ statusCode: 409, statusMessage: 'PERSON_USERNAME_EXISTS' })

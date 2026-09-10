@@ -79,7 +79,7 @@ const submit = async () => {
     <button type="button" class="mb-4 inline-flex min-h-10 items-center gap-2 rounded-control px-2 text-sm font-semibold text-muted hover:bg-canvas hover:text-ink" @click="navigateTo(`/staff/${route.params.type}`)"><ArrowLeft :size="17" aria-hidden="true" />กลับไป{{ personType === 'student' ? 'ข้อมูลนักศึกษา' : 'ข้อมูลอาจารย์' }}</button>
     <div class="mb-6"><h2 class="text-2xl font-bold tracking-tight text-ink sm:text-3xl">{{ context.title }}</h2><p class="mt-1 text-sm leading-6 text-muted">ระบบจะสร้างบัญชีจากรหัสและกำหนดสถานะเป็นรอเข้าสู่ระบบครั้งแรก</p></div>
 
-    <UiAlert tone="info" title="การสร้างบัญชีอัตโนมัติ" class="mb-6">ชื่อผู้ใช้จะเป็นรหัสที่กรอกในหน้านี้ รหัสผ่านเริ่มต้นจะถูกส่งมอบนอกระบบ และผู้ใช้ต้องเปลี่ยนรหัสผ่านเมื่อเข้าสู่ระบบครั้งแรก</UiAlert>
+    <UiAlert tone="info" title="การสร้างบัญชีอัตโนมัติ" class="mb-6">ชื่อผู้ใช้จะเป็นรหัสที่กรอกในหน้านี้ สำหรับนักศึกษา รหัสผ่านชั่วคราวจะเป็นรหัสนักศึกษา ส่วนอาจารย์ใช้รหัสผ่านเริ่มต้นของระบบ และผู้ใช้ต้องเปลี่ยนรหัสผ่านเมื่อเข้าสู่ระบบครั้งแรก</UiAlert>
 
     <UiCard>
       <form novalidate @submit.prevent="submit">

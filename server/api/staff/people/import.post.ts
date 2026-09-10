@@ -73,7 +73,7 @@ export default defineEventHandler(async (event) => {
         continue
       }
 
-      const temporaryPassword = generateTemporaryPassword()
+      const temporaryPassword = type === 'student' ? person.id : generateTemporaryPassword()
       const account = await transaction.user.create({
         data: {
           username: person.id,
