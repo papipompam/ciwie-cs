@@ -13,6 +13,27 @@ export const trackedApplicationStatuses = [
 
 export type TrackedApplicationStatus = typeof trackedApplicationStatuses[number]
 
+export const studentApplicationStatusGroups = ['pending', 'confirmed', 'rejected'] as const
+
+export type StudentApplicationStatusGroup = typeof studentApplicationStatusGroups[number]
+
+export const studentApplicationStatusGroupMeta: Record<StudentApplicationStatusGroup, { label: string }> = {
+  pending: { label: 'รอดำเนินการ' },
+  confirmed: { label: 'ยืนยันสถานประกอบการแล้ว' },
+  rejected: { label: 'ปฏิเสธ' },
+}
+
+export const studentApplicationStatusGroupOptions = studentApplicationStatusGroups.map(value => ({
+  value,
+  label: studentApplicationStatusGroupMeta[value].label,
+}))
+
+export const getStudentApplicationStatusGroup = (status: TrackedApplicationStatus): StudentApplicationStatusGroup => {
+  if (status === 'accepted' || status === 'completed') return 'confirmed'
+  if (status === 'rejected' || status === 'cancelled') return 'rejected'
+  return 'pending'
+}
+
 export interface StudentApplicationRecord {
   id: string
   placementRequestId?: string

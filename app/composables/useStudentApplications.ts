@@ -2,11 +2,19 @@ import {
   canCreateStudentApplication,
   type CreateStudentApplicationInput,
   type StudentApplicationRecord,
+  studentApplicationStatusGroupMeta,
+  studentApplicationStatusGroupOptions,
+  type StudentApplicationStatusGroup,
   type TrackedApplicationStatus,
 } from '#shared/student-applications'
 
 export { canCreateStudentApplication, createStudentApplicationSchema } from '#shared/student-applications'
-export type { TrackedApplicationStatus } from '#shared/student-applications'
+export {
+  getStudentApplicationStatusGroup,
+  studentApplicationStatusGroupMeta,
+  studentApplicationStatusGroupOptions,
+} from '#shared/student-applications'
+export type { StudentApplicationStatusGroup, TrackedApplicationStatus } from '#shared/student-applications'
 
 export type StudentApplication = StudentApplicationRecord
 
@@ -47,6 +55,14 @@ export const trackedApplicationStatusOptions = Object.entries(trackedApplication
   value,
   label: meta.label,
 }))
+
+export const applicationStatusGroupMeta: Record<StudentApplicationStatusGroup, { label: string, tone: ApplicationBadgeTone }> = {
+  pending: { ...studentApplicationStatusGroupMeta.pending, tone: 'warning' },
+  confirmed: { ...studentApplicationStatusGroupMeta.confirmed, tone: 'success' },
+  rejected: { ...studentApplicationStatusGroupMeta.rejected, tone: 'danger' },
+}
+
+export const applicationStatusGroupOptions = studentApplicationStatusGroupOptions
 
 const initialApplications: StudentApplication[] = [
   { id: 'APP-001', studentId: '66123456701', companyName: 'บริษัท บุรีรัมย์ดิจิทัล จำกัด', position: 'นักพัฒนาเว็บไซต์', companyLocation: 'อำเภอเมือง จังหวัดบุรีรัมย์', province: 'บุรีรัมย์', appliedAt: '2026-08-25', status: 'rejected', updatedAt: '2026-08-25T09:15:00+07:00' },

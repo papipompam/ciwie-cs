@@ -2,6 +2,11 @@
 
 ## Implemented
 
+- The user-facing application status is grouped into three labels: `รอดำเนินการ`,
+  `ยืนยันสถานประกอบการแล้ว`, and `ปฏิเสธ`. The detailed workflow values remain
+  available internally so existing records and transitions are preserved;
+  cancellation is shown in the rejected group while remaining distinct in history.
+
 - Application modal collects `recipientName` (เรียน: ชื่อหรือตำแหน่งผู้รับหนังสือ)
   and `letterAddress` (ที่อยู่สำหรับออกหนังสือ). These are separate from the
   company location and coordinates; the address copy action is explicit.

@@ -20,8 +20,8 @@ import { format } from 'date-fns'
 import { studentApplicationFormSchema as applicationSchema } from '#shared/student-applications'
 import type { PlacementRequestPreview } from '#shared/placement-requests'
 import { studentRequestStatusMeta } from '#shared/placement-requests'
-import type { StudentApplication, StudentApplicationFormValue, TrackedApplicationStatus } from '~/composables/useStudentApplications'
-import { createStudentApplicationSchema } from '~/composables/useStudentApplications'
+import { applicationStatusGroupMeta, applicationStatusGroupOptions, createStudentApplicationSchema, getStudentApplicationStatusGroup } from '~/composables/useStudentApplications'
+import type { StudentApplication, StudentApplicationFormValue, StudentApplicationStatusGroup, TrackedApplicationStatus } from '~/composables/useStudentApplications'
 import { getPageCount, paginateItems } from '~/utils/table'
 
 definePageMeta({ title: 'สมัครและยืนยันที่ฝึกงาน', middleware: 'student-prototype' })
@@ -42,7 +42,7 @@ const latestVisibleStatus = computed(() => {
   if (latestApplication.value?.status === 'completed' && requestFetchError.value) return { label: 'โหลดสถานะคำร้องไม่สำเร็จ', tone: 'danger' as const }
   return currentRequest.value
     ? studentRequestStatusMeta[currentRequest.value.status]
-    : trackedApplicationStatusMeta[latestApplication.value?.status ?? 'submitted']
+    : applicationStatusGroupMeta[getStudentApplicationStatusGroup(latestApplication.value?.status ?? 'submitted')]
 })
 const {
   applications: applicationStore,
@@ -60,7 +60,7 @@ watch(fetchedApplications, (items) => { if (items) applicationStore.value = item
 const createDisabled = computed(() => !canCreateApplication.value || fetchStatus.value !== 'success')
 
 const searchQuery = ref('')
-const statusFilter = ref('all')
+const statusFilter = ref<'all' | StudentApplicationStatusGroup>('all')
 const provinceFilter = ref('all')
 const sortDirection = ref<'asc' | 'desc'>('desc')
 const currentPage = ref(1)
@@ -71,7 +71,7 @@ const deleteDialogOpen = ref(false)
 const selectionDialogOpen = ref(false)
 const editingId = ref<string | null>(null)
 const selectedId = ref<string | null>(null)
-const statusValue = ref<TrackedApplicationStatus>('submitted')
+const statusValue = ref<StudentApplicationStatusGroup>('pending')
 const isSubmitting = ref(false)
 const isSavingStatus = ref(false)
 
@@ -137,9 +137,9 @@ watch(() => form.letterAddress, () => { formErrors.letterAddress = undefined })
 
 const statusOptions = [
   { value: 'all', label: 'ทุกสถานะ' },
-  ...trackedApplicationStatusOptions,
+  ...applicationStatusGroupOptions,
 ]
-const formStatusOptions = trackedApplicationStatusOptions.filter(option => option.value !== 'completed')
+const statusUpdateOptions = applicationStatusGroupOptions
 const provinceOptions = computed(() => [
   { value: 'all', label: 'ทุกจังหวัด' },
   ...[...new Set(applications.value.map(application => application.province))]
@@ -173,7 +173,7 @@ const filteredApplications = computed(() => {
   return visibleSource.value
     .filter(application => !keyword || [application.companyName, application.position, application.companyLocation, application.recipientName ?? '', application.letterAddress ?? '']
       .some(value => value.toLocaleLowerCase('th').includes(keyword)))
-    .filter(application => statusFilter.value === 'all' || application.status === statusFilter.value)
+    .filter(application => statusFilter.value === 'all' || getStudentApplicationStatusGroup(application.status) === statusFilter.value)
     .filter(application => provinceFilter.value === 'all' || application.province === provinceFilter.value)
     .toSorted((a, b) => {
       const comparison = a.appliedAt.localeCompare(b.appliedAt)
@@ -262,7 +262,7 @@ const openStatusDialog = (application: StudentApplication) => {
     return
   }
   selectedId.value = application.id
-  statusValue.value = application.status
+  statusValue.value = getStudentApplicationStatusGroup(application.status)
   statusDialogOpen.value = true
 }
 const openDeleteDialog = (application: StudentApplication) => {
@@ -322,10 +322,16 @@ const submitStatus = async () => {
   if (!selectedApplication.value || isSavingStatus.value) return
   isSavingStatus.value = true
   try {
-    await updateApplicationStatus(selectedApplication.value.id, statusValue.value)
+    const currentStatus = selectedApplication.value.status
+    const statusToSave: TrackedApplicationStatus = statusValue.value === 'confirmed'
+      ? 'accepted'
+      : statusValue.value === 'rejected'
+        ? 'rejected'
+        : ['submitted', 'waiting-response', 'responded', 'waiting-interview'].includes(currentStatus) ? currentStatus : 'submitted'
+    await updateApplicationStatus(selectedApplication.value.id, statusToSave)
     showToast({
       title: 'อัปเดตสถานะแล้ว',
-      description: `${selectedApplication.value.companyName} · ${trackedApplicationStatusMeta[statusValue.value].label}`,
+      description: `${selectedApplication.value.companyName} · ${applicationStatusGroupMeta[statusValue.value].label}`,
     })
     statusDialogOpen.value = false
   }
@@ -590,7 +596,7 @@ const formatDate = (date: string) => new Intl.DateTimeFormat('th-TH', {
                 <td class="break-words px-3 py-4 align-top text-muted"><p>{{ application.companyLocation }}</p><p class="mt-1 text-xs">จังหวัด: {{ application.province || 'ยังไม่ระบุ' }}</p><a v-if="mapUrl(application)" :href="mapUrl(application)" target="_blank" rel="noopener noreferrer" class="mt-1 inline-flex min-h-9 items-center gap-1 font-semibold text-ink underline"><MapPin :size="15" />แสดงแผนที่<span class="sr-only"> (เปิดแท็บใหม่)</span></a></td>
                 <td class="break-words px-3 py-4 align-top"><p class="text-ink">{{ application.recipientName || 'ยังไม่ระบุผู้รับหนังสือ' }}</p><p class="mt-1 text-xs leading-5 text-muted">{{ application.letterAddress || 'ยังไม่ระบุที่อยู่' }}</p></td>
                 <td class="break-words px-3 py-4 align-top text-muted">{{ formatDate(application.appliedAt) }}</td>
-                <td class="break-words px-3 py-4 align-top"><UiBadge :tone="trackedApplicationStatusMeta[application.status].tone">{{ trackedApplicationStatusMeta[application.status].label }}</UiBadge></td>
+                <td class="break-words px-3 py-4 align-top"><UiBadge :tone="applicationStatusGroupMeta[getStudentApplicationStatusGroup(application.status)].tone">{{ applicationStatusGroupMeta[getStudentApplicationStatusGroup(application.status)].label }}</UiBadge></td>
                 <td class="break-words px-3 py-4 align-top text-xs leading-5 text-muted">{{ formatUpdatedAt(application.updatedAt) }}</td>
                 <td class="px-3 py-4 text-right align-top">
                   <div class="flex flex-wrap justify-end gap-1 [&>button]:shrink-0">
@@ -623,7 +629,7 @@ const formatDate = (date: string) => new Intl.DateTimeFormat('th-TH', {
                 <div><dt class="text-xs">อัปเดตล่าสุด</dt><dd>{{ formatUpdatedAt(application.updatedAt) }}</dd></div>
               </dl>
               <a v-if="mapUrl(application)" :href="mapUrl(application)" target="_blank" rel="noopener noreferrer" class="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-ink underline"><MapPin :size="16" />แสดงแผนที่<span class="sr-only"> (เปิดแท็บใหม่)</span></a>
-              <UiBadge :tone="trackedApplicationStatusMeta[application.status].tone">{{ trackedApplicationStatusMeta[application.status].label }}</UiBadge>
+              <UiBadge :tone="applicationStatusGroupMeta[getStudentApplicationStatusGroup(application.status)].tone">{{ applicationStatusGroupMeta[getStudentApplicationStatusGroup(application.status)].label }}</UiBadge>
             </div>
           </article>
         </div>
@@ -671,7 +677,6 @@ const formatDate = (date: string) => new Intl.DateTimeFormat('th-TH', {
         <template v-if="editingId">
           <UiSelect v-model="form.province" :options="formProvinceOptions" label="จังหวัด" placeholder="เลือกจังหวัด" :error="formErrors.province" required />
           <div><UiInput v-model="form.appliedAt" type="date" label="วันที่สมัคร" :error="formErrors.appliedAt" required /></div>
-          <div class="sm:col-span-2"><UiSelect v-model="form.status" :options="formStatusOptions" label="สถานะการสมัคร" :error="formErrors.status" required /></div>
         </template>
         <div class="sticky bottom-0 z-10 flex flex-wrap justify-end gap-2 border-t border-divider bg-canvas pt-5 sm:col-span-2">
           <UiButton variant="ghost" @click="applicationDialogOpen = false">ยกเลิก</UiButton>
@@ -682,7 +687,7 @@ const formatDate = (date: string) => new Intl.DateTimeFormat('th-TH', {
 
     <UiDialog v-model:open="statusDialogOpen" title="อัปเดตสถานะการสมัคร" :description="selectedApplication?.companyName">
       <form class="space-y-5" @submit.prevent="submitStatus">
-        <UiSelect v-model="statusValue" :options="formStatusOptions" label="สถานะใหม่" required />
+        <UiSelect v-model="statusValue" :options="statusUpdateOptions" label="สถานะใหม่" required />
         <div class="flex flex-wrap justify-end gap-2 border-t border-divider pt-5">
           <UiButton variant="ghost" @click="statusDialogOpen = false">ยกเลิก</UiButton>
           <UiButton type="submit" :loading="isSavingStatus">บันทึกสถานะ</UiButton>

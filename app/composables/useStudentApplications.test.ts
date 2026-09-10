@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canCreateStudentApplication, createStudentApplicationSchema, type TrackedApplicationStatus } from '../../shared/student-applications'
+import { canCreateStudentApplication, createStudentApplicationSchema, getStudentApplicationStatusGroup, studentApplicationStatusGroupOptions, type TrackedApplicationStatus } from '../../shared/student-applications'
 
 const application = (status: TrackedApplicationStatus) => ({
   status,
@@ -26,6 +26,29 @@ describe('student company application limit', () => {
 
   it('does not allow a rejected latest record to hide an older active application', () => {
     expect(canCreateStudentApplication([application('rejected'), application('waiting-response')])).toBe(false)
+  })
+})
+
+describe('student company application status groups', () => {
+  it.each([
+    ['submitted', 'pending'],
+    ['waiting-response', 'pending'],
+    ['responded', 'pending'],
+    ['waiting-interview', 'pending'],
+    ['accepted', 'confirmed'],
+    ['completed', 'confirmed'],
+    ['rejected', 'rejected'],
+    ['cancelled', 'rejected'],
+  ] as const)('groups %s as %s', (status, group) => {
+    expect(getStudentApplicationStatusGroup(status)).toBe(group)
+  })
+
+  it('exposes only the three user-facing statuses', () => {
+    expect(studentApplicationStatusGroupOptions.map(option => option.label)).toEqual([
+      'รอดำเนินการ',
+      'ยืนยันสถานประกอบการแล้ว',
+      'ปฏิเสธ',
+    ])
   })
 })
 

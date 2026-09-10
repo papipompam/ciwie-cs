@@ -2,7 +2,8 @@
 import { ArrowDown, ArrowUp, BriefcaseBusiness, CheckCircle2, ChevronLeft, ChevronRight, Clock3, RotateCcw, Search, Users, X } from '@lucide/vue'
 import { selectableCoopSemester } from '~/composables/useCoopCycles'
 import type { PersonRecord } from '~/composables/usePeopleDirectory'
-import type { StudentApplication, TrackedApplicationStatus } from '~/composables/useStudentApplications'
+import { applicationStatusGroupMeta, applicationStatusGroupOptions, getStudentApplicationStatusGroup } from '~/composables/useStudentApplications'
+import type { StudentApplication, StudentApplicationStatusGroup, TrackedApplicationStatus } from '~/composables/useStudentApplications'
 import { getPageCount, paginateItems } from '~/utils/table'
 
 definePageMeta({
@@ -36,7 +37,7 @@ const pageDescription = computed(() => isStaffView.value
   : 'ดูบริษัทที่นักศึกษาแต่ละคนยื่นสมัคร ตำแหน่ง และสถานะการตอบกลับล่าสุด')
 
 const searchQuery = ref('')
-const statusFilter = ref<'all' | TrackedApplicationStatus>('all')
+const statusFilter = ref<'all' | StudentApplicationStatusGroup>('all')
 const provinceFilter = ref('all')
 const sortDirection = ref<'asc' | 'desc'>('desc')
 const pageSize = ref('10')
@@ -54,16 +55,10 @@ const effectiveViewState = computed(() => {
   if (scenario.value.viewState === 'loading' || (isStaffView.value && (applicationFetchStatus.value === 'pending' || peopleFetchStatus.value === 'pending'))) return 'loading'
   return scenario.value.viewState
 })
-const statusOptions = computed(() => [
+const statusOptions = [
   { value: 'all', label: 'ทุกสถานะ' },
-  ...(isStaffView.value
-    ? trackedApplicationStatusOptions
-    : [
-        { value: 'submitted', label: 'รอดำเนินการ' },
-        { value: 'accepted', label: 'ยืนยันสถานประกอบการแล้ว' },
-        { value: 'rejected', label: 'ปฏิเสธ' },
-      ]),
-])
+  ...applicationStatusGroupOptions,
+]
 const provinceOptions = computed(() => [
   { value: 'all', label: 'ทุกจังหวัด' },
   ...[...new Set(applications.value.map(application => application.province))]
@@ -84,12 +79,11 @@ const cohortApplications = computed(() => {
 })
 const summaryCards = computed(() => {
   const studentCount = new Set(cohortApplications.value.map(application => application.studentId)).size
-  const waitingStatuses = ['submitted', 'waiting-response', 'responded', 'waiting-interview']
   return [
     { label: 'นักศึกษาที่มีการสมัคร', value: studentCount, icon: Users, tone: 'bg-surface text-ink' },
     { label: 'รายการสมัครทั้งหมด', value: cohortApplications.value.length, icon: BriefcaseBusiness, tone: 'bg-info-soft text-info' },
-    { label: 'อยู่ระหว่างดำเนินการ', value: cohortApplications.value.filter(application => waitingStatuses.includes(application.status)).length, icon: Clock3, tone: 'bg-warning-soft text-warning' },
-    { label: 'ผ่านการสมัคร', value: cohortApplications.value.filter(application => application.status === 'accepted').length, icon: CheckCircle2, tone: 'bg-success-soft text-success' },
+    { label: 'อยู่ระหว่างดำเนินการ', value: cohortApplications.value.filter(application => getStudentApplicationStatusGroup(application.status) === 'pending').length, icon: Clock3, tone: 'bg-warning-soft text-warning' },
+    { label: 'ผ่านการสมัคร', value: cohortApplications.value.filter(application => getStudentApplicationStatusGroup(application.status) === 'confirmed').length, icon: CheckCircle2, tone: 'bg-success-soft text-success' },
   ]
 })
 const filteredApplications = computed(() => {
@@ -105,7 +99,7 @@ const filteredApplications = computed(() => {
       ]
       return !keyword || searchable.some(value => value.toLocaleLowerCase('th').includes(keyword))
     })
-    .filter(application => statusFilter.value === 'all' || application.status === statusFilter.value)
+    .filter(application => statusFilter.value === 'all' || getStudentApplicationStatusGroup(application.status) === statusFilter.value)
     .filter(application => provinceFilter.value === 'all' || application.province === provinceFilter.value)
     .toSorted((a, b) => {
       const comparison = a.appliedAt.localeCompare(b.appliedAt)
@@ -118,13 +112,10 @@ const paginatedApplications = computed(() => paginateItems(filteredApplications.
 const resultStart = computed(() => filteredApplications.value.length ? (currentPage.value - 1) * pageSizeNumber.value + 1 : 0)
 const resultEnd = computed(() => Math.min(currentPage.value * pageSizeNumber.value, filteredApplications.value.length))
 const hasActiveFilters = computed(() => Boolean(searchQuery.value.trim()) || statusFilter.value !== 'all' || provinceFilter.value !== 'all')
-const activeStatusLabel = computed(() => statusOptions.value.find(option => option.value === statusFilter.value)?.label)
+const activeStatusLabel = computed(() => statusOptions.find(option => option.value === statusFilter.value)?.label)
 
 watch([searchQuery, statusFilter, provinceFilter, pageSize, studentCohort, studentSection, studentSemester], () => {
   currentPage.value = 1
-})
-watch(isStaffView, (staffView) => {
-  if (!staffView && !['all', 'submitted', 'accepted', 'rejected'].includes(statusFilter.value)) statusFilter.value = 'all'
 })
 watch(pageCount, (count) => {
   if (currentPage.value > count) currentPage.value = count
@@ -235,7 +226,7 @@ const formatDate = (date: string) => new Intl.DateTimeFormat('th-TH', {
                 <td class="max-w-md px-4 py-4"><p class="font-medium text-ink">{{ application.companyName }}</p><p class="mt-1 text-xs text-muted">{{ application.position }}</p></td>
                 <td class="whitespace-nowrap px-4 py-4 text-muted">{{ application.province }}</td>
                 <td class="whitespace-nowrap px-4 py-4 text-muted">{{ formatDate(application.appliedAt) }}</td>
-                <td class="whitespace-nowrap px-4 py-4"><UiBadge :tone="trackedApplicationStatusMeta[application.status].tone">{{ trackedApplicationStatusMeta[application.status].label }}</UiBadge></td>
+                <td class="whitespace-nowrap px-4 py-4"><UiBadge :tone="applicationStatusGroupMeta[getStudentApplicationStatusGroup(application.status)].tone">{{ applicationStatusGroupMeta[getStudentApplicationStatusGroup(application.status)].label }}</UiBadge></td>
                 <td class="px-4 py-4 text-right"><UiButton class="whitespace-nowrap" size="sm" variant="secondary" @click="openStudentApplications(application.studentId)">ดูทั้งหมด</UiButton></td>
               </tr>
             </tbody>
@@ -243,7 +234,7 @@ const formatDate = (date: string) => new Intl.DateTimeFormat('th-TH', {
         </div>
         <div class="divide-y divide-divider md:hidden">
           <article v-for="application in paginatedApplications" :key="application.id" class="p-5">
-            <div class="flex items-start justify-between gap-3"><div><h3 class="font-semibold text-ink">{{ studentFor(application.studentId) ? getPersonFullName(studentFor(application.studentId)!) : application.studentId }}</h3><p class="mt-1 text-xs text-muted">{{ application.studentId }} · {{ studentFor(application.studentId)?.section || 'ยังไม่กำหนดหมู่' }}</p></div><UiBadge :tone="trackedApplicationStatusMeta[application.status].tone">{{ trackedApplicationStatusMeta[application.status].label }}</UiBadge></div>
+            <div class="flex items-start justify-between gap-3"><div><h3 class="font-semibold text-ink">{{ studentFor(application.studentId) ? getPersonFullName(studentFor(application.studentId)!) : application.studentId }}</h3><p class="mt-1 text-xs text-muted">{{ application.studentId }} · {{ studentFor(application.studentId)?.section || 'ยังไม่กำหนดหมู่' }}</p></div><UiBadge :tone="applicationStatusGroupMeta[getStudentApplicationStatusGroup(application.status)].tone">{{ applicationStatusGroupMeta[getStudentApplicationStatusGroup(application.status)].label }}</UiBadge></div>
             <div class="mt-4"><p class="font-medium text-ink">{{ application.companyName }}</p><p class="mt-1 text-sm text-muted">{{ application.position }}</p><p class="mt-2 text-xs text-muted">{{ application.province }} · {{ formatDate(application.appliedAt) }}</p></div>
             <div class="mt-4 flex justify-end border-t border-divider pt-3"><UiButton class="whitespace-nowrap" size="sm" variant="secondary" @click="openStudentApplications(application.studentId)">ดูบริษัททั้งหมด</UiButton></div>
           </article>
@@ -254,8 +245,8 @@ const formatDate = (date: string) => new Intl.DateTimeFormat('th-TH', {
 
     <UiDialog v-model:open="detailOpen" size="xl" :title="selectedStudent ? `บริษัทที่ ${getPersonFullName(selectedStudent)} สมัคร` : 'รายการสมัครของนักศึกษา'" :description="selectedStudent ? `${selectedStudent.id} · ${selectedStudent.section || 'ยังไม่กำหนดหมู่'} · ${selectedApplications.length} บริษัท` : undefined">
       <div v-if="selectedApplications.length" class="overflow-hidden rounded-panel border border-divider">
-        <div class="hidden overflow-x-auto sm:block"><table class="w-full min-w-[820px] text-left text-sm"><thead class="bg-surface text-xs font-semibold tracking-wide text-muted uppercase"><tr><th class="px-4 py-3">บริษัท / ตำแหน่ง</th><th class="px-4 py-3">จังหวัด</th><th class="px-4 py-3">วันที่สมัคร</th><th class="px-4 py-3">สถานะ</th><th v-if="isStaffView" class="px-4 py-3">ผลจากบริษัท</th></tr></thead><tbody class="divide-y divide-divider"><tr v-for="application in selectedApplications" :key="application.id"><td class="px-4 py-4"><p class="font-medium text-ink">{{ application.companyName }}</p><p class="mt-1 text-xs text-muted">{{ application.position }}</p></td><td class="px-4 py-4 text-muted">{{ application.province }}</td><td class="whitespace-nowrap px-4 py-4 text-muted">{{ formatDate(application.appliedAt) }}</td><td class="px-4 py-4"><UiBadge :tone="trackedApplicationStatusMeta[application.status].tone">{{ trackedApplicationStatusMeta[application.status].label }}</UiBadge></td><td v-if="isStaffView" class="px-4 py-4"><div v-if="!['accepted', 'rejected', 'completed', 'cancelled'].includes(application.status)" class="flex gap-2"><UiButton size="sm" :loading="decidingApplicationId === application.id" @click="decideApplication(application.id, 'accepted')">ตอบรับ</UiButton><UiButton size="sm" variant="secondary" :disabled="Boolean(decidingApplicationId)" @click="decideApplication(application.id, 'rejected')">ปฏิเสธ</UiButton></div><span v-else class="text-xs text-muted">บันทึกผลแล้ว</span></td></tr></tbody></table></div>
-        <div class="divide-y divide-divider sm:hidden"><article v-for="application in selectedApplications" :key="application.id" class="p-4"><div class="flex items-start justify-between gap-3"><div><p class="font-medium text-ink">{{ application.companyName }}</p><p class="mt-1 text-sm text-muted">{{ application.position }}</p></div><UiBadge :tone="trackedApplicationStatusMeta[application.status].tone">{{ trackedApplicationStatusMeta[application.status].label }}</UiBadge></div><p class="mt-3 text-xs text-muted">{{ application.province }} · {{ formatDate(application.appliedAt) }}</p><div v-if="isStaffView && !['accepted', 'rejected', 'completed', 'cancelled'].includes(application.status)" class="mt-4 flex gap-2 border-t border-divider pt-3"><UiButton size="sm" :loading="decidingApplicationId === application.id" @click="decideApplication(application.id, 'accepted')">ตอบรับ</UiButton><UiButton size="sm" variant="secondary" :disabled="Boolean(decidingApplicationId)" @click="decideApplication(application.id, 'rejected')">ปฏิเสธ</UiButton></div></article></div>
+        <div class="hidden overflow-x-auto sm:block"><table class="w-full min-w-[820px] text-left text-sm"><thead class="bg-surface text-xs font-semibold tracking-wide text-muted uppercase"><tr><th class="px-4 py-3">บริษัท / ตำแหน่ง</th><th class="px-4 py-3">จังหวัด</th><th class="px-4 py-3">วันที่สมัคร</th><th class="px-4 py-3">สถานะ</th><th v-if="isStaffView" class="px-4 py-3">ผลจากบริษัท</th></tr></thead><tbody class="divide-y divide-divider"><tr v-for="application in selectedApplications" :key="application.id"><td class="px-4 py-4"><p class="font-medium text-ink">{{ application.companyName }}</p><p class="mt-1 text-xs text-muted">{{ application.position }}</p></td><td class="px-4 py-4 text-muted">{{ application.province }}</td><td class="whitespace-nowrap px-4 py-4 text-muted">{{ formatDate(application.appliedAt) }}</td><td class="px-4 py-4"><UiBadge :tone="applicationStatusGroupMeta[getStudentApplicationStatusGroup(application.status)].tone">{{ applicationStatusGroupMeta[getStudentApplicationStatusGroup(application.status)].label }}</UiBadge></td><td v-if="isStaffView" class="px-4 py-4"><div v-if="!['accepted', 'rejected', 'completed', 'cancelled'].includes(application.status)" class="flex gap-2"><UiButton size="sm" :loading="decidingApplicationId === application.id" @click="decideApplication(application.id, 'accepted')">ตอบรับ</UiButton><UiButton size="sm" variant="secondary" :disabled="Boolean(decidingApplicationId)" @click="decideApplication(application.id, 'rejected')">ปฏิเสธ</UiButton></div><span v-else class="text-xs text-muted">บันทึกผลแล้ว</span></td></tr></tbody></table></div>
+        <div class="divide-y divide-divider sm:hidden"><article v-for="application in selectedApplications" :key="application.id" class="p-4"><div class="flex items-start justify-between gap-3"><div><p class="font-medium text-ink">{{ application.companyName }}</p><p class="mt-1 text-sm text-muted">{{ application.position }}</p></div><UiBadge :tone="applicationStatusGroupMeta[getStudentApplicationStatusGroup(application.status)].tone">{{ applicationStatusGroupMeta[getStudentApplicationStatusGroup(application.status)].label }}</UiBadge></div><p class="mt-3 text-xs text-muted">{{ application.province }} · {{ formatDate(application.appliedAt) }}</p><div v-if="isStaffView && !['accepted', 'rejected', 'completed', 'cancelled'].includes(application.status)" class="mt-4 flex gap-2 border-t border-divider pt-3"><UiButton size="sm" :loading="decidingApplicationId === application.id" @click="decideApplication(application.id, 'accepted')">ตอบรับ</UiButton><UiButton size="sm" variant="secondary" :disabled="Boolean(decidingApplicationId)" @click="decideApplication(application.id, 'rejected')">ปฏิเสธ</UiButton></div></article></div>
       </div>
       <AppEmptyState v-else title="ยังไม่มีบริษัทที่สมัคร" description="นักศึกษารายนี้ยังไม่ได้เพิ่มข้อมูลบริษัทที่สมัครไว้" />
     </UiDialog>
