@@ -363,6 +363,8 @@ export const usePeopleDirectory = () => {
 
   const loadPersistedPeople = async (type: PersonType) => {
     const { people: records } = peopleResponseSchema.parse(await requestAwareFetch('/api/people', { query: { type } }))
+    // Keep the local demo directory usable before a development database is seeded.
+    if (import.meta.dev && records.length === 0) return people.value.filter(person => person.type === type)
     people.value = [...people.value.filter(person => person.type !== type), ...records]
     return records
   }

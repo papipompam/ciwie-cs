@@ -389,6 +389,8 @@ export const useSupervisionGroups = () => {
 
   const loadPersistedCompanies = async () => {
     const response = companiesResponseSchema.parse(await requestAwareFetch('/api/companies'))
+    // Keep the local demo directory usable before a development database is seeded.
+    if (import.meta.dev && response.companies.length === 0) return companyRecords.value
     companyRecords.value = response.companies
     return response.companies
   }
