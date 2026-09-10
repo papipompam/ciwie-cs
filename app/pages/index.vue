@@ -373,8 +373,6 @@ onBeforeUnmount(() => {
       :request-id="studentRequest?.id"
       :company-name="studentRequest?.application.companyName"
     />
-    <CycleContextPanel v-else-if="scenario.role === 'lecturer'" class="mb-6" :cycle="dashboardCycle" />
-
     <section v-if="scenario.role !== 'staff' && effectiveViewState === 'data'" class="mb-6" aria-labelledby="quick-actions-title">
       <div class="mb-3">
         <h3 id="quick-actions-title" class="text-lg font-bold text-ink">ดำเนินการต่อ</h3>
