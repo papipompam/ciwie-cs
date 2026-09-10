@@ -23,7 +23,7 @@ const defaultPasswordHash = await hashPassword(process.env.SEED_DEFAULT_PASSWORD
 try {
   await prisma.user.upsert({
     where: { id: 'staff-001' },
-    update: {},
+    update: { passwordHash: defaultPasswordHash, status: 'ACTIVE', passwordChangedAt: new Date() },
     create: {
       id: 'staff-001', username: 'staff001', passwordHash: defaultPasswordHash, role: 'STAFF', status: 'ACTIVE',
       namePrefix: 'นางสาว', firstName: 'พิมพ์ชนก', lastName: 'ใจดี', passwordChangedAt: new Date(),
@@ -31,7 +31,7 @@ try {
   })
   await prisma.user.upsert({
     where: { id: 'lecturer-001' },
-    update: { gender: 'MALE' },
+    update: { gender: 'MALE', passwordHash: defaultPasswordHash, status: 'ACTIVE', passwordChangedAt: new Date() },
     create: {
       id: 'lecturer-001', username: 'lecturer001', passwordHash: defaultPasswordHash, role: 'LECTURER', status: 'ACTIVE',
       namePrefix: 'อาจารย์', firstName: 'ผู้นิเทศ', lastName: '', gender: 'MALE',
@@ -40,7 +40,7 @@ try {
   })
   await prisma.user.upsert({
     where: { id: 'student-001' },
-    update: {},
+    update: { passwordHash: defaultPasswordHash, status: 'ACTIVE', passwordChangedAt: new Date() },
     create: {
       id: 'student-001', username: '66123456701', passwordHash: defaultPasswordHash, role: 'STUDENT', status: 'ACTIVE',
       namePrefix: 'นาย', firstName: 'ธนกฤต', lastName: 'พูนทรัพย์', cohortYear: 2566, section: '1',
