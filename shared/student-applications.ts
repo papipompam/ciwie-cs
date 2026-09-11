@@ -58,8 +58,11 @@ export const createStudentApplicationSchema = z.object({
   recipientName: z.string().trim().min(1, 'กรุณาระบุชื่อหรือตำแหน่งผู้รับหนังสือ').max(255, 'ระบุผู้รับหนังสือไม่เกิน 255 ตัวอักษร'),
   letterAddress: z.string().trim().min(1, 'กรุณากรอกที่อยู่สำหรับออกหนังสือ').max(500, 'ระบุที่อยู่ไม่เกิน 500 ตัวอักษร'),
   province: z.string().trim().min(1, 'กรุณาเลือกจังหวัด').max(100),
-  latitude: z.number({ error: 'กรุณาปักหมุดสถานที่ฝึกสหกิจบนแผนที่' }).min(-90).max(90),
-  longitude: z.number({ error: 'กรุณาปักหมุดสถานที่ฝึกสหกิจบนแผนที่' }).min(-180).max(180),
+  latitude: z.number({ error: 'ละติจูดต้องเป็นตัวเลข' }).min(-90).max(90).nullable().default(null),
+  longitude: z.number({ error: 'ลองจิจูดต้องเป็นตัวเลข' }).min(-180).max(180).nullable().default(null),
+}).refine(({ latitude, longitude }) => (latitude == null) === (longitude == null), {
+  path: ['latitude'],
+  message: 'กรุณากรอกละติจูดและลองจิจูดให้ครบคู่ หรือเว้นว่างทั้งคู่',
 })
 
 export type CreateStudentApplicationInput = z.infer<typeof createStudentApplicationSchema>

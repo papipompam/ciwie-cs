@@ -12,7 +12,6 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
-  Sparkles,
   Trash2,
   X,
 } from '@lucide/vue'
@@ -114,21 +113,6 @@ const studentProfile = computed(() => ({
   section: currentStudent.value?.section ?? 'ไม่ระบุ',
   cycle: currentStudent.value?.cycle ?? 'ไม่ระบุ',
 }))
-const fillExampleApplication = () => {
-  Object.assign(form, {
-    companyName: 'บริษัท บุรีรัมย์ดิจิทัล จำกัด',
-    position: 'Frontend Developer',
-    companyLocation: '88/8 ถนนธานี ตำบลในเมือง อำเภอเมืองบุรีรัมย์ จังหวัดบุรีรัมย์ 31000',
-    recipientName: 'ผู้จัดการฝ่ายทรัพยากรบุคคล',
-    letterAddress: 'บริษัท บุรีรัมย์ดิจิทัล จำกัด 88/8 ถนนธานี ตำบลในเมือง อำเภอเมืองบุรีรัมย์ จังหวัดบุรีรัมย์ 31000',
-    latitude: null,
-    longitude: null,
-    province: 'บุรีรัมย์',
-    appliedAt: today,
-    status: 'submitted',
-  })
-  clearFormErrors()
-}
 watch(() => form.companyName, () => { formErrors.companyName = undefined })
 watch(() => form.position, () => { formErrors.position = undefined })
 watch(() => form.companyLocation, () => { formErrors.companyLocation = undefined })
@@ -658,24 +642,17 @@ const formatDate = (date: string) => new Intl.DateTimeFormat('th-TH', {
 
     <UiDialog v-model:open="applicationDialogOpen" size="lg" :title="editingId ? 'แก้ไขข้อมูลการสมัคร' : 'บันทึกข้อมูลการสมัคร'" description="บันทึกบริษัทที่สมัครและข้อมูลสำหรับจัดทำหนังสือขอความอนุเคราะห์">
       <form class="grid gap-5 sm:grid-cols-2" novalidate @submit.prevent="submitApplication">
-        <div v-if="!editingId" class="flex flex-wrap items-center justify-between gap-3 rounded-control border border-divider bg-surface p-4 sm:col-span-2">
-          <div>
-            <p class="text-sm font-semibold text-ink">ทดลองกรอกข้อมูลตัวอย่าง</p>
-            <p class="mt-1 text-xs leading-5 text-muted">เติมข้อมูลบริษัทและที่อยู่ แล้วกดค้นหาพิกัดจากข้อมูลตัวอย่างด้านล่าง</p>
-          </div>
-          <UiButton type="button" size="sm" variant="secondary" :icon="Sparkles" @click="fillExampleApplication">เติมข้อมูลตัวอย่าง</UiButton>
-        </div>
         <div class="sm:col-span-2"><UiInput v-model="form.companyName" label="ชื่อบริษัท / สถานประกอบการ" placeholder="เช่น บริษัท ตัวอย่าง จำกัด" :error="formErrors.companyName" required /></div>
         <div class="sm:col-span-2"><UiInput v-model="form.position" label="ตำแหน่งที่สมัคร" placeholder="เช่น นักพัฒนาเว็บไซต์" :error="formErrors.position" required /></div>
         <div class="sm:col-span-2"><UiTextarea v-model="form.companyLocation" label="ที่อยู่บริษัท" placeholder="เลขที่ ถนน ตำบล อำเภอ จังหวัด และรหัสไปรษณีย์" :error="formErrors.companyLocation" required /></div>
+        <div class="-mt-2"><UiSelect v-model="form.province" :options="formProvinceOptions" label="จังหวัด" placeholder="เลือกจังหวัด" :error="formErrors.province" required /></div>
         <div class="sm:col-span-2"><UiInput v-model="form.recipientName" label="เรียน (ชื่อหรือตำแหน่งผู้รับหนังสือ)" placeholder="เช่น คุณสมชาย ใจดี หรือผู้จัดการฝ่ายทรัพยากรบุคคล" help="ระบุผู้ที่ต้องการให้เจ้าหน้าที่เรียนถึงในหนังสือ" :error="formErrors.recipientName" required /></div>
         <div class="sm:col-span-2">
           <UiTextarea v-model="form.letterAddress" label="ที่อยู่สำหรับออกหนังสือ" placeholder="ชื่อบริษัท / สาขา เลขที่ ถนน ตำบล อำเภอ จังหวัด และรหัสไปรษณีย์" :error="formErrors.letterAddress" required />
           <UiButton class="mt-2" size="sm" variant="ghost" @click="form.letterAddress = form.companyLocation">ใช้ที่อยู่เดียวกับบริษัท</UiButton>
         </div>
-        <div class="sm:col-span-2"><AppLocationPicker :latitude="form.latitude" :longitude="form.longitude" :address="form.letterAddress" address-label="ที่อยู่สำหรับออกหนังสือ" :error="formErrors.latitude || formErrors.longitude" :show-coordinate-inputs="false" @validity="coordinatesValid = $event" @change="Object.assign(form, $event); formErrors.latitude = undefined; formErrors.longitude = undefined" /></div>
+        <div class="sm:col-span-2"><AppLocationPicker :latitude="form.latitude" :longitude="form.longitude" :error="formErrors.latitude || formErrors.longitude" :show-coordinate-inputs="true" :coordinates-required="false" @validity="coordinatesValid = $event" @change="Object.assign(form, $event); formErrors.latitude = undefined; formErrors.longitude = undefined" /></div>
         <template v-if="editingId">
-          <UiSelect v-model="form.province" :options="formProvinceOptions" label="จังหวัด" placeholder="เลือกจังหวัด" :error="formErrors.province" required />
           <div><UiInput v-model="form.appliedAt" type="date" label="วันที่สมัคร" :error="formErrors.appliedAt" required /></div>
         </template>
         <div class="sticky bottom-0 z-10 flex flex-wrap justify-end gap-2 border-t border-divider bg-canvas pt-5 sm:col-span-2">

@@ -30,14 +30,14 @@ const enqueueProviderRequest = async <T>(request: () => Promise<T>): Promise<T> 
 export default defineEventHandler(async (event) => {
   const parsedQuery = querySchema.safeParse(getQuery(event))
   if (!parsedQuery.success) {
-    throw createError({ statusCode: 400, statusMessage: 'กรุณากรอกที่อยู่ให้ครบถ้วน' })
+    throw createError({ statusCode: 400, statusMessage: 'กรุณากรอกคำค้นหาให้ครบถ้วน' })
   }
 
   const normalizedQuery = parsedQuery.data.q.replace(/\s+/g, ' ').toLocaleLowerCase('th')
   let result = cache.get(normalizedQuery)
   if (result === undefined) {
     const config = useRuntimeConfig(event)
-    const response = await enqueueProviderRequest(() => $fetch<unknown>(`${config.geocodingBaseUrl}/search`, {
+    const response = await enqueueProviderRequest(() => $fetch<unknown>(`${config.locationGeocodingBaseUrl}/search`, {
       query: {
         q: parsedQuery.data.q,
         format: 'jsonv2',
@@ -45,7 +45,7 @@ export default defineEventHandler(async (event) => {
         'accept-language': 'th',
       },
       headers: {
-        'User-Agent': config.geocodingUserAgent,
+        'User-Agent': config.locationGeocodingUserAgent,
       },
     }))
     result = parseFirstGeocodingResult(response)

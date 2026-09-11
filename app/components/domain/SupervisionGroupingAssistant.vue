@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Sparkles } from '@lucide/vue'
 import { clusterCompanies, clusteringOptionsSchema } from '#shared/supervision-clustering'
 import type { SupervisionRound } from '~/composables/useSupervisionGroups'
 
@@ -83,7 +82,7 @@ const save = async () => {
     <form novalidate class="flex flex-col gap-3 sm:flex-row sm:items-end" @submit.prevent="suggest">
       <div class="min-w-0 flex-1"><UiInput v-model="distance" type="number" label="ระยะสูงสุดระหว่างสถานประกอบการ (กม.)" :error="fieldErrors.maxDistanceKm" /></div>
       <div class="min-w-0 flex-1"><UiInput v-model="capacity" type="number" label="จำนวนสถานประกอบการสูงสุดต่อกลุ่ม" :error="fieldErrors.maxCompanies" /></div>
-      <UiButton type="submit" :icon="Sparkles" :loading="busy" :disabled="disabled || !companies.length">เสนอการจัดกลุ่ม</UiButton>
+      <UiButton type="submit" :loading="busy" :disabled="disabled || !companies.length">การจัดกลุ่ม</UiButton>
     </form>
     <p v-if="error" role="alert" class="mt-3 text-sm text-danger">{{ error }}</p>
     <div v-if="preview" class="mt-5 space-y-4" aria-live="polite">

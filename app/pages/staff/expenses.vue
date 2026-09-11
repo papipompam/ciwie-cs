@@ -4,8 +4,8 @@ import { supervisionLineExpenseInputSchema } from '#shared/expenses'
 import type { SupervisionLineExpenseInput } from '#shared/expenses'
 import { calculateSupervisionLineExpense } from '#shared/expense-calculation'
 
-definePageMeta({ title: 'ค่าใช้จ่ายสายการนิเทศ', middleware: 'staff-prototype' })
-useHead({ title: 'ค่าใช้จ่ายสายการนิเทศ' })
+definePageMeta({ title: 'สรุปงบประมาณ', middleware: 'staff-prototype' })
+useHead({ title: 'สรุปงบประมาณ' })
 
 type InputKey = keyof SupervisionLineExpenseInput
 const { cycleId, cycleOptions, round, roundModel, roundOptions } = useSupervisionContext()
@@ -94,7 +94,7 @@ const submit = async () => {
   <div class="space-y-6">
     <header>
       <p class="text-sm font-semibold text-primary">เครื่องมือสำหรับเจ้าหน้าที่</p>
-      <h2 class="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-3xl">ค่าใช้จ่ายสายการนิเทศ</h2>
+      <h2 class="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-3xl">สรุปงบประมาณ</h2>
       <p class="mt-2 text-sm leading-6 text-muted">เลือกสายที่ระบบจัดกลุ่มจากที่อยู่และพิกัด แล้วกรอกอัตราค่าใช้จ่าย ระบบจะแยกห้องพักอาจารย์ชายและหญิงอัตโนมัติ</p>
     </header>
 

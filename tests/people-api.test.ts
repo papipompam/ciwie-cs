@@ -36,17 +36,18 @@ const findAudits = vi.fn(async () => [{
   actor: { namePrefix: 'นางสาว', firstName: 'พิมพ์ชนก', lastName: 'ใจดี' },
 }])
 const findPerson = vi.fn(async () => person)
+const runTransaction = vi.fn(async (callback: (transaction: unknown) => unknown) => callback({
+  user: { create: createUser, update: updateUser, findUnique: findUser, findUniqueOrThrow: findPerson },
+  coopCycle: { findFirst: findCycle },
+  cycleEnrollment: { create: createEnrollment, upsert: upsertEnrollment, updateMany: updateEnrollments },
+  auditLog: { create: createAudit, findMany: findAudits },
+}))
 
 vi.stubGlobal('usePrisma', () => ({
   user: { findMany, findUnique: findUser, findFirst: findStudent },
   auditLog: { findMany: findAudits },
   coopCycle: { findFirst: findCycle },
-  $transaction: vi.fn(async (callback: (transaction: unknown) => unknown) => callback({
-    user: { create: createUser, update: updateUser, findUnique: findUser, findUniqueOrThrow: findPerson },
-    coopCycle: { findFirst: findCycle },
-    cycleEnrollment: { create: createEnrollment, upsert: upsertEnrollment, updateMany: updateEnrollments },
-    auditLog: { create: createAudit, findMany: findAudits },
-  })),
+  $transaction: runTransaction,
 }))
 
 const { default: listPeople } = await import('../server/api/staff/people.get')
@@ -97,6 +98,17 @@ describe('people APIs', () => {
     }))
     expect(createEnrollment).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ studentId: 'student-new', cycleId: 'CYCLE-1' }),
+    }))
+  })
+
+  it('allows enough time for multi-row imports to finish atomically', async () => {
+    body = {
+      type: 'student',
+      people: [{ id: '66199999999', prefix: 'นาย', firstName: 'นำเข้า', lastName: 'ทดสอบ', section: 'หมู่ 1' }],
+    }
+    await importPeople({} as Parameters<typeof importPeople>[0])
+    expect(runTransaction).toHaveBeenCalledWith(expect.any(Function), expect.objectContaining({
+      isolationLevel: 'Serializable', maxWait: 10_000, timeout: 30_000,
     }))
   })
 

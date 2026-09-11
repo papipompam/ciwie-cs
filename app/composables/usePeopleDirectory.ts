@@ -1,5 +1,6 @@
 import { peopleImportResponseSchema, peopleResponseSchema, personRecordSchema } from '#shared/people'
 import { requestAwareFetch } from '../utils/requestAwareFetch'
+import type { PeopleImportCredential } from './usePeopleImport'
 
 export type PersonType = 'student' | 'lecturer'
 export const personPrefixValues = ['นาย', 'นาง', 'นางสาว', 'อาจารย์', 'ดร.', 'ผศ.', 'ผศ.ดร.', 'รศ.', 'รศ.ดร.', 'ศ.', 'ศ.ดร.'] as const
@@ -444,9 +445,21 @@ export const usePeopleDirectory = () => {
   }
 
   const persistImportPeople = async (type: PersonType, inputs: PersonInput[]) => {
-    const result = peopleImportResponseSchema.parse(await requestAwareFetch('/api/staff/people/import', {
-      method: 'POST', body: { type, people: inputs },
-    }))
+    // Keep each server transaction short enough for serverless runtimes. A
+    // large import performs several database writes per row and can otherwise
+    // exceed the function request limit even though the API transaction timeout
+    // is configured for longer imports.
+    const batchSize = 5
+    const result = { created: 0, updated: 0, duplicates: [] as string[], credentials: [] as PeopleImportCredential[] }
+    for (let index = 0; index < inputs.length; index += batchSize) {
+      const batch = peopleImportResponseSchema.parse(await requestAwareFetch('/api/staff/people/import', {
+        method: 'POST', body: { type, people: inputs.slice(index, index + batchSize) },
+      }))
+      result.created += batch.created
+      result.updated += batch.updated
+      result.duplicates.push(...batch.duplicates)
+      result.credentials.push(...batch.credentials)
+    }
     // Do not discard the one-time credentials if the follow-up directory refresh fails.
     try {
       await loadPersistedPeople(type)

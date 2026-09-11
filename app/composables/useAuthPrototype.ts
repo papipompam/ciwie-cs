@@ -12,32 +12,17 @@ export type PrototypeLoginResult =
   | { status: 'success', requiresPasswordChange: boolean }
   | { status: 'invalid' | 'locked' | 'suspended' | 'terminated' }
 
-interface PrototypeAccountRecord extends PrototypeAccount {
-  password: string
-}
-
 interface PrototypeAuthState {
   authenticated: boolean
   currentAccount: PrototypeAccount | null
-  passwords: Record<string, string>
   failedAttempts: Record<string, number>
   lockedUntil: Record<string, number>
 }
-
-const prototypeAccounts: PrototypeAccountRecord[] = [
-  { id: 'staff-001', username: 'staff001', password: 'Cwie@2569', role: 'staff', name: 'นางสาวพิมพ์ชนก ใจดี', status: 'active' },
-  { id: 'lecturer-001', username: 'lecturer001', password: 'Cwie@2569', role: 'lecturer', name: 'อาจารย์ผู้นิเทศ', status: 'active' },
-  { id: 'student-001', username: '66123456701', password: 'Cwie@2569', role: 'student', name: 'นายธนกฤต พูนทรัพย์', status: 'active' },
-  { id: 'student-025', username: '66123456725', password: 'Temp@2569', role: 'student', name: 'นางสาวณัฐณิชา แสงทอง', status: 'first-login' },
-  { id: 'staff-002', username: 'staff002', password: 'Cwie@2569', role: 'staff', name: 'นายกิตติพงษ์ สุขใจ', status: 'suspended' },
-  { id: 'lecturer-999', username: 'lecturer999', password: 'Cwie@2569', role: 'lecturer', name: 'อาจารย์ตัวอย่าง ยุติใช้งาน', status: 'terminated' },
-]
 
 export const useAuthPrototype = () => {
   const authState = useState<PrototypeAuthState>('auth-prototype', () => ({
     authenticated: false,
     currentAccount: null,
-    passwords: Object.fromEntries(prototypeAccounts.map(account => [account.username, account.password])),
     failedAttempts: {},
     lockedUntil: {},
   }))

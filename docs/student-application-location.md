@@ -6,10 +6,17 @@ the keyboard, or explicitly requesting browser geolocation. The form sends numer
 `latitude` and `longitude`; the shared Zod schema validates their ranges in the UI
 and mock API. Address remains a separate, required field.
 
-Map tiles and attribution can be configured with `NUXT_PUBLIC_MAP_TILE_URL` and
-`NUXT_PUBLIC_MAP_TILE_ATTRIBUTION`. The default OpenStreetMap tile service requires
-visible attribution, has no SLA, and must not be used for bulk/offline downloads.
-See https://operations.osmfoundation.org/policies/tiles/.
+Map tiles use Stadia Maps raster tiles when
+`NUXT_PUBLIC_STADIA_MAPS_API_KEY` is present. Stadia requires production Domain
+Auth or a public, domain-restricted API key. If neither is configured, the app
+falls back to the configured OpenStreetMap-style tile URL so the map does not
+render blank. A custom XYZ provider can be forced with
+`NUXT_PUBLIC_MAP_PROVIDER=custom`, `NUXT_PUBLIC_MAP_TILE_URL`, and
+`NUXT_PUBLIC_MAP_TILE_ATTRIBUTION`.
+
+The previous OpenStreetMap public tile service has no SLA and may block heavy use;
+it must not be used for bulk/offline downloads. See
+https://operations.osmfoundation.org/policies/tiles/.
 
 ## Persistence boundary
 

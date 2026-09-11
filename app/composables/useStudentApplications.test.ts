@@ -81,9 +81,6 @@ describe('company map coordinates', () => {
   })
 
   it.each([
-    { latitude: null, longitude: null },
-    { latitude: undefined },
-    { longitude: undefined },
     { latitude: 90.01 },
     { latitude: -90.01 },
     { longitude: 180.01 },
@@ -91,8 +88,17 @@ describe('company map coordinates', () => {
     { latitude: Number.NaN },
     { longitude: Number.POSITIVE_INFINITY },
     { latitude: '14.99' },
-  ])('rejects a missing or invalid pin: %j', (coordinates) => {
+  ])('rejects an invalid pin: %j', (coordinates) => {
     expect(createStudentApplicationSchema.safeParse({ ...validInput, ...coordinates }).success).toBe(false)
+  })
+
+  it('allows both coordinates to be omitted', () => {
+    expect(createStudentApplicationSchema.safeParse({ ...validInput, latitude: null, longitude: null }).success).toBe(true)
+    expect(createStudentApplicationSchema.safeParse({ ...validInput, latitude: undefined, longitude: undefined }).success).toBe(true)
+  })
+
+  it('requires latitude and longitude together when coordinates are provided', () => {
+    expect(createStudentApplicationSchema.safeParse({ ...validInput, latitude: 14.99, longitude: null }).success).toBe(false)
   })
 
   it('accepts valid zero coordinates', () => {

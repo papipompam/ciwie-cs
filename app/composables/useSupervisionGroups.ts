@@ -141,8 +141,8 @@ const groupsSeed: SupervisionGroup[] = [
   { id: 'SG-003', cycleId: 'CYCLE-2569-2', round: 1, name: 'กลุ่มอาจารย์ 2', lecturerIds: ['L0021'], companyIds: ['SC-003'], createdAt: '2026-08-30T13:15:00+07:00' },
 ]
 
-// Demo records are opt-in; the directory must reflect persisted data by default.
-const demoSeedEnabled = false
+// Keep local demo records available for trying the grouping flow; production still uses persisted data only.
+const demoSeedEnabled = import.meta.dev
 
 export const useSupervisionGroups = () => {
   const placements = useState<SupervisionPlacement[]>('supervision-placements-v5', () => demoSeedEnabled ? structuredClone(placementsSeed) : [])
@@ -159,6 +159,7 @@ export const useSupervisionGroups = () => {
   }
 
   const syncPersistedContext = (cycleId: string, data: { companies: SupervisionCompanyDto[], groups: SupervisionGroupDto[], lecturers: SupervisionLecturerDto[] }) => {
+    if (demoSeedEnabled && !data.companies.length && !data.groups.length && !data.lecturers.length) return
     groups.value = [
       ...groups.value.filter(group => group.cycleId !== cycleId),
       ...data.groups,

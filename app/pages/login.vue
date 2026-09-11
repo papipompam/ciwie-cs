@@ -70,13 +70,5 @@ const submitLogin = async () => {
       <UiButton type="submit" class="w-full" :icon="LockKeyhole" :loading="isSubmitting">เข้าสู่ระบบ</UiButton>
     </form>
 
-    <details class="mt-7 rounded-control border border-divider bg-surface p-4 text-sm">
-      <summary class="font-semibold text-ink">บัญชีตัวอย่างสำหรับตรวจ UI</summary>
-      <div class="mt-3 grid gap-2 text-xs leading-5 text-muted sm:grid-cols-2">
-        <p><span class="font-semibold text-ink">เจ้าหน้าที่:</span> staff001</p><p><span class="font-semibold text-ink">อาจารย์:</span> lecturer001</p>
-        <p><span class="font-semibold text-ink">นักศึกษา:</span> 66123456701</p><p><span class="font-semibold text-ink">เข้าสู่ระบบครั้งแรก:</span> 66123456725</p>
-        <p class="sm:col-span-2">รหัสผ่านปกติ Cwie@2569 · รหัสผ่านชั่วคราว Temp@2569</p>
-      </div>
-    </details>
   </div>
 </template>

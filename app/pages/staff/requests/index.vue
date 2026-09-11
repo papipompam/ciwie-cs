@@ -10,8 +10,10 @@ const { requests } = usePlacementRequestPreview()
 const { data: persistedRequests, status: requestFetchStatus, error: requestFetchError, refresh: refreshRequests } = await useFetch<PlacementRequestPreview[]>('/api/staff/placement-requests')
 watch(persistedRequests, (items) => { if (items) requests.value = items }, { immediate: true })
 const { scenario } = useScenario()
+const { cycleCatalog } = useCoopCycles()
 const search = ref('')
 const statusFilter = ref('all')
+const cycleFilter = ref('all')
 const ascending = ref(false)
 const page = ref(1)
 const pageSize = ref('10')
@@ -25,18 +27,25 @@ const state = computed(() => {
   return 'data'
 })
 const options = [{ value: 'all', label: 'ทุกสถานะ' }, ...Object.entries(requestStatusMeta).map(([value, meta]) => ({ value, label: meta.label }))]
+const cycleLabel = (cycleId: string) => cycleCatalog.find(cycle => cycle.id === cycleId)?.label ?? cycleId
+const cycleOptions = computed(() => [
+  { value: 'all', label: 'ทุกรอบสหกิจ' },
+  ...[...new Set(requests.value.map(item => item.cycleId).filter((cycleId): cycleId is string => Boolean(cycleId)))]
+    .map(cycleId => ({ value: cycleId, label: cycleLabel(cycleId) })),
+])
 const filtered = computed(() => {
   const keyword = search.value.trim().toLocaleLowerCase('th')
   return (state.value === 'empty' ? [] : requests.value)
     .filter(item => statusFilter.value === 'all' || item.status === statusFilter.value)
+    .filter(item => cycleFilter.value === 'all' || item.cycleId === cycleFilter.value)
     .filter(item => [item.studentName, item.application.studentId, item.application.companyName, item.application.recipientName ?? ''].some(value => value.toLocaleLowerCase('th').includes(keyword)))
     .toSorted((a, b) => (ascending.value ? 1 : -1) * a.submittedAt.localeCompare(b.submittedAt))
 })
 const pageCount = computed(() => getPageCount(filtered.value.length, Number(pageSize.value)))
 const rows = computed(() => paginateItems(filtered.value, page.value, Number(pageSize.value)))
-watch([search, statusFilter, pageSize, ascending], () => { page.value = 1 })
+watch([search, statusFilter, cycleFilter, pageSize, ascending], () => { page.value = 1 })
 watch(pageCount, count => { page.value = Math.min(page.value, count) })
-const reset = () => { search.value = ''; statusFilter.value = 'all'; ascending.value = false; page.value = 1 }
+const reset = () => { search.value = ''; statusFilter.value = 'all'; cycleFilter.value = 'all'; ascending.value = false; page.value = 1 }
 const retry = async () => { scenario.value.forceError = false; scenario.value.viewState = 'data'; await refreshRequests() }
 const open = (id: string) => { selectedId.value = id; detailOpen.value = true }
 const openRequestedRecord = () => {
@@ -61,13 +70,13 @@ watch([persistedRequests, () => route.query.request], openRequestedRecord, { imm
         <h3 class="text-lg font-bold text-ink">คำร้องจากนักศึกษา</h3>
         <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <label class="relative block sm:w-96"><span class="sr-only">ค้นหานักศึกษา บริษัท หรือผู้รับหนังสือ</span><Search :size="18" class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted" aria-hidden="true" /><input v-model="search" type="search" placeholder="ค้นหานักศึกษา บริษัท หรือผู้รับหนังสือ" class="min-h-11 w-full rounded-control border border-divider bg-canvas pr-3 pl-10 text-sm"></label>
-          <div class="flex items-center justify-end gap-2"><div class="min-w-0 flex-1 sm:w-64"><UiSelect v-model="statusFilter" :options="options" label="กรองสถานะคำร้อง" :label-visible="false" /></div><UiButton variant="secondary" :icon="RotateCcw" aria-label="รีเซ็ตตาราง" title="รีเซ็ตตาราง" @click="reset" /></div>
+          <div class="flex flex-wrap items-center justify-end gap-2"><div class="min-w-0 flex-1 sm:w-52"><UiSelect v-model="cycleFilter" :options="cycleOptions" label="กรองรอบสหกิจ" :label-visible="false" /></div><div class="min-w-0 flex-1 sm:w-64"><UiSelect v-model="statusFilter" :options="options" label="กรองสถานะคำร้อง" :label-visible="false" /></div><UiButton variant="secondary" :icon="RotateCcw" aria-label="รีเซ็ตตาราง" title="รีเซ็ตตาราง" @click="reset" /></div>
         </div>
-        <div v-if="search || statusFilter !== 'all'" class="flex flex-wrap items-center gap-2 text-sm"><span v-if="search" class="rounded-full bg-surface px-3 py-1">คำค้น “{{ search }}”</span><span v-if="statusFilter !== 'all'" class="rounded-full bg-surface px-3 py-1">{{ options.find(option => option.value === statusFilter)?.label }}</span><UiButton variant="ghost" size="sm" :icon="X" @click="reset">ล้างตัวกรอง</UiButton></div>
+        <div v-if="search || statusFilter !== 'all' || cycleFilter !== 'all'" class="flex flex-wrap items-center gap-2 text-sm"><span v-if="search" class="rounded-full bg-surface px-3 py-1">คำค้น “{{ search }}”</span><span v-if="cycleFilter !== 'all'" class="rounded-full bg-surface px-3 py-1">{{ cycleLabel(cycleFilter) }}</span><span v-if="statusFilter !== 'all'" class="rounded-full bg-surface px-3 py-1">{{ options.find(option => option.value === statusFilter)?.label }}</span><UiButton variant="ghost" size="sm" :icon="X" @click="reset">ล้างตัวกรอง</UiButton></div>
       </div>
       <div v-if="state === 'loading'" class="space-y-4 p-6" aria-label="กำลังโหลดคำร้อง"><UiSkeleton v-for="n in 4" :key="n" class="h-16 w-full" /></div>
       <div v-else-if="state === 'error'" class="p-6"><AppErrorState title="โหลดคำร้องไม่สำเร็จ" description="ลองโหลดข้อมูลอีกครั้ง" @retry="retry" /></div>
-      <div v-else-if="!rows.length" class="p-6"><AppEmptyState :title="search || statusFilter !== 'all' ? 'ไม่พบคำร้องที่ตรงกัน' : 'ยังไม่มีคำร้องขอหนังสือ'" :description="search || statusFilter !== 'all' ? 'ลองเปลี่ยนคำค้นหรือล้างตัวกรอง' : 'คำร้องจะแสดงเมื่อนักศึกษายืนยันเลือกบริษัทและส่งคำร้องในต้นแบบ' "><UiButton v-if="search || statusFilter !== 'all'" variant="secondary" @click="reset">ล้างตัวกรอง</UiButton><NuxtLink v-else to="/staff/applications" class="inline-flex min-h-11 items-center rounded-control border border-divider px-4 font-semibold text-ink">ดูประวัติการสมัคร</NuxtLink></AppEmptyState></div>
+      <div v-else-if="!rows.length" class="p-6"><AppEmptyState :title="search || statusFilter !== 'all' || cycleFilter !== 'all' ? 'ไม่พบคำร้องที่ตรงกัน' : 'ยังไม่มีคำร้องขอหนังสือ'" :description="search || statusFilter !== 'all' || cycleFilter !== 'all' ? 'ลองเปลี่ยนคำค้นหรือล้างตัวกรอง' : 'คำร้องจะแสดงเมื่อนักศึกษายืนยันเลือกบริษัทและส่งคำร้องในต้นแบบ' "><UiButton v-if="search || statusFilter !== 'all' || cycleFilter !== 'all'" variant="secondary" @click="reset">ล้างตัวกรอง</UiButton><NuxtLink v-else to="/staff/applications" class="inline-flex min-h-11 items-center rounded-control border border-divider px-4 font-semibold text-ink">ดูประวัติการสมัคร</NuxtLink></AppEmptyState></div>
       <template v-else>
         <div class="hidden overflow-x-auto md:block">
           <table class="w-full min-w-[1050px] text-left text-sm">

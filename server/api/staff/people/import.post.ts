@@ -128,7 +128,16 @@ export default defineEventHandler(async (event) => {
       })
       created += 1
     }
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+  // Imports can contain dozens of rows. Prisma's default interactive
+  // transaction timeout (5 seconds) is too short for the per-row lookups,
+  // password hashing, and enrollment writes, which causes a generic 500 after
+  // the transaction expires. Keep the operation atomic but allow a realistic
+  // import window and a short queue wait when the pool is busy.
+  }, {
+    isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    maxWait: 10_000,
+    timeout: 30_000,
+  })
 
   return { created, updated, duplicates, credentials }
 })

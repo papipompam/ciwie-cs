@@ -112,6 +112,7 @@ const openCompanyDialog = (company: SupervisionCompany) => {
     </div>
 
     <SupervisionGroupingAssistant :cycle-id="cycleId" :round="round" :disabled="effectiveViewState !== 'data'" />
+    <SupervisionSchedulePlanner :groups="currentGroups" :get-group-companies="getGroupCompanies" :lecturers="supervisionLecturers" />
     <UiTabs :tabs="supervisionTabs" default-value="groups" label="ข้อมูลการจัดกลุ่มนิเทศ" variant="plain">
       <template #groups>
         <UiCard :padded="false">
@@ -136,14 +137,14 @@ const openCompanyDialog = (company: SupervisionCompany) => {
                         </li>
                       </ul>
                     </td>
-                    <td class="px-4 py-4 align-top"><div class="flex flex-wrap gap-2"><button type="button" class="inline-flex min-h-9 items-center justify-center whitespace-nowrap rounded-control border border-divider bg-canvas px-3 text-xs font-semibold text-ink hover:bg-surface" :aria-label="`${group.lecturerIds.length ? 'แก้ไข' : 'เพิ่ม'}อาจารย์ ${group.name}`" @click="openGroupDialog(group)">{{ group.lecturerIds.length ? 'แก้ไขอาจารย์' : 'เพิ่มอาจารย์' }}</button><NuxtLink :to="{ path: '/staff/expenses', query: { cycle: group.cycleId, round: String(group.round), group: group.id } }" class="inline-flex min-h-9 items-center justify-center whitespace-nowrap rounded-control border border-primary px-3 text-xs font-semibold text-ink hover:bg-primary-soft">ค่าใช้จ่าย</NuxtLink></div></td>
+                    <td class="px-4 py-4 align-top"><div class="flex flex-wrap gap-2"><button type="button" class="inline-flex min-h-9 items-center justify-center whitespace-nowrap rounded-control border border-divider bg-canvas px-3 text-xs font-semibold text-ink hover:bg-surface" :aria-label="`${group.lecturerIds.length ? 'แก้ไข' : 'เพิ่ม'}อาจารย์ ${group.name}`" @click="openGroupDialog(group)">{{ group.lecturerIds.length ? 'แก้ไขอาจารย์' : 'เพิ่มอาจารย์' }}</button><NuxtLink :to="{ path: '/staff/expenses', query: { cycle: group.cycleId, round: String(group.round), group: group.id } }" class="inline-flex min-h-9 items-center justify-center whitespace-nowrap rounded-control border border-primary px-3 text-xs font-semibold text-ink hover:bg-primary-soft">สรุปงบประมาณ</NuxtLink></div></td>
                   </tr>
                 </tbody>
               </table>
             </div>
             <div class="divide-y divide-divider md:hidden">
               <article v-for="group in currentGroups" :key="group.id" class="p-5">
-                <div class="flex items-start justify-between gap-3"><div><h4 class="font-semibold text-ink">{{ group.name }}</h4><p class="mt-1 text-xs text-muted">{{ group.id }}</p></div><div class="flex shrink-0 flex-wrap justify-end gap-2"><UiButton size="sm" variant="secondary" @click="openGroupDialog(group)">{{ group.lecturerIds.length ? 'แก้ไขอาจารย์' : 'เพิ่มอาจารย์' }}</UiButton><NuxtLink :to="{ path: '/staff/expenses', query: { cycle: group.cycleId, round: String(group.round), group: group.id } }" class="inline-flex min-h-9 items-center justify-center rounded-control border border-primary px-3 text-sm font-semibold text-ink">ค่าใช้จ่าย</NuxtLink></div></div>
+                <div class="flex items-start justify-between gap-3"><div><h4 class="font-semibold text-ink">{{ group.name }}</h4><p class="mt-1 text-xs text-muted">{{ group.id }}</p></div><div class="flex shrink-0 flex-wrap justify-end gap-2"><UiButton size="sm" variant="secondary" @click="openGroupDialog(group)">{{ group.lecturerIds.length ? 'แก้ไขอาจารย์' : 'เพิ่มอาจารย์' }}</UiButton><NuxtLink :to="{ path: '/staff/expenses', query: { cycle: group.cycleId, round: String(group.round), group: group.id } }" class="inline-flex min-h-9 items-center justify-center rounded-control border border-primary px-3 text-sm font-semibold text-ink">สรุปงบประมาณ</NuxtLink></div></div>
                 <div class="mt-3 space-y-1.5"><p v-if="!group.lecturerIds.length" class="text-sm text-muted">รอเพิ่มอาจารย์</p><p v-for="id in group.lecturerIds" :key="id" class="text-sm text-ink">{{ lecturerName(id) }}</p></div>
                 <div class="mt-3 border-t border-divider pt-3"><p class="text-xs font-semibold text-muted">สถานประกอบการที่รับผิดชอบ</p><ul class="mt-2 space-y-2"><li v-for="company in getGroupCompanies(group)" :key="company.id" class="flex min-w-0 items-start gap-2"><p class="min-w-0 flex-1 text-sm leading-5 text-ink">{{ company.name }} <span class="whitespace-nowrap text-muted">· {{ company.province }}</span></p><UiBadge tone="info" class="shrink-0">{{ company.studentCount }} คน</UiBadge></li></ul></div>
               </article>
