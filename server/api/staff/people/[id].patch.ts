@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client'
-import { lecturerPersonPrefixes, personAccountActionSchema, personInputSchema, studentPersonPrefixes } from '#shared/people'
+import { genderFromPersonPrefix, lecturerPersonPrefixes, personAccountActionSchema, personInputSchema, studentPersonPrefixes } from '#shared/people'
 import { hashPassword } from '../../../utils/password'
 import { personAuditSelect, personSelect, toPersonRecord } from '../../../utils/people'
 import { requireUserSession } from '../../../utils/session'
@@ -20,9 +20,6 @@ export default defineEventHandler(async (event) => {
   if (details.success && current.role === 'STUDENT' && !details.data.section) {
     throw createError({ statusCode: 400, statusMessage: 'STUDENT_SECTION_REQUIRED' })
   }
-  if (details.success && current.role === 'LECTURER' && !details.data.gender) {
-    throw createError({ statusCode: 400, statusMessage: 'LECTURER_GENDER_REQUIRED' })
-  }
   if (details.success) {
     const allowedPrefixes: readonly string[] = current.role === 'STUDENT' ? studentPersonPrefixes : lecturerPersonPrefixes
     if (!allowedPrefixes.includes(details.data.prefix)) throw createError({ statusCode: 400, statusMessage: 'PERSON_PREFIX_INVALID' })
@@ -37,6 +34,7 @@ export default defineEventHandler(async (event) => {
     let detail = ''
     if (details.success) {
       const input = details.data
+      const gender = genderFromPersonPrefix(input.prefix) ?? input.gender
       const cycle = current.role === 'STUDENT' && input.cycle
         ? await transaction.coopCycle.findFirst({ where: { label: input.cycle }, select: { id: true, targetCohortYear: true } })
         : null
@@ -46,7 +44,7 @@ export default defineEventHandler(async (event) => {
         data: {
           username: input.id, namePrefix: input.prefix, firstName: input.firstName, lastName: input.lastName,
           phone: input.phone, email: input.email,
-          gender: input.gender === 'male' ? 'MALE' : input.gender === 'female' ? 'FEMALE' : null,
+          gender: gender === 'male' ? 'MALE' : gender === 'female' ? 'FEMALE' : null,
           section: current.role === 'STUDENT' ? input.section?.replace('หมู่ ', '') : null,
         },
       })

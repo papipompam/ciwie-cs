@@ -4,7 +4,13 @@ export const personTypeSchema = z.enum(['student', 'lecturer'])
 export const personGenderSchema = z.enum(['male', 'female'])
 export const personPrefixSchema = z.enum(['นาย', 'นาง', 'นางสาว', 'อาจารย์', 'ดร.', 'ผศ.', 'ผศ.ดร.', 'รศ.', 'รศ.ดร.', 'ศ.', 'ศ.ดร.'])
 export const studentPersonPrefixes = ['นาย', 'นาง', 'นางสาว'] as const
-export const lecturerPersonPrefixes = ['อาจารย์', 'ดร.', 'ผศ.', 'ผศ.ดร.', 'รศ.', 'รศ.ดร.', 'ศ.', 'ศ.ดร.'] as const
+export const lecturerPersonPrefixes = ['นาย', 'นาง', 'นางสาว', 'อาจารย์', 'ดร.', 'ผศ.', 'ผศ.ดร.', 'รศ.', 'รศ.ดร.', 'ศ.', 'ศ.ดร.'] as const
+
+export const genderFromPersonPrefix = (prefix: z.infer<typeof personPrefixSchema>): z.infer<typeof personGenderSchema> | undefined => {
+  if (prefix === 'นาย') return 'male'
+  if (prefix === 'นาง' || prefix === 'นางสาว') return 'female'
+  return undefined
+}
 
 export const personInputSchema = z.object({
   id: z.string().trim().min(1).max(100),

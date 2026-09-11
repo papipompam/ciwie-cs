@@ -27,10 +27,10 @@ describe('student directory academic year', () => {
 })
 
 describe('student directory ordering', () => {
-  it('orders numbered sections before the next section, then sorts by name', () => {
-    const sectionTwo = { firstName: 'ก้อง', lastName: 'ใจดี', section: 'หมู่ 2' }
-    const sectionOne = { firstName: 'สมชาย', lastName: 'ใจดี', section: 'หมู่ 1' }
-    const anotherSectionOne = { firstName: 'กมล', lastName: 'ดีมาก', section: 'หมู่ 1' }
+  it('orders numbered sections before the next section, then sorts by student ID', () => {
+    const sectionTwo = { id: '66123456700', firstName: 'ก้อง', lastName: 'ใจดี', section: 'หมู่ 2' }
+    const sectionOne = { id: '66123456799', firstName: 'สมชาย', lastName: 'ใจดี', section: 'หมู่ 1' }
+    const anotherSectionOne = { id: '66123456701', firstName: 'กมล', lastName: 'ดีมาก', section: 'หมู่ 1' }
 
     expect([sectionTwo, sectionOne, anotherSectionOne].sort(compareStudentDirectoryPeople))
       .toEqual([anotherSectionOne, sectionOne, sectionTwo])

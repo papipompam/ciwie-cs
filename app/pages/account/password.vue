@@ -15,7 +15,7 @@ const fieldErrors = reactive({ currentPassword: '', newPassword: '', confirmPass
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, 'กรุณากรอกรหัสผ่านปัจจุบัน'),
-  newPassword: z.string().min(8, 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร').regex(/[A-Za-zก-๙]/, 'ต้องมีตัวอักษรอย่างน้อย 1 ตัว').regex(/\d/, 'ต้องมีตัวเลขอย่างน้อย 1 ตัว'),
+  newPassword: z.string().min(8, 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร'),
   confirmPassword: z.string().min(1, 'กรุณายืนยันรหัสผ่านใหม่'),
 }).refine(data => data.newPassword === data.confirmPassword, { path: ['confirmPassword'], message: 'รหัสผ่านทั้งสองช่องไม่ตรงกัน' })
   .refine(data => data.currentPassword !== data.newPassword, { path: ['newPassword'], message: 'รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านปัจจุบัน' })
@@ -67,7 +67,7 @@ const submitPassword = async () => {
       <form novalidate class="mt-5 grid gap-5" @submit.prevent="submitPassword">
         <div><UiInput v-model="currentPassword" type="password" autocomplete="current-password" label="รหัสผ่านปัจจุบัน" :error="fieldErrors.currentPassword" required /></div>
         <div class="grid gap-5 sm:grid-cols-2">
-          <div><UiInput v-model="newPassword" type="password" autocomplete="new-password" label="รหัสผ่านใหม่" help="อย่างน้อย 8 ตัวอักษร และต้องมีตัวอักษรกับตัวเลข" :error="fieldErrors.newPassword" required /></div>
+          <div><UiInput v-model="newPassword" type="password" autocomplete="new-password" label="รหัสผ่านใหม่" help="อย่างน้อย 8 ตัวอักษร" :error="fieldErrors.newPassword" required /></div>
           <div><UiInput v-model="confirmPassword" type="password" autocomplete="new-password" label="ยืนยันรหัสผ่านใหม่" :error="fieldErrors.confirmPassword" required /></div>
         </div>
         <div class="flex justify-end border-t border-divider pt-5"><UiButton type="submit" :icon="KeyRound" :loading="isSubmitting">บันทึกรหัสผ่านใหม่</UiButton></div>

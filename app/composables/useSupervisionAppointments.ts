@@ -71,48 +71,6 @@ const emptyResult = (): SupervisionResult => ({
   completedAt: null,
 })
 
-const appointmentsSeed: SupervisionAppointment[] = [
-  {
-    id: 'SA-001', cycleId: 'CYCLE-2569-2', round: 1, groupId: 'SG-001', companyId: 'SC-001',
-    studentIds: ['66123456701', '66123456702'], date: '2026-09-02', period: 'morning',
-    lecturerIds: ['L0012'], status: 'published', result: emptyResult(), createdAt: '2026-08-30T15:20:00+07:00',
-  },
-  {
-    id: 'SA-002', cycleId: 'CYCLE-2569-2', round: 1, groupId: 'SG-001', companyId: 'SC-002',
-    studentIds: ['66123456704'], date: '2026-09-03', period: 'afternoon',
-    lecturerIds: ['L0012'], status: 'published', result: emptyResult(), createdAt: '2026-08-30T15:25:00+07:00',
-  },
-  {
-    id: 'SA-003', cycleId: 'CYCLE-2569-2', round: 1, groupId: 'SG-003', companyId: 'SC-003',
-    studentIds: ['66123456708', '66123456723'], date: '2026-09-02', period: 'morning',
-    lecturerIds: ['L0021'], status: 'published', result: emptyResult(), createdAt: '2026-08-30T15:30:00+07:00',
-  },
-  {
-    id: 'SA-004', cycleId: 'CYCLE-2569-2', round: 2, groupId: 'SG-002', companyId: 'SC-001',
-    studentIds: ['66123456701', '66123456702'], date: '2026-10-07', period: 'morning',
-    lecturerIds: ['L0021'], status: 'published', result: emptyResult(), createdAt: '2026-08-30T15:35:00+07:00',
-  },
-  {
-    id: 'SA-005', cycleId: 'CYCLE-2569-2', round: 2, groupId: 'SG-002', companyId: 'SC-003',
-    studentIds: ['66123456708', '66123456723'], date: '2026-10-08', period: 'afternoon',
-    lecturerIds: ['L0021'], status: 'published', result: emptyResult(), createdAt: '2026-08-30T15:40:00+07:00',
-  },
-  {
-    id: 'SA-006', cycleId: 'CYCLE-2569-2', round: 1, groupId: 'SG-001', companyId: 'SC-001',
-    studentIds: ['66123456701', '66123456702'], date: '2026-08-20', period: 'morning',
-    lecturerIds: ['L0012', 'L0030'], status: 'completed',
-    result: {
-      summary: 'นักศึกษาปฏิบัติงานตามแผน สามารถอธิบายงานและสาธิตระบบที่รับผิดชอบได้',
-      issues: 'ยังต้องปรับปรุงการจัดลำดับความสำคัญของงานเมื่อมีงานเร่งด่วนหลายรายการ',
-      suggestions: 'ให้นักศึกษาสรุปแผนงานรายสัปดาห์และทบทวนร่วมกับพี่เลี้ยง',
-      companyRequirements: 'สนใจรับนักศึกษาด้านพัฒนาเว็บและทดสอบระบบในรอบถัดไป',
-      actualLecturerIds: ['L0012'],
-      completedAt: '2026-08-20T16:30:00+07:00',
-    },
-    createdAt: '2026-08-10T09:00:00+07:00',
-  },
-]
-
 export const supervisionPeriodMeta: Record<SupervisionPeriod, { label: string }> = {
   morning: { label: 'ช่วงเช้า' },
   afternoon: { label: 'ช่วงบ่าย' },
@@ -127,7 +85,7 @@ export const supervisionAppointmentStatusMeta: Record<SupervisionAppointmentStat
 }
 
 export const useSupervisionAppointments = () => {
-  const appointments = useState<SupervisionAppointment[]>('supervision-appointments-v1', () => import.meta.dev ? structuredClone(appointmentsSeed) : [])
+  const appointments = useState<SupervisionAppointment[]>('supervision-appointments-v2', () => [])
   const { recordEvent } = useScenario()
 
   const createAppointment = (input: SupervisionAppointmentInput) => {

@@ -24,6 +24,7 @@ export const getDefaultStudentCohort = (students: Array<{ id: string, cycle?: st
 }
 
 type StudentDirectoryPerson = {
+  id?: string
   firstName: string
   lastName: string
   section?: string
@@ -34,6 +35,10 @@ const sectionNumber = (section?: string) => Number(section?.match(/\d+/)?.[0] ??
 export const compareStudentDirectoryPeople = (a: StudentDirectoryPerson, b: StudentDirectoryPerson): number => {
   const sectionComparison = sectionNumber(a.section) - sectionNumber(b.section)
   if (sectionComparison !== 0) return sectionComparison
+  if (a.id && b.id) {
+    const idComparison = a.id.localeCompare(b.id, 'th', { numeric: true })
+    if (idComparison !== 0) return idComparison
+  }
   return `${a.firstName}${a.lastName}`.localeCompare(`${b.firstName}${b.lastName}`, 'th')
 }
 

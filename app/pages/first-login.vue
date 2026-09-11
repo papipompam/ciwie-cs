@@ -14,7 +14,7 @@ const submitError = ref('')
 const fieldErrors = reactive({ newPassword: '', confirmPassword: '' })
 
 const passwordSchema = z.object({
-  newPassword: z.string().min(8, 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร').regex(/[A-Za-zก-๙]/, 'ต้องมีตัวอักษรอย่างน้อย 1 ตัว').regex(/\d/, 'ต้องมีตัวเลขอย่างน้อย 1 ตัว'),
+  newPassword: z.string().min(8, 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร'),
   confirmPassword: z.string().min(1, 'กรุณายืนยันรหัสผ่านใหม่'),
 }).refine(data => data.newPassword === data.confirmPassword, { path: ['confirmPassword'], message: 'รหัสผ่านทั้งสองช่องไม่ตรงกัน' })
 
@@ -59,7 +59,7 @@ const submitPassword = async () => {
 
     <UiAlert v-if="submitError" tone="danger" title="ตั้งรหัสผ่านไม่สำเร็จ" class="mt-5">{{ submitError }}</UiAlert>
     <form novalidate class="mt-6 space-y-5" @submit.prevent="submitPassword">
-      <div><UiInput v-model="newPassword" type="password" autocomplete="new-password" label="รหัสผ่านใหม่" help="อย่างน้อย 8 ตัวอักษร และต้องมีตัวอักษรกับตัวเลข" :error="fieldErrors.newPassword" required /></div>
+      <div><UiInput v-model="newPassword" type="password" autocomplete="new-password" label="รหัสผ่านใหม่" help="อย่างน้อย 8 ตัวอักษร" :error="fieldErrors.newPassword" required /></div>
       <div><UiInput v-model="confirmPassword" type="password" autocomplete="new-password" label="ยืนยันรหัสผ่านใหม่" :error="fieldErrors.confirmPassword" required /></div>
       <UiButton type="submit" class="w-full" :icon="KeyRound" :loading="isSubmitting">ตั้งรหัสผ่านและเข้าใช้งาน</UiButton>
     </form>

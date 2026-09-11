@@ -4,12 +4,21 @@ import { toPeopleWorksheetRows, toTemporaryCredentialWorksheetRows, usePeopleImp
 import type { PersonRecord } from './usePeopleDirectory'
 
 vi.mock('read-excel-file/browser', () => ({
-  readSheet: async () => [{
+  readSheet: async (file: File) => [{
     sheet: 'Sheet1',
-    data: [
-      ['รหัส', 'คำนำหน้าชื่อ', 'ชื่อ', 'นามสกุล', 'รุ่น', 'หมู่เรียน'],
-      [660112230062, 'นางสาว', 'ชลธิชา', 'ศรีเชื้อ', 2566, 'หมู่ 2'],
-    ],
+    data: file.name === 'students-multi-header.xlsx'
+      ? [
+          [null, null, null, null, 'ตำแหน่งงาน', 'ชื่อสถานประกอบการ', 'ข้อมูลสถานประกอบการ', null, 'สถานะ'],
+          [null, null, null, null, null, null, 'ส่งถึง', 'ที่อยู่', 'แบบตอบรับ'],
+          [1, 660112230001, 'นาย', 'กฤษฎา ศรีภา', 'Frontend Developer', 'บริษัท ไอบอทน้อย จำกัด', null, null, false],
+          [2, 660112230002, 'นาย', 'กิตติธัช ผุยโพนทัน', null, null, null, null, false],
+          [null, null, null, null, null, null, null, null, null],
+          [1, 660112230037, 'นาย', 'กิตติศักดิ์ พรมจิตต์', 'Frontend Developer', 'บริษัท ไอบอทน้อย จำกัด', null, null, false],
+        ]
+      : [
+          ['รหัส', 'คำนำหน้าชื่อ', 'ชื่อ', 'นามสกุล', 'รุ่น', 'หมู่เรียน'],
+          [660112230062, 'นางสาว', 'ชลธิชา', 'ศรีเชื้อ', 2566, 'หมู่ 2'],
+        ],
   }],
 }))
 
@@ -96,6 +105,35 @@ describe('usePeopleImport', () => {
     expect(rows[0]).toMatchObject({ id: '660112230062', firstName: 'ชลธิชา', lastName: 'ศรีเชื้อ', cohortYear: 2566, status: 'new' })
   })
 
+  it('อ่านไฟล์ Excel ที่มีหัวตารางหลายแถวและแถวว่างคั่นกลุ่มข้อมูลได้', async () => {
+    const file = new File(['excel-binary-placeholder'], 'students-multi-header.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    }) as unknown as globalThis.File
+    const { parseFile } = usePeopleImport()
+
+    const rows = await parseFile(file, 'student', new Set())
+
+    expect(rows).toHaveLength(3)
+    expect(rows.map(row => row.id)).toEqual(['660112230001', '660112230002', '660112230037'])
+    expect(rows[0]).toMatchObject({ prefix: 'นาย', firstName: 'กฤษฎา', lastName: 'ศรีภา', status: 'new' })
+  })
+
+  it('อ่านไฟล์รูปแบบใหม่ที่ใช้ชื่อเต็ม ตำแหน่งงาน และสถานประกอบการได้', async () => {
+    const csv = [
+      'เลขลำดับ,รหัสนักศึกษา,คำนำหน้า,ชื่อ-นามสกุล,ตำแหน่งงาน,ชื่อสถานประกอบการ',
+      '1,66123456701,นาย,ธนกฤต พูนทรัพย์,Frontend Developer,บริษัท ตัวอย่าง จำกัด',
+    ].join('\n')
+    const file = new File([csv], 'students-new-format.csv', { type: 'text/csv' }) as unknown as globalThis.File
+    const { parseFile } = usePeopleImport()
+
+    const rows = await parseFile(file, 'student', new Set())
+
+    expect(rows[0]).toMatchObject({
+      id: '66123456701', firstName: 'ธนกฤต', lastName: 'พูนทรัพย์', position: 'Frontend Developer',
+      company: 'บริษัท ตัวอย่าง จำกัด', status: 'new',
+    })
+  })
+
   it('ส่งออกข้อมูลนักศึกษาครบทุกข้อมูลหลักโดยไม่รวมข้อมูลยืนยันตัวตน', () => {
     const student: PersonRecord = {
       id: '66123456701',
@@ -114,18 +152,35 @@ describe('usePeopleImport', () => {
     }
 
     expect(toPeopleWorksheetRows([student], 'student')).toEqual([{
-      รหัส: '66123456701',
-      คำนำหน้าชื่อ: 'นาย',
-      ชื่อ: 'ธนกฤต',
-      นามสกุล: 'พูนทรัพย์',
-      เบอร์โทร: '0812345601',
-      อีเมล: 'thanakrit@example.ac.th',
-      รอบสหกิจ: 'ภาคเรียนที่ 2/2569',
-      รุ่น: '2566',
-      หมู่เรียน: 'หมู่ 1',
-      สถานประกอบการ: 'บริษัท สยามเทค โซลูชัน จำกัด',
-      ตำแหน่งที่ฝึก: 'Frontend Developer',
+      เลขลำดับ: 1,
+      รหัสนักศึกษา: '66123456701',
+      คำนำหน้า: 'นาย',
+      'ชื่อ-นามสกุล': 'ธนกฤต พูนทรัพย์',
+      ตำแหน่งงาน: 'Frontend Developer',
+      ชื่อสถานประกอบการ: 'บริษัท สยามเทค โซลูชัน จำกัด',
     }])
+  })
+
+  it('เรียงไฟล์ส่งออกนักศึกษาตามหมู่เรียนและรหัสนักศึกษา', () => {
+    const makeStudent = (id: string, section: 'หมู่ 1' | 'หมู่ 2'): PersonRecord => ({
+      id,
+      type: 'student',
+      prefix: 'นาย',
+      firstName: 'นักศึกษา',
+      lastName: id,
+      recordStatus: 'active',
+      accountStatus: 'active',
+      section,
+      activities: [],
+    })
+
+    const rows = toPeopleWorksheetRows([
+      makeStudent('66123456700', 'หมู่ 2'),
+      makeStudent('66123456799', 'หมู่ 1'),
+      makeStudent('66123456701', 'หมู่ 1'),
+    ], 'student')
+
+    expect(rows.map(row => row['รหัสนักศึกษา'])).toEqual(['66123456701', '66123456799', '66123456700'])
   })
 
   it('ส่งออกข้อมูลอาจารย์เฉพาะรหัสและชื่อครบทุกส่วน', () => {

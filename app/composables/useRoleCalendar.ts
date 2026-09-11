@@ -30,7 +30,8 @@ export const calendarEventTypeMeta: Record<CalendarEventType, {
   general: { label: 'กิจกรรมทั่วไป', tone: 'neutral', dotClass: 'bg-muted' },
 }
 
-const roleEventSeeds: RoleCalendarEvent[] = [
+const roleEventSeeds: RoleCalendarEvent[] = []
+/*
   {
     id: 'CAL-STAFF-001', title: 'ตรวจความพร้อมข้อมูลนักศึกษาในรอบ',
     description: 'ตรวจรายชื่อนักศึกษา รุ่น และหมู่เรียนก่อนเริ่มจัดตารางนิเทศ',
@@ -67,12 +68,13 @@ const roleEventSeeds: RoleCalendarEvent[] = [
     date: '2026-11-02', type: 'general', roles: ['staff', 'lecturer', 'student'], source: 'system',
   },
 ]
+*/
 
 export const useRoleCalendar = () => {
   const { scenario, recordEvent } = useScenario()
   const { appointments } = useSupervisionAppointments()
   const { groups, companyRecords } = useSupervisionGroups()
-  const customEvents = useState<RoleCalendarEvent[]>('role-calendar-custom-events-v1', () => [])
+  const customEvents = useState<RoleCalendarEvent[]>('role-calendar-custom-events-v2', () => [])
   const currentLecturerId = 'L0012'
   const currentStudentId = '66123456701'
 

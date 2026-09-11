@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { getStudentCohortYear } from './useStudentCohortContext'
 import { getStudentPlacementPosition, personPrefixOptions, personPrefixValues } from './usePeopleDirectory'
 import type { PersonPrefix, PersonRecord, PersonType, StudentSection } from './usePeopleDirectory'
 
@@ -17,6 +16,8 @@ export interface PeopleImportRow {
   cohortYear?: number
   cycle?: string
   section?: StudentSection
+  position?: string
+  company?: string
   note?: string
   status: ImportRowStatus
   reason: string
@@ -37,16 +38,6 @@ const rowSchema = z.object({
   email: z.string().email('รูปแบบอีเมลไม่ถูกต้อง').max(254).optional(),
   cycle: z.string().max(150, 'รอบสหกิจยาวเกินไป').optional(),
   section: z.enum(['หมู่ 1', 'หมู่ 2']).optional(),
-})
-
-const getHeaders = (type: PersonType) => ({
-  id: type === 'student' ? 'รหัสนักศึกษา' : 'รหัสอาจารย์',
-  prefix: 'คำนำหน้า',
-  firstName: 'ชื่อ',
-  lastName: 'นามสกุล',
-  phone: 'เบอร์โทร',
-  email: 'อีเมล',
-  ...(type === 'student' ? { cycle: 'รอบสหกิจ', section: 'หมู่เรียน' } : {}),
 })
 
 const parseCsvRows = (value: string) => {
@@ -90,33 +81,91 @@ const normalizeHeader = (value: string) => value
 const columnAliases = {
   id: ['รหัสนักศึกษา', 'รหัสนักเรียน', 'รหัสผู้เรียน', 'รหัสอาจารย์', 'รหัส', 'เลขประจำตัวนักศึกษา', 'student id', 'student code', 'student no', 'lecturer id', 'lecturer code', 'id'],
   prefix: ['คำนำหน้าชื่อ', 'คำนำหน้า', 'ยศ', 'prefix', 'title'],
-  firstName: ['ชื่อจริง', 'ชื่อ', 'given name', 'first name', 'firstname'],
+  firstName: ['ชื่อจริง', 'ชื่อ+นามสกุล', 'ชื่อ - นามสกุล', 'ชื่อ-นามสกุล', 'ชื่อสกุล', 'ชื่อ', 'full name', 'fullname', 'given name', 'first name', 'firstname'],
   lastName: ['นามสกุล', 'ชื่อสกุล', 'surname', 'last name', 'lastname'],
   phone: ['เบอร์โทรศัพท์', 'เบอร์โทร', 'เบอร์มือถือ', 'โทรศัพท์มือถือ', 'โทรศัพท์', 'มือถือ', 'โทร', 'phone number', 'phone', 'telephone', 'mobile phone', 'mobile'],
   email: ['อีเมลแอดเดรส', 'อีเมล', 'อีเมล์', 'email address', 'e-mail', 'email', 'mail'],
   cycle: ['รอบสหกิจศึกษา', 'รอบสหกิจ', 'รอบการฝึกงาน', 'รอบการศึกษา', 'ภาคการศึกษา', 'ภาคเรียน', 'semester', 'term', 'cycle', 'coop cycle'],
   cohortYear: ['รุ่นปีการศึกษา', 'รุ่นปี', 'รุ่น', 'ปีรุ่น', 'cohort year', 'cohort'],
   section: ['หมู่เรียนที่', 'หมู่เรียน', 'กลุ่มเรียน', 'กลุ่ม', 'ห้องเรียน', 'หมู่', 'section', 'class', 'group'],
+  position: ['ตำแหน่งงาน', 'ตำแหน่งที่ฝึก', 'ตำแหน่งฝึกงาน', 'ตำแหน่ง', 'job title', 'position'],
+  company: ['ชื่อสถานประกอบการ', 'สถานประกอบการ', 'ชื่อบริษัท', 'บริษัท', 'company name', 'company'],
 } as const
 
 const normalizedAliases = Object.fromEntries(Object.entries(columnAliases).map(([key, aliases]) => [key, aliases.map(normalizeHeader)])) as Record<keyof typeof columnAliases, string[]>
 
-const matrixToRecords = (matrix: unknown[][]) => {
+const cellText = (value: unknown) => String(value ?? '').trim()
+
+const isLikelyPersonId = (value: unknown, type: PersonType) => {
+  const text = cellText(value)
+  if (!text) return false
+  return type === 'student'
+    ? /^\d{8,15}$/.test(text)
+    : /^[A-Za-zก-๙][A-Za-z0-9ก-๙._-]{1,49}$/.test(text)
+}
+
+const isLikelyName = (value: unknown) => {
+  const text = cellText(value)
+  if (!text || text.length > 120 || !/[\p{L}]/u.test(text)) return false
+  return text.split(/\s+/).filter(Boolean).length >= 2
+}
+
+const isLikelyNamePart = (value: unknown) => {
+  const text = cellText(value)
+  return Boolean(text) && text.length <= 80 && /^[\p{L}.'-]+$/u.test(text)
+}
+
+const matrixToRecords = (matrix: unknown[][], type: PersonType) => {
   const headerRowIndex = matrix.findIndex((row) => {
     const headers = row.map(value => normalizeHeader(String(value ?? '')))
     const has = (aliases: string[]) => aliases.some(alias => headers.includes(alias))
     return has(normalizedAliases.id) && has(normalizedAliases.firstName)
   })
-  if (headerRowIndex < 0) throw new Error('missing-header')
+  if (headerRowIndex < 0) {
+    // Some university exports have two descriptive header rows and leave the
+    // identity columns unnamed. Infer the core columns from the first data row.
+    const firstData = matrix.findIndex((row) => {
+      const idIndex = row.findIndex(value => isLikelyPersonId(value, type))
+      if (idIndex < 0) return false
+      const prefixIndex = row.findIndex((value, index) => index !== idIndex && personPrefixValues.includes(cellText(value) as PersonPrefix))
+      if (prefixIndex < 0) return false
+      return row.some((value, index) => index !== idIndex && index !== prefixIndex && isLikelyName(value))
+        || row.some((value, index) => index > prefixIndex && index !== idIndex && isLikelyNamePart(value))
+    })
+    if (firstData < 0) throw new Error('missing-header')
+
+    const sample = matrix[firstData] ?? []
+    const idIndex = sample.findIndex(value => isLikelyPersonId(value, type))
+    const prefixIndex = sample.findIndex((value, index) => index !== idIndex && personPrefixValues.includes(cellText(value) as PersonPrefix))
+    const fullNameIndex = sample.findIndex((value, index) => index !== idIndex && index !== prefixIndex && isLikelyName(value))
+    const nameIndex = fullNameIndex >= 0
+      ? fullNameIndex
+      : sample.findIndex((value, index) => index > prefixIndex && index !== idIndex && isLikelyNamePart(value))
+    const separateLastName = fullNameIndex < 0 && nameIndex >= 0 && isLikelyNamePart(sample[nameIndex + 1])
+    const headers = sample.map((_, index) => `column-${index + 1}`)
+    headers[idIndex] = type === 'student' ? 'รหัสนักศึกษา' : 'รหัสอาจารย์'
+    headers[prefixIndex] = 'คำนำหน้า'
+    headers[nameIndex] = 'ชื่อ'
+    if (separateLastName) headers[nameIndex + 1] = 'นามสกุล'
+    const records: Record<string, unknown>[] = []
+    const recordRowNumbers: number[] = []
+    matrix.slice(firstData).forEach((row, offset) => {
+      if (!isLikelyPersonId(row[idIndex], type) || !cellText(row[nameIndex])) return
+      records.push(Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ''])))
+      recordRowNumbers.push(firstData + offset + 1)
+    })
+    return { records, headerRowIndex: firstData - 1, recordRowNumbers }
+  }
 
   const headers = (matrix[headerRowIndex] ?? []).map((value, index) => {
     const header = String(value ?? '').trim()
     return header || `column-${index + 1}`
   })
-  const records = matrix.slice(headerRowIndex + 1)
+  const sourceRows = matrix.slice(headerRowIndex + 1)
+  const records = sourceRows
     .filter(row => row.some(cell => String(cell ?? '').trim()))
     .map(row => Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ''])))
-  return { records, headerRowIndex }
+  return { records, headerRowIndex, recordRowNumbers: sourceRows.map((_, index) => headerRowIndex + index + 2).filter((_, index) => sourceRows[index]?.some(cell => String(cell ?? '').trim())) }
 }
 
 const extractSheetMatrix = (value: unknown): unknown[][] => {
@@ -146,22 +195,25 @@ const splitFullName = (value: string) => {
 }
 
 export const toPeopleWorksheetRows = (people: PersonRecord[], type: PersonType) => {
-  return people
+  const filteredPeople = people
     .filter(person => person.type === type)
-    .map<Record<string, string | number>>((person) => {
+  const orderedPeople = type === 'student'
+    ? filteredPeople.toSorted((left, right) => {
+        const sectionOrder = (section?: StudentSection) => section === 'หมู่ 1' ? 1 : section === 'หมู่ 2' ? 2 : 99
+        return sectionOrder(left.section) - sectionOrder(right.section)
+          || left.id.localeCompare(right.id, 'th', { numeric: true })
+      })
+    : filteredPeople
+  return orderedPeople
+    .map<Record<string, string | number>>((person, index) => {
       if (type === 'student') {
         const studentRow: Record<string, string | number> = {
-          รหัส: person.id,
-          คำนำหน้าชื่อ: person.prefix,
-          ชื่อ: person.firstName,
-          นามสกุล: person.lastName,
-          ...(person.phone ? { เบอร์โทร: person.phone } : {}),
-          ...(person.email ? { อีเมล: person.email } : {}),
-          รุ่น: getStudentCohortYear(person.id),
-          ...(person.cycle ? { รอบสหกิจ: person.cycle } : {}),
-          หมู่เรียน: person.section ?? '',
-          สถานประกอบการ: person.company ?? '',
-          ตำแหน่งที่ฝึก: getStudentPlacementPosition(person.id, person.company),
+          เลขลำดับ: index + 1,
+          รหัสนักศึกษา: person.id,
+          คำนำหน้า: person.prefix,
+          'ชื่อ-นามสกุล': `${person.firstName} ${person.lastName}`.trim(),
+          ตำแหน่งงาน: getStudentPlacementPosition(person.id, person.company),
+          ชื่อสถานประกอบการ: person.company ?? '',
         }
         return studentRow
       }
@@ -190,7 +242,7 @@ export const usePeopleImport = () => {
     const matrix = isCsv
       ? parseCsvRows(await file.text())
       : extractSheetMatrix(await import('read-excel-file/browser').then(({ readSheet }) => readSheet(file)))
-    const parsedMatrix = matrixToRecords(matrix)
+    const parsedMatrix = matrixToRecords(matrix, type)
     const rawRows = parsedMatrix.records
     if (!rawRows.length) throw new Error('empty-workbook')
 
@@ -208,7 +260,7 @@ export const usePeopleImport = () => {
         !rawLastName && splitName.lastName ? 'แยกชื่อเต็มเป็นชื่อและนามสกุล' : '',
       ].filter(Boolean)
       return {
-        rowNumber: parsedMatrix.headerRowIndex + index + 2,
+        rowNumber: parsedMatrix.recordRowNumbers[index] ?? parsedMatrix.headerRowIndex + index + 2,
         id: readCell(row, idAliases),
         prefix: prefix as PersonPrefix,
         firstName: splitName.firstName,
@@ -227,8 +279,10 @@ export const usePeopleImport = () => {
               const value = readCell(row, columnAliases.section)
               if (!value) return undefined
               return (value.startsWith('หมู่ ') ? value : `หมู่ ${value}`) as StudentSection
-            })())
+          })())
           : undefined,
+        position: type === 'student' ? readCell(row, columnAliases.position) || undefined : undefined,
+        company: type === 'student' ? readCell(row, columnAliases.company) || undefined : undefined,
         note: notes.join(' · '),
       }
     })
@@ -282,16 +336,24 @@ export const usePeopleImport = () => {
   }
 
   const downloadTemplate = async (type: PersonType, format: PeopleFileFormat) => {
-    const headers = getHeaders(type)
-    await downloadWorkbook([{
-      [headers.id]: type === 'student' ? '66123456789' : 'L0099',
-      [headers.prefix]: type === 'student' ? 'นางสาว' : 'อาจารย์',
-      [headers.firstName]: 'ตัวอย่าง',
-      [headers.lastName]: 'ข้อมูล',
-      [headers.phone]: '0812345678',
-      [headers.email]: 'example@example.ac.th',
-      ...(type === 'student' ? { 'รอบสหกิจ': 'ภาคเรียนที่ 2/2569', 'หมู่เรียน': 'หมู่ 1' } : {}),
-    }], `${type === 'student' ? 'student' : 'lecturer'}-import-template`, format)
+    const row: Record<string, string | number> = type === 'student'
+      ? ({
+          เลขลำดับ: 1,
+          รหัสนักศึกษา: '66123456789',
+          คำนำหน้า: 'นางสาว',
+          'ชื่อ-นามสกุล': 'ตัวอย่าง ข้อมูล',
+          ตำแหน่งงาน: 'Frontend Developer',
+          ชื่อสถานประกอบการ: 'บริษัท ตัวอย่าง จำกัด',
+        } as Record<string, string | number>)
+      : ({
+          รหัส: 'L0099',
+          คำนำหน้าชื่อ: 'อาจารย์',
+          ชื่อ: 'ตัวอย่าง',
+          นามสกุล: 'ข้อมูล',
+          เบอร์โทร: '0812345678',
+          อีเมล: 'example@example.ac.th',
+        } as Record<string, string | number>)
+    await downloadWorkbook([row], `${type === 'student' ? 'student' : 'lecturer'}-import-template`, format)
   }
 
   const exportPeople = async (people: PersonRecord[], type: PersonType, format: PeopleFileFormat) => {
@@ -299,15 +361,30 @@ export const usePeopleImport = () => {
   }
 
   const downloadInvalidRows = async (rows: PeopleImportRow[], type: PersonType) => {
-    const headers = getHeaders(type)
-    await downloadWorkbook(rows.filter(row => row.status === 'invalid').map(row => ({
-      แถว: row.rowNumber,
-      [headers.id]: row.id,
-      [headers.prefix]: row.prefix,
-      [headers.firstName]: row.firstName,
-      [headers.lastName]: row.lastName,
-      เหตุผล: row.reason,
-    })), `${type === 'student' ? 'student' : 'lecturer'}-import-errors`, 'csv')
+    const invalidRows: Record<string, string | number>[] = rows
+      .filter(row => row.status === 'invalid')
+      .map((row): Record<string, string | number> => {
+        if (type === 'student') {
+          return {
+            เลขลำดับ: row.rowNumber,
+            รหัสนักศึกษา: row.id,
+            คำนำหน้า: row.prefix,
+            'ชื่อ-นามสกุล': `${row.firstName} ${row.lastName}`.trim(),
+            ตำแหน่งงาน: row.position ?? '',
+            ชื่อสถานประกอบการ: row.company ?? '',
+            เหตุผล: row.reason,
+          }
+        }
+        return {
+          แถว: row.rowNumber,
+          รหัส: row.id,
+          คำนำหน้าชื่อ: row.prefix,
+          ชื่อ: row.firstName,
+          นามสกุล: row.lastName,
+          เหตุผล: row.reason,
+        }
+      })
+    await downloadWorkbook(invalidRows, `${type === 'student' ? 'student' : 'lecturer'}-import-errors`, 'csv')
   }
 
   const downloadTemporaryCredentials = async (credentials: PeopleImportCredential[], type: PersonType) => {

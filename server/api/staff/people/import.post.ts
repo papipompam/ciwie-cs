@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client'
-import { lecturerPersonPrefixes, peopleImportRequestSchema, studentPersonPrefixes } from '#shared/people'
+import { genderFromPersonPrefix, lecturerPersonPrefixes, peopleImportRequestSchema, studentPersonPrefixes } from '#shared/people'
 import { hashPassword } from '../../../utils/password'
 import { generateTemporaryPassword } from '../../../utils/temporaryPassword'
 import { requireUserSession } from '../../../utils/session'
@@ -53,13 +53,14 @@ export default defineEventHandler(async (event) => {
       if (existing) {
         duplicates.push(person.id)
         if (existing.role === role) {
+          const gender = genderFromPersonPrefix(person.prefix) ?? person.gender
           await transaction.user.update({
             where: { id: existing.id },
             data: {
               namePrefix: person.prefix, firstName: person.firstName, lastName: person.lastName,
               ...(person.phone !== undefined ? { phone: person.phone } : {}),
               ...(person.email !== undefined ? { email: person.email } : {}),
-              ...(person.gender !== undefined ? { gender: person.gender === 'male' ? 'MALE' as const : 'FEMALE' as const } : {}),
+              ...(gender !== undefined ? { gender: gender === 'male' ? 'MALE' as const : 'FEMALE' as const } : {}),
               ...(type === 'student' && person.section !== undefined ? { section: person.section.replace('หมู่ ', '') } : {}),
               ...(type === 'student' && (cycle || cohortYear) ? { cohortYear: cycle?.targetCohortYear ?? cohortYear } : {}),
             },
@@ -84,6 +85,7 @@ export default defineEventHandler(async (event) => {
       }
 
       const temporaryPassword = type === 'student' ? person.id : generateTemporaryPassword()
+      const gender = genderFromPersonPrefix(person.prefix) ?? person.gender
       const account = await transaction.user.create({
         data: {
           username: person.id,
@@ -95,7 +97,7 @@ export default defineEventHandler(async (event) => {
           lastName: person.lastName,
           phone: person.phone,
           email: person.email,
-          gender: person.gender === 'male' ? 'MALE' : person.gender === 'female' ? 'FEMALE' : null,
+          gender: gender === 'male' ? 'MALE' : gender === 'female' ? 'FEMALE' : null,
           section: type === 'student' ? person.section?.replace('หมู่ ', '') : null,
           cohortYear: type === 'student' ? cycle?.targetCohortYear ?? cohortYear : null,
           createdById: staff.id,

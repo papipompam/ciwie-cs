@@ -21,7 +21,7 @@ vi.stubGlobal('useRuntimeConfig', () => ({ initialAccountPassword: 'Cwie@2569' }
 vi.stubGlobal('createError', (details: { statusCode: number, statusMessage: string }) => Object.assign(new Error(details.statusMessage), details))
 
 const findMany = vi.fn(async () => [person])
-const findUser = vi.fn(async ({ where }: { where: { username?: string } }) => where.username === 'new-student' || where.username === '66199999999' ? null : ({ id: 'student-internal-1', username: '66123456701', role: 'STUDENT', status: 'ACTIVE', recordStatus: 'ACTIVE' }))
+const findUser = vi.fn(async ({ where }: { where: { username?: string } }) => where.username === 'new-student' || where.username === 'new-lecturer' || where.username === '66199999999' ? null : ({ id: 'student-internal-1', username: '66123456701', role: 'STUDENT', status: 'ACTIVE', recordStatus: 'ACTIVE' }))
 const findStudent = vi.fn(async () => ({ id: 'student-internal-1' }))
 const createUser = vi.fn(async () => ({ id: 'student-new' }))
 const updateUser = vi.fn(async () => ({ id: 'student-internal-1' }))
@@ -109,12 +109,16 @@ describe('people APIs', () => {
     expect(createUser).not.toHaveBeenCalled()
   })
 
-  it('requires explicit gender when creating a lecturer', async () => {
+  it('creates a lecturer without requiring a separate gender field', async () => {
     body = { type: 'lecturer', id: 'new-lecturer', prefix: 'อาจารย์', firstName: 'ทดสอบ', lastName: 'ระบบ' }
-    await expect(createPerson({} as Parameters<typeof createPerson>[0])).rejects.toMatchObject({
-      statusCode: 400,
-      statusMessage: 'LECTURER_GENDER_REQUIRED',
-    })
+    await createPerson({} as Parameters<typeof createPerson>[0])
+    expect(createUser).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ role: 'LECTURER', gender: null }) }))
+  })
+
+  it('derives lecturer gender from a gendered prefix when available', async () => {
+    body = { type: 'lecturer', id: 'new-lecturer', prefix: 'นางสาว', firstName: 'ทดสอบ', lastName: 'ระบบ' }
+    await createPerson({} as Parameters<typeof createPerson>[0])
+    expect(createUser).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ role: 'LECTURER', gender: 'FEMALE' }) }))
   })
 
   it('transfers an existing active enrollment before moving a student to another cycle', async () => {

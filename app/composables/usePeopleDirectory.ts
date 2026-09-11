@@ -302,9 +302,15 @@ const cloneInitialPeople = () => initialPeople.map(person => ({
   activities: person.activities.map(activity => ({ ...activity })),
 }))
 
+/** Replace one person type with the persisted response, including an empty response. */
+export const replacePeopleByType = (existing: PersonRecord[], type: PersonType, records: PersonRecord[]) => [
+  ...existing.filter(person => person.type !== type),
+  ...records,
+]
+
 export const personPrefixOptions: Record<PersonType, Array<{ value: PersonPrefix, label: string }>> = {
   student: ['นาย', 'นางสาว', 'นาง'].map(value => ({ value: value as PersonPrefix, label: value })),
-  lecturer: ['อาจารย์', 'ดร.', 'ผศ.', 'ผศ.ดร.', 'รศ.', 'รศ.ดร.', 'ศ.', 'ศ.ดร.'].map(value => ({ value: value as PersonPrefix, label: value })),
+  lecturer: ['นาย', 'นางสาว', 'นาง', 'อาจารย์', 'ดร.', 'ผศ.', 'ผศ.ดร.', 'รศ.', 'รศ.ดร.', 'ศ.', 'ศ.ดร.'].map(value => ({ value: value as PersonPrefix, label: value })),
 }
 
 export const getPersonFullName = (person: Pick<PersonRecord, 'prefix' | 'firstName' | 'lastName'>) => `${person.prefix}${person.firstName} ${person.lastName}`
@@ -427,9 +433,7 @@ export const usePeopleDirectory = () => {
 
   const loadPersistedPeople = async (type: PersonType) => {
     const { people: records } = peopleResponseSchema.parse(await requestAwareFetch('/api/people', { query: { type } }))
-    // Keep the local demo directory usable before a development database is seeded.
-    if (import.meta.dev && records.length === 0) return people.value.filter(person => person.type === type)
-    people.value = [...people.value.filter(person => person.type !== type), ...records]
+    people.value = replacePeopleByType(people.value, type, records)
     return records
   }
 

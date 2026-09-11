@@ -4,7 +4,7 @@ import { z } from 'zod'
 import type { PersonInput, PersonType } from '~/composables/usePeopleDirectory'
 
 const props = defineProps<{ personType: PersonType }>()
-const emit = defineEmits<{ saved: [] }>()
+const emit = defineEmits<{ saved: [], cancel: [] }>()
 const { persistCreatePerson } = usePeopleDirectory()
 const { cycles } = useCoopCycles()
 const { showToast } = useToast()
@@ -13,12 +13,10 @@ const context = computed(() => props.personType === 'student'
   ? { idLabel: 'รหัสนักศึกษา', singular: 'นักศึกษา' }
   : { idLabel: 'รหัสอาจารย์', singular: 'อาจารย์' })
 const prefixOptions = computed(() => personPrefixOptions[props.personType])
-const genderOptions = [{ value: 'male', label: 'ชาย' }, { value: 'female', label: 'หญิง' }]
 const cycleOptions = cycles.map(cycle => ({ value: cycle.label, label: cycle.label }))
 const form = reactive<PersonInput>({ id: '', prefix: props.personType === 'student' ? 'นาย' : 'อาจารย์', firstName: '', lastName: '', phone: '', email: '', gender: undefined, cycle: props.personType === 'student' ? 'ภาคเรียนที่ 2/2569' : undefined, section: props.personType === 'student' ? 'หมู่ 1' : undefined })
 const formCycle = computed({ get: () => form.cycle ?? '', set: value => { form.cycle = value } })
 const formSection = computed({ get: () => form.section ?? '', set: value => { form.section = value as PersonInput['section'] } })
-const formGender = computed({ get: () => form.gender ?? '', set: value => { form.gender = value as PersonInput['gender'] } })
 const errors = reactive<Partial<Record<keyof PersonInput, string>>>({})
 const isSubmitting = ref(false)
 const schema = z.object({
@@ -38,7 +36,6 @@ const submit = async () => {
     result.error.issues.forEach((issue) => { errors[issue.path[0] as keyof PersonInput] = issue.message })
     return
   }
-  if (props.personType === 'lecturer' && !result.data.gender) { errors.gender = 'กรุณาระบุเพศสำหรับคำนวณห้องพัก'; return }
   isSubmitting.value = true
   try {
     const person = await persistCreatePerson(props.personType, result.data)
@@ -53,17 +50,44 @@ const submit = async () => {
 
 <template>
   <form novalidate @submit.prevent="submit">
-    <div class="grid gap-5 sm:grid-cols-2">
-      <div class="sm:col-span-2"><UiInput v-model="form.id" :label="context.idLabel" :placeholder="personType === 'student' ? 'เช่น 66123456701' : 'เช่น L0021'" :error="errors.id" required /></div>
-      <div><UiSelect v-model="form.prefix" :options="prefixOptions" label="คำนำหน้า" :error="errors.prefix" required /></div>
-      <div><UiInput v-model="form.firstName" label="ชื่อ" placeholder="กรอกชื่อ" :error="errors.firstName" required /></div>
-      <div><UiInput v-model="form.lastName" label="นามสกุล" placeholder="กรอกนามสกุล" :error="errors.lastName" required /></div>
-      <div><UiInput v-model="form.phone" label="เบอร์โทร" placeholder="08xxxxxxxx" :error="errors.phone" /></div>
-      <div><UiInput v-model="form.email" type="email" label="อีเมล" placeholder="name@example.ac.th" :error="errors.email" /></div>
-      <div v-if="personType === 'lecturer'"><UiSelect v-model="formGender" :options="genderOptions" label="เพศ" placeholder="เลือกเพศ" help="ใช้สำหรับจัดห้องพักแยกชายและหญิง" :error="errors.gender" required /></div>
-      <div v-if="personType === 'student'"><UiSelect v-model="formCycle" :options="cycleOptions" label="รอบสหกิจศึกษา" :error="errors.cycle" /></div>
-      <div v-if="personType === 'student'"><UiSelect v-model="formSection" :options="studentSectionValues.map(value => ({ value, label: value }))" label="หมู่เรียน" :error="errors.section" required /></div>
+    <template v-if="personType === 'student'">
+      <section aria-labelledby="student-information-heading">
+        <h3 id="student-information-heading" class="text-base font-bold text-ink">ข้อมูลนักศึกษา</h3>
+        <div class="mt-4 grid gap-4 sm:grid-cols-2">
+          <div class="sm:col-span-2"><UiInput v-model="form.id" :label="context.idLabel" placeholder="เช่น 66123456701" :error="errors.id" required /></div>
+          <div><UiSelect v-model="form.prefix" :options="prefixOptions" label="คำนำหน้า" :error="errors.prefix" required /></div>
+          <div><UiInput v-model="form.firstName" label="ชื่อ" placeholder="กรอกชื่อ" :error="errors.firstName" required /></div>
+          <div><UiInput v-model="form.lastName" label="นามสกุล" placeholder="กรอกนามสกุล" :error="errors.lastName" required /></div>
+          <div><UiInput v-model="form.phone" label="เบอร์โทร" placeholder="08xxxxxxxx" :error="errors.phone" /></div>
+          <div class="sm:col-span-2"><UiInput v-model="form.email" type="email" label="อีเมล" placeholder="name@example.ac.th" :error="errors.email" /></div>
+        </div>
+      </section>
+      <section class="mt-6 border-t border-divider pt-5" aria-labelledby="student-education-heading">
+        <h3 id="student-education-heading" class="text-base font-bold text-ink">ข้อมูลการศึกษา</h3>
+        <div class="mt-4 grid gap-4 sm:grid-cols-2">
+          <div><UiSelect v-model="formCycle" :options="cycleOptions" label="รอบสหกิจศึกษา" :error="errors.cycle" /></div>
+          <div><UiSelect v-model="formSection" :options="studentSectionValues.map(value => ({ value, label: value }))" label="หมู่เรียน" :error="errors.section" required /></div>
+        </div>
+      </section>
+    </template>
+    <template v-else>
+      <section aria-labelledby="lecturer-information-heading">
+        <h3 id="lecturer-information-heading" class="text-base font-bold text-ink">ข้อมูลอาจารย์</h3>
+        <div class="mt-4 grid gap-4 sm:grid-cols-2">
+          <div class="sm:col-span-2"><UiInput v-model="form.id" :label="context.idLabel" placeholder="เช่น L0021" :error="errors.id" required /></div>
+          <div class="sm:col-span-2 grid gap-4 sm:grid-cols-[10rem_minmax(0,1fr)_minmax(0,1fr)]">
+            <div><UiSelect v-model="form.prefix" :options="prefixOptions" label="คำนำหน้า" :error="errors.prefix" required /></div>
+            <div><UiInput v-model="form.firstName" label="ชื่อ" placeholder="กรอกชื่อ" :error="errors.firstName" required /></div>
+            <div><UiInput v-model="form.lastName" label="นามสกุล" placeholder="กรอกนามสกุล" :error="errors.lastName" required /></div>
+          </div>
+          <div><UiInput v-model="form.email" type="email" label="อีเมล" placeholder="name@example.ac.th" :error="errors.email" /></div>
+          <div><UiInput v-model="form.phone" label="เบอร์โทร" placeholder="08xxxxxxxx" :error="errors.phone" /></div>
+        </div>
+      </section>
+    </template>
+    <div class="mt-6 flex justify-end gap-3 border-t border-divider pt-4">
+      <UiButton type="button" variant="ghost" @click="emit('cancel')">ยกเลิก</UiButton>
+      <UiButton type="submit" :icon="Save" :loading="isSubmitting">บันทึกและสร้างบัญชี</UiButton>
     </div>
-    <div class="mt-6 flex justify-end border-t border-divider pt-5"><UiButton type="submit" :icon="Save" :loading="isSubmitting">บันทึกและสร้างบัญชี</UiButton></div>
   </form>
 </template>

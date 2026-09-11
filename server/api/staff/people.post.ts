@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client'
 import { z } from 'zod'
-import { lecturerPersonPrefixes, personInputSchema, personTypeSchema, studentPersonPrefixes } from '#shared/people'
+import { genderFromPersonPrefix, lecturerPersonPrefixes, personInputSchema, personTypeSchema, studentPersonPrefixes } from '#shared/people'
 import { hashPassword } from '../../utils/password'
 import { personAuditSelect, personSelect, toPersonRecord } from '../../utils/people'
 import { requireUserSession } from '../../utils/session'
@@ -13,9 +13,9 @@ export default defineEventHandler(async (event) => {
   if (!parsed.success) throw createError({ statusCode: 400, statusMessage: 'PERSON_INVALID' })
   const input = parsed.data
   if (input.type === 'student' && !input.section) throw createError({ statusCode: 400, statusMessage: 'STUDENT_SECTION_REQUIRED' })
-  if (input.type === 'lecturer' && !input.gender) throw createError({ statusCode: 400, statusMessage: 'LECTURER_GENDER_REQUIRED' })
   const allowedPrefixes: readonly string[] = input.type === 'student' ? studentPersonPrefixes : lecturerPersonPrefixes
   if (!allowedPrefixes.includes(input.prefix)) throw createError({ statusCode: 400, statusMessage: 'PERSON_PREFIX_INVALID' })
+  const gender = genderFromPersonPrefix(input.prefix) ?? input.gender
   const config = useRuntimeConfig(event)
   const initialPassword = z.string().min(8).safeParse(config.initialAccountPassword)
   if (input.type === 'lecturer' && !initialPassword.success) throw createError({ statusCode: 500, statusMessage: 'INITIAL_ACCOUNT_PASSWORD_NOT_CONFIGURED' })
@@ -41,7 +41,7 @@ export default defineEventHandler(async (event) => {
         username: input.id, passwordHash, role: input.type === 'student' ? 'STUDENT' : 'LECTURER', status: 'FIRST_LOGIN',
         namePrefix: input.prefix, firstName: input.firstName, lastName: input.lastName,
         phone: input.phone, email: input.email,
-        gender: input.gender === 'male' ? 'MALE' : input.gender === 'female' ? 'FEMALE' : null,
+        gender: gender === 'male' ? 'MALE' : gender === 'female' ? 'FEMALE' : null,
         section: input.type === 'student' ? input.section?.replace('หมู่ ', '') : null,
         cohortYear: input.type === 'student' ? cycle?.targetCohortYear ?? Number(`25${input.id.slice(0, 2)}`) : null,
         createdById: staff.id,

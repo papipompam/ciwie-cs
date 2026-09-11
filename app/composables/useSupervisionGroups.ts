@@ -141,14 +141,17 @@ const groupsSeed: SupervisionGroup[] = [
   { id: 'SG-003', cycleId: 'CYCLE-2569-2', round: 1, name: 'กลุ่มอาจารย์ 2', lecturerIds: ['L0021'], companyIds: ['SC-003'], createdAt: '2026-08-30T13:15:00+07:00' },
 ]
 
+// Demo records are opt-in; the directory must reflect persisted data by default.
+const demoSeedEnabled = false
+
 export const useSupervisionGroups = () => {
-  const placements = useState<SupervisionPlacement[]>('supervision-placements-v4', () => structuredClone(placementsSeed))
-  const groups = useState<SupervisionGroup[]>('supervision-groups-v3', () => structuredClone(groupsSeed))
-  const companyRecords = useState<CompanyRecord[]>('company-records-v1', () => import.meta.dev ? structuredClone(companyRecordsSeed) : [])
-  const supervisionLecturers = useState<SupervisionLecturerDto[]>('supervision-lecturers-v1', () => [])
-  const studentProfiles = useState<Record<string, { prefix: string, section: string }>>('supervision-student-profiles-v1', () => Object.fromEntries(
+  const placements = useState<SupervisionPlacement[]>('supervision-placements-v5', () => demoSeedEnabled ? structuredClone(placementsSeed) : [])
+  const groups = useState<SupervisionGroup[]>('supervision-groups-v4', () => demoSeedEnabled ? structuredClone(groupsSeed) : [])
+  const companyRecords = useState<CompanyRecord[]>('company-records-v2', () => demoSeedEnabled ? structuredClone(companyRecordsSeed) : [])
+  const supervisionLecturers = useState<SupervisionLecturerDto[]>('supervision-lecturers-v2', () => [])
+  const studentProfiles = useState<Record<string, { prefix: string, section: string }>>('supervision-student-profiles-v2', () => demoSeedEnabled ? Object.fromEntries(
     Object.keys(studentPrefixes).map(id => [id, { prefix: studentPrefixes[id] ?? 'นาย', section: studentSections[id] ?? 'ยังไม่กำหนด' }]),
-  ))
+  ) : {})
   const { recordEvent } = useScenario()
   const { currentAccount } = useAuthPrototype()
   const requireStaff = () => {
@@ -204,11 +207,6 @@ export const useSupervisionGroups = () => {
     const data = await requestAwareFetch('/api/staff/supervision/groups', {
       query: { cycleId, round },
     }) as { companies: SupervisionCompanyDto[], groups: SupervisionGroupDto[], lecturers: SupervisionLecturerDto[] }
-    // Keep the local demo workflow usable when the development database has no placement records yet.
-    if (import.meta.dev && data.companies.length === 0 && data.groups.length === 0) {
-      supervisionLecturers.value = data.lecturers
-      return data
-    }
     syncPersistedContext(cycleId, data)
     return data
   }
@@ -394,8 +392,6 @@ export const useSupervisionGroups = () => {
 
   const loadPersistedCompanies = async () => {
     const response = companiesResponseSchema.parse(await requestAwareFetch('/api/companies'))
-    // Keep the local demo directory usable before a development database is seeded.
-    if (import.meta.dev && response.companies.length === 0) return companyRecords.value
     companyRecords.value = response.companies
     return response.companies
   }

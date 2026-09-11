@@ -85,7 +85,7 @@ const exportFormatOptions = [
   { value: 'csv', label: 'CSV (.csv)' },
 ]
 const exportDescription = computed(() => personType.value === 'student'
-  ? 'ไฟล์จะมีรหัส คำนำหน้าชื่อ ชื่อ นามสกุล รุ่น หมู่เรียน สถานประกอบการ และตำแหน่งที่ฝึก'
+  ? 'ไฟล์จะมีเลขลำดับ รหัสนักศึกษา คำนำหน้า ชื่อ-นามสกุล ตำแหน่งงาน และชื่อสถานประกอบการ โดยเรียงตามหมู่เรียนและรหัสนักศึกษา'
   : 'ไฟล์จะมีรหัส คำนำหน้าชื่อ ชื่อ และนามสกุล')
 
 const filteredPeople = computed(() => {
@@ -177,19 +177,21 @@ const handlePeopleUpdated = async () => { await refreshPeople() }
         <p class="mt-1 text-sm leading-6 text-muted">ค้นหา เพิ่ม แก้ไข และจัดการสถานะข้อมูลกับบัญชีโดยไม่ลบประวัติเดิม</p>
       </div>
       <div class="flex flex-wrap gap-2 sm:justify-end">
-        <UiDialog v-model:open="importOpen" :title="`นำเข้าข้อมูล${context.title}`" description="เลือกไฟล์ ตรวจสอบ และยืนยันการนำเข้าได้ในหน้าต่างนี้" size="lg">
-          <template #trigger><UiButton variant="secondary" :icon="Upload">นำเข้าข้อมูล</UiButton></template>
-          <PeopleImportForm v-if="importOpen" :person-type="personType" @updated="handlePeopleUpdated" @close="importOpen = false" />
-        </UiDialog>
-        <UiDialog :title="`ส่งออก${context.title}`" :description="exportDescription">
-          <template #trigger><UiButton variant="secondary" :icon="Download">ส่งออกข้อมูล</UiButton></template>
-          <UiSelect v-model="exportFormat" :options="exportFormatOptions" :placeholder="exportFormatOptions.find(item => item.value === exportFormat)?.label" label="รูปแบบไฟล์" />
-          <template #cancel><UiButton variant="ghost">ยกเลิก</UiButton></template>
-          <template #confirm><UiButton :loading="isExporting" :icon="Download" @click="handleExport">ดาวน์โหลดไฟล์</UiButton></template>
-        </UiDialog>
+        <template v-if="personType === 'student'">
+          <UiDialog v-model:open="importOpen" :title="`นำเข้าข้อมูล${context.title}`" description="เลือกไฟล์ ตรวจสอบ และยืนยันการนำเข้าได้ในหน้าต่างนี้" size="lg">
+            <template #trigger><UiButton variant="secondary" :icon="Upload">นำเข้าข้อมูล</UiButton></template>
+            <PeopleImportForm v-if="importOpen" :person-type="personType" @updated="handlePeopleUpdated" @close="importOpen = false" />
+          </UiDialog>
+          <UiDialog :title="`ส่งออก${context.title}`" :description="exportDescription">
+            <template #trigger><UiButton variant="secondary" :icon="Download">ส่งออกข้อมูล</UiButton></template>
+            <UiSelect v-model="exportFormat" :options="exportFormatOptions" :placeholder="exportFormatOptions.find(item => item.value === exportFormat)?.label" label="รูปแบบไฟล์" />
+            <template #cancel><UiButton variant="ghost">ยกเลิก</UiButton></template>
+            <template #confirm><UiButton :loading="isExporting" :icon="Download" @click="handleExport">ดาวน์โหลดไฟล์</UiButton></template>
+          </UiDialog>
+        </template>
         <UiDialog v-model:open="createOpen" :title="`เพิ่ม${context.singular}`" description="ระบบจะสร้างบัญชีจากรหัส และกำหนดให้เปลี่ยนรหัสผ่านเมื่อเข้าสู่ระบบครั้งแรก" size="lg">
           <template #trigger><UiButton :icon="Plus">เพิ่ม{{ context.singular }}</UiButton></template>
-          <PersonCreateForm v-if="createOpen" :person-type="personType" @saved="createOpen = false; handlePeopleUpdated()" />
+          <PersonCreateForm v-if="createOpen" :person-type="personType" @saved="createOpen = false; handlePeopleUpdated()" @cancel="createOpen = false" />
         </UiDialog>
       </div>
     </div>
@@ -240,9 +242,13 @@ const handlePeopleUpdated = async () => { await refreshPeople() }
             </colgroup>
             <thead class="bg-surface text-xs font-semibold tracking-wide text-muted uppercase">
               <tr>
-                <th scope="col" class="px-6 py-3">{{ context.idLabel }}</th>
-                <th scope="col" class="px-4 py-3" :aria-sort="sortDirection === 'asc' ? 'ascending' : 'descending'">
-                  <button type="button" class="inline-flex items-center gap-1 font-semibold hover:text-ink" :aria-label="`เรียงชื่อ${sortDirection === 'asc' ? 'จาก ฮ ถึง ก' : 'จาก ก ถึง ฮ'}`" @click="sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'">ชื่อ–นามสกุล <ArrowUp v-if="sortDirection === 'asc'" :size="15" aria-hidden="true" /><ArrowDown v-else :size="15" aria-hidden="true" /></button>
+                <th scope="col" class="px-6 py-3" :aria-sort="personType === 'student' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : undefined">
+                  <button v-if="personType === 'student'" type="button" class="inline-flex items-center gap-1 font-semibold hover:text-ink" :aria-label="`เรียง${context.idLabel}${sortDirection === 'asc' ? 'จากน้อยไปมาก' : 'จากมากไปน้อย'}`" @click="sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'">{{ context.idLabel }} <ArrowUp v-if="sortDirection === 'asc'" :size="15" aria-hidden="true" /><ArrowDown v-else :size="15" aria-hidden="true" /></button>
+                  <template v-else>{{ context.idLabel }}</template>
+                </th>
+                <th scope="col" class="px-4 py-3" :aria-sort="personType === 'lecturer' ? (sortDirection === 'asc' ? 'ascending' : 'descending') : undefined">
+                  <button v-if="personType === 'lecturer'" type="button" class="inline-flex items-center gap-1 font-semibold hover:text-ink" :aria-label="`เรียงชื่อ${sortDirection === 'asc' ? 'จาก ฮ ถึง ก' : 'จาก ก ถึง ฮ'}`" @click="sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'">ชื่อ–นามสกุล <ArrowUp v-if="sortDirection === 'asc'" :size="15" aria-hidden="true" /><ArrowDown v-else :size="15" aria-hidden="true" /></button>
+                  <template v-else>ชื่อ–นามสกุล</template>
                 </th>
                 <th v-if="personType === 'student'" scope="col" class="px-4 py-3">รอบสหกิจ</th>
                 <th v-if="personType === 'student'" scope="col" class="px-4 py-3">หมู่เรียน</th>
