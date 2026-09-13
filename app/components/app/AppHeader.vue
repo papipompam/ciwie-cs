@@ -134,7 +134,7 @@ const pageTitle = computed(() => {
           <DropdownMenuContent :side-offset="8" align="end" class="z-50 min-w-64 rounded-panel border border-divider bg-canvas p-2 shadow-xl">
             <DropdownMenuLabel class="px-3 py-2 outline-none">
               <span class="block text-sm font-semibold text-ink">{{ scenario.userName }}</span>
-              <span class="mt-0.5 block text-xs font-normal text-muted">{{ roleLabel }} · ข้อมูลจำลอง</span>
+              <span class="mt-0.5 block text-xs font-normal text-muted">{{ roleLabel }}</span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator class="my-1 h-px bg-divider" />
             <DropdownMenuItem v-if="canEditProfile" class="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2.5 text-sm text-ink outline-none data-[highlighted]:bg-surface" @select="profileDialogOpen = true">
