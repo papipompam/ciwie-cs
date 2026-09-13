@@ -18,12 +18,20 @@ vi.stubGlobal('getRouterParam', () => 'APPOINTMENT-1')
 vi.stubGlobal('readBody', async () => body)
 vi.stubGlobal('createError', (details: { statusCode: number, statusMessage: string }) => Object.assign(new Error(details.statusMessage), details))
 const upsert = vi.fn(async ({ create }: { create: Record<string, unknown> }) => ({ id: 'EVALUATION-1', ...create }))
+const notificationCreate = vi.fn(async () => ({ id: 'NOTIFICATION-1' }))
 const findUnique = vi.fn(async () => ({
   id: 'APPOINTMENT-1', status: appointmentStatus,
   groupCompany: { group: { lecturers: [{ lecturerId: 'lecturer-001' }] } },
-  lecturers: [], companyEvaluation: null,
+  lecturers: [], companyEvaluations: [],
 }))
-vi.stubGlobal('usePrisma', () => ({ supervisionAppointment: { findUnique }, companyEvaluation: { upsert } }))
+vi.stubGlobal('usePrisma', () => ({
+  supervisionAppointment: { findUnique },
+  $transaction: vi.fn(async (callback: (transaction: unknown) => unknown) => callback({
+    companyEvaluation: { upsert },
+    user: { findMany: vi.fn(async () => [{ id: 'staff-001' }]) },
+    notification: { create: notificationCreate },
+  })),
+}))
 
 const { default: saveCompanyEvaluation } = await import('../server/api/evaluations/companies/[appointmentId].put')
 
@@ -41,7 +49,22 @@ describe('company evaluation API', () => {
   it('allows staff to submit every requested company criterion', async () => {
     await expect(saveCompanyEvaluation({} as Parameters<typeof saveCompanyEvaluation>[0])).resolves.toMatchObject({ status: 'submitted' })
     expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { appointmentId_evaluatorId: { appointmentId: 'APPOINTMENT-1', evaluatorId: 'staff-001' } },
       create: expect.objectContaining({ evaluatorId: 'staff-001', environmentScore: 4, allowanceScore: 3, nearbyAccommodationScore: 4, companyRequirements: 'นักศึกษาพัฒนาเว็บ' }),
+    }))
+  })
+
+  it('stores one company evaluation per evaluator for the same appointment', async () => {
+    user = { id: 'lecturer-001', role: 'lecturer' }
+    await saveCompanyEvaluation({} as Parameters<typeof saveCompanyEvaluation>[0])
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { appointmentId_evaluatorId: { appointmentId: 'APPOINTMENT-1', evaluatorId: 'lecturer-001' } },
+    }))
+    expect(notificationCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        type: 'COMPANY_EVALUATION_SUBMITTED',
+        recipients: { create: [{ accountId: 'staff-001' }] },
+      }),
     }))
   })
 

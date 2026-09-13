@@ -1,4 +1,4 @@
-import { calendarEventsResponseSchema } from '../../../shared/calendar'
+import { calendarEventsResponseSchema } from '#shared/calendar'
 import { requireUserSession } from '../../utils/session'
 
 export default defineEventHandler(async (event) => {

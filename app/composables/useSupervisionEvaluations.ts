@@ -149,14 +149,14 @@ export const useSupervisionEvaluations = () => {
     return saved
   }
 
-  const findCompanyEvaluation = (appointmentId: string) => companyEvaluations.value
-    .find(item => item.appointmentId === appointmentId) ?? null
-  const getCompanyEvaluation = (appointmentId: string) => {
-    const evaluation = findCompanyEvaluation(appointmentId)
+  const findCompanyEvaluation = (appointmentId: string, evaluatorId: string) => companyEvaluations.value
+    .find(item => item.appointmentId === appointmentId && item.evaluatorId === evaluatorId) ?? null
+  const getCompanyEvaluation = (appointmentId: string, evaluatorId = currentAccount.value?.id ?? '') => {
+    const evaluation = findCompanyEvaluation(appointmentId, evaluatorId)
     return evaluation ? cloneCompanyEvaluation(evaluation) : null
   }
   const writeCompanyEvaluation = (appointmentId: string, evaluatorId: string, input: CompanyEvaluationInput) => {
-    const existing = findCompanyEvaluation(appointmentId)
+    const existing = findCompanyEvaluation(appointmentId, evaluatorId)
     if (existing?.status === 'submitted') throw new Error('evaluation-locked')
     const evaluation: CompanyEvaluation = {
       appointmentId,
@@ -193,8 +193,8 @@ export const useSupervisionEvaluations = () => {
       reload: false,
     })
     await loadPersistedEvaluations(appointmentId)
-    const saved = getCompanyEvaluation(appointmentId)
-    if (!saved || saved.evaluatorId !== evaluatorId) throw new Error('EVALUATION_SAVE_NOT_RETURNED')
+    const saved = getCompanyEvaluation(appointmentId, evaluatorId)
+    if (!saved) throw new Error('EVALUATION_SAVE_NOT_RETURNED')
     return saved
   }
 
@@ -209,12 +209,10 @@ export const useSupervisionEvaluations = () => {
     ]
     companyEvaluations.value = [
       ...companyEvaluations.value.filter(evaluation => evaluation.appointmentId !== appointmentId),
-      ...(response.companyEvaluation
-        ? [{
-            ...response.companyEvaluation,
-            ratings: { ...response.companyEvaluation.ratings } as Record<string, EvaluationRating>,
-          }]
-        : []),
+      ...response.companyEvaluations.map(evaluation => ({
+        ...evaluation,
+        ratings: { ...evaluation.ratings } as Record<string, EvaluationRating>,
+      })),
     ]
     return response
   }

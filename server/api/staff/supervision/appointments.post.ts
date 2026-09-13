@@ -72,23 +72,25 @@ export default defineEventHandler(async (event) => {
       },
     })
     if (input.publish) {
-      await transaction.notification.create({
-        data: {
-          type: 'SUPERVISION_SCHEDULE_PUBLISHED',
-          severity: 'INFO',
-          title: 'เผยแพร่ตารางนิเทศแล้ว',
-          body: `นิเทศครั้งที่ ${input.round} วันที่ ${input.date} ${input.period === 'morning' ? 'ช่วงเช้า' : 'ช่วงบ่าย'}`,
-          deepLink: '/student/supervision',
-          appointmentId: appointment.id,
-          createdById: user.id,
-          recipients: {
-            create: [...new Set([
-              ...requests.map(request => request.enrollment.studentId),
-              ...lecturerIds,
-            ])].map(accountId => ({ accountId })),
-          },
-        },
-      })
+      const baseNotification = {
+        type: 'SUPERVISION_SCHEDULE_PUBLISHED',
+        severity: 'INFO' as const,
+        title: 'เผยแพร่ตารางนิเทศแล้ว',
+        body: `นิเทศครั้งที่ ${input.round} วันที่ ${input.date} ${input.period === 'morning' ? 'ช่วงเช้า' : 'ช่วงบ่าย'}`,
+        appointmentId: appointment.id,
+        createdById: user.id,
+      }
+      const studentIds = [...new Set(requests.map(request => request.enrollment.studentId))]
+      if (studentIds.length) {
+        await transaction.notification.create({
+          data: { ...baseNotification, deepLink: '/student/supervision', recipients: { create: studentIds.map(accountId => ({ accountId })) } },
+        })
+      }
+      if (lecturerIds.length) {
+        await transaction.notification.create({
+          data: { ...baseNotification, deepLink: '/lecturer/supervision', recipients: { create: lecturerIds.map(accountId => ({ accountId })) } },
+        })
+      }
     }
     return appointment
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })

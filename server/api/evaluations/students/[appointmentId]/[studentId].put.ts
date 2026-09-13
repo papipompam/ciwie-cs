@@ -51,15 +51,38 @@ export default defineEventHandler(async (event) => {
     nextFollowUp: parsed.data.followUp || null,
     submittedAt,
   }
-  const evaluation = await prisma.studentEvaluation.upsert({
-    where: {
-      appointmentStudentId_evaluatorLecturerId: {
-        appointmentStudentId: appointmentStudent.id,
-        evaluatorLecturerId: user.id,
+  const evaluation = await prisma.$transaction(async (transaction) => {
+    const saved = await transaction.studentEvaluation.upsert({
+      where: {
+        appointmentStudentId_evaluatorLecturerId: {
+          appointmentStudentId: appointmentStudent.id,
+          evaluatorLecturerId: user.id,
+        },
       },
-    },
-    update: data,
-    create: { appointmentStudentId: appointmentStudent.id, evaluatorLecturerId: user.id, ...data },
+      update: data,
+      create: { appointmentStudentId: appointmentStudent.id, evaluatorLecturerId: user.id, ...data },
+    })
+    if (parsed.data.status === 'submitted') {
+      const staffAccounts = await transaction.user.findMany({
+        where: { role: 'STAFF', status: 'ACTIVE' },
+        select: { id: true },
+      })
+      if (staffAccounts.length) {
+        await transaction.notification.create({
+          data: {
+            type: 'STUDENT_EVALUATION_SUBMITTED',
+            severity: 'INFO',
+            title: 'มีผลประเมินนักศึกษาใหม่',
+            body: `ส่งแบบประเมินของนักศึกษา ${studentId} แล้ว`,
+            deepLink: '/staff/evaluations',
+            appointmentId,
+            createdById: user.id,
+            recipients: { create: staffAccounts.map(account => ({ accountId: account.id })) },
+          },
+        })
+      }
+    }
+    return saved
   })
   return { id: evaluation.id, status: parsed.data.status, submittedAt: submittedAt?.toISOString() ?? null }
 })

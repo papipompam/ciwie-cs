@@ -30,7 +30,7 @@ const resetDialogOpen = ref(false)
 const temporaryPassword = ref('')
 const temporaryPasswordError = ref('')
 const { cycles } = useCoopCycles()
-const cycleOptions = cycles.map(cycle => ({ value: cycle.label, label: cycle.label }))
+const cycleOptions = computed(() => cycles.map(cycle => ({ value: cycle.label, label: cycle.label })))
 const prefixOptions = computed(() => personPrefixOptions[personType.value])
 const genderOptions = [{ value: 'male', label: 'ชาย' }, { value: 'female', label: 'หญิง' }]
 const editForm = reactive<PersonInput>({ id: '', prefix: 'นาย', firstName: '', lastName: '', phone: '', email: '', gender: undefined, cycle: '', section: undefined })

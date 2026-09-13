@@ -1,5 +1,5 @@
-import type { ExpenseAmounts, ExpenseCalculation, ExpenseRecord, ExpenseRecordMetadata, ExpenseReference } from '../../shared/expenses'
-export { calculateSupervisionLineExpense } from '../../shared/expense-calculation'
+import type { ExpenseAmounts, ExpenseCalculation, ExpenseRecord, ExpenseRecordMetadata, ExpenseReference } from '#shared/expenses'
+export { calculateSupervisionLineExpense } from '#shared/expense-calculation'
 
 const validPreviewAmount = (value: number) => Number.isFinite(value) && value >= 0 ? value : 0
 

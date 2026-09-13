@@ -74,13 +74,17 @@ describe('staff supervision expense API', () => {
     expect(createAudit).toHaveBeenCalled()
   })
 
-  it('rejects saving when an assigned lecturer has no gender', async () => {
+  it('uses a shared fallback room when assigned lecturers have no gender', async () => {
     group.lecturers[0]!.lecturer.gender = null as unknown as 'MALE'
-    await expect(saveExpense({} as Parameters<typeof saveExpense>[0])).rejects.toMatchObject({
-      statusCode: 409,
-      statusMessage: 'LECTURER_GENDER_REQUIRED',
+    await expect(saveExpense({} as Parameters<typeof saveExpense>[0])).resolves.toMatchObject({
+      lecturerCount: 2,
+      maleRoomCount: 0,
+      femaleRoomCount: 1,
+      roomCount: 1,
+      amounts: { accommodation: 2400 },
+      total: 5400,
     })
-    expect(upsertExpense).not.toHaveBeenCalled()
+    expect(upsertExpense).toHaveBeenCalled()
   })
 
   it('lists AI supervision lines with their lecturer gender allocation', async () => {

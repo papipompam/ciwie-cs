@@ -43,7 +43,10 @@ export default defineEventHandler(async (event) => {
         },
         orderBy: { id: 'asc' },
       },
-      companyEvaluation: {
+      companyEvaluations: {
+        where: user.role === 'staff'
+          ? {}
+          : { OR: [{ status: 'SUBMITTED' }, { evaluatorId: user.id }] },
         select: {
           evaluatorId: true, status: true, submittedAt: true,
           workRelevanceScore: true, workChallengeScore: true, learningOpportunityScore: true,
@@ -53,6 +56,7 @@ export default defineEventHandler(async (event) => {
           universityCoordinationScore: true, recommendation: true, observations: true,
           companyRequirements: true, issues: true, suggestions: true,
         },
+        orderBy: { evaluatorId: 'asc' },
       },
     },
   })
@@ -88,9 +92,7 @@ export default defineEventHandler(async (event) => {
     followUp: evaluation.nextFollowUp ?? '',
     })))
 
-  const company = appointment.companyEvaluation
-  const companyEvaluation = company
-    ? {
+  const companyEvaluations = appointment.companyEvaluations.map(company => ({
         appointmentId,
         evaluatorId: company.evaluatorId,
         status: statusFromPrisma(company.status),
@@ -115,8 +117,7 @@ export default defineEventHandler(async (event) => {
         companyRequirements: company.companyRequirements ?? '',
         issues: company.issues ?? '',
         suggestions: company.suggestions ?? '',
-      }
-    : null
+      }))
 
-  return { appointmentId, studentEvaluations, companyEvaluation }
+  return { appointmentId, studentEvaluations, companyEvaluations }
 })

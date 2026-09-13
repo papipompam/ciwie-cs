@@ -31,14 +31,14 @@ const findUnique = vi.fn(async () => ({
       ],
     },
   ],
-  companyEvaluation: {
+  companyEvaluations: [{
     evaluatorId: 'staff-001', status: 'SUBMITTED', submittedAt: new Date('2026-09-01T01:00:00.000Z'),
     workRelevanceScore: 5, workChallengeScore: 4, learningOpportunityScore: 5, supervisorReadinessScore: 4,
     studentSupportScore: 5, environmentScore: 4, safetyScore: 5, resourceReadinessScore: 4,
     allowanceScore: 3, transportationScore: 4, publicTransportScore: 3, nearbyAccommodationScore: 4,
     universityCoordinationScore: 5, recommendation: 'RECOMMENDED', observations: 'พร้อมดูแล',
     companyRequirements: null, issues: null, suggestions: null,
-  },
+  }],
 }))
 vi.stubGlobal('usePrisma', () => ({ supervisionAppointment: { findUnique } }))
 
@@ -59,10 +59,10 @@ describe('evaluation read API', () => {
         ratings: expect.objectContaining({ responsibility: '5', ethics: '4', problem_solving: '4' }),
       }),
     ])
-    expect(result.companyEvaluation).toMatchObject({
+    expect(result.companyEvaluations).toContainEqual(expect.objectContaining({
       evaluatorId: 'staff-001', status: 'submitted', recommendation: 'recommended',
       ratings: { field_relevance: '5', work_scope: '4', learning_opportunity: '5', supervisor_readiness: '4', student_support: '5', environment: '4', safety: '5', resources: '4', allowance: '3', transportation: '4', public_transport: '3', nearby_accommodation: '4', coordination: '5' },
-    })
+    }))
   })
 
   it('rejects an unassigned lecturer but lets staff inspect all drafts', async () => {

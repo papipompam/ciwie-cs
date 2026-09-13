@@ -1,7 +1,7 @@
-import { coopCyclesResponseSchema, type CoopCycle, type CoopCycleStatus } from '../../shared/coop-cycles'
+import { coopCyclesResponseSchema, type CoopCycle, type CoopCycleStatus } from '#shared/coop-cycles'
 import { requestAwareFetch } from '../utils/requestAwareFetch'
 
-export type { CoopCycle, CoopCycleStatus } from '../../shared/coop-cycles'
+export type { CoopCycle, CoopCycleStatus } from '#shared/coop-cycles'
 
 export type StudentWorkStatus =
   | "not_started"

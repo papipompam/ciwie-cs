@@ -97,15 +97,15 @@ describe('company evaluation roles', () => {
         appointmentId: 'A9', studentId: 'student-9', lecturerId: 'lecturer-9', status: 'draft', submittedAt: null,
         ratings: { responsibility: '4' }, strengths: 'รับผิดชอบ', issues: '', suggestions: '', followUp: '',
       }],
-      companyEvaluation: {
+      companyEvaluations: [{
         appointmentId: 'A9', evaluatorId: 'staff-1', status: 'submitted', submittedAt: '2026-09-01T00:00:00.000Z',
         ratings: { environment: '5' }, recommendation: 'recommended', observations: '', companyRequirements: '', issues: '', suggestions: '',
-      },
+      }],
     })))
     const store = useSupervisionEvaluations()
     await store.loadPersistedEvaluations('A9')
     expect(store.getStudentEvaluation('A9', 'student-9', 'lecturer-9')).toMatchObject({ status: 'draft', ratings: { responsibility: '4' } })
-    expect(store.getCompanyEvaluation('A9')).toMatchObject({ evaluatorId: 'staff-1', status: 'submitted' })
+    expect(store.getCompanyEvaluation('A9', 'staff-1')).toMatchObject({ evaluatorId: 'staff-1', status: 'submitted' })
   })
 
   it.each(['staff', 'lecturer'] as const)('allows %s to submit the shared company evaluation', (role) => {
@@ -114,12 +114,14 @@ describe('company evaluation roles', () => {
     expect(store.submitCompanyEvaluation('A1', `${role}-1`, input())).toMatchObject({ status: 'submitted', evaluatorId: `${role}-1` })
   })
 
-  it('blocks students and locks the evaluation after the first submission', () => {
+  it('blocks students, locks each submitted form, and allows another evaluator', () => {
     const store = useSupervisionEvaluations()
     store.submitCompanyEvaluation('A1', 'staff-1', input())
     account.value = { role: 'student' }
     expect(() => store.submitCompanyEvaluation('A2', 'student-1', input())).toThrow('ไม่มีสิทธิ์')
     account.value = { role: 'lecturer' }
-    expect(() => store.submitCompanyEvaluation('A1', 'lecturer-1', input())).toThrow('evaluation-locked')
+    expect(store.submitCompanyEvaluation('A1', 'lecturer-1', input())).toMatchObject({ evaluatorId: 'lecturer-1' })
+    account.value = { role: 'staff' }
+    expect(() => store.submitCompanyEvaluation('A1', 'staff-1', input())).toThrow('evaluation-locked')
   })
 })

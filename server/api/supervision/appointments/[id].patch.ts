@@ -59,19 +59,26 @@ export default defineEventHandler(async (event) => {
           status: appointment.status === 'POSTPONED' ? 'PUBLISHED' : appointment.status,
         },
       })
-      if (user.role === 'staff' && appointment.status === 'POSTPONED') {
-        await transaction.notification.create({
-          data: {
-            type: 'SUPERVISION_SCHEDULE_PUBLISHED',
-            severity: 'INFO',
-            title: 'เผยแพร่ตารางนิเทศแล้ว',
-            body: `อัปเดตกำหนดนิเทศวันที่ ${schedule.date} ${schedule.period === 'morning' ? 'ช่วงเช้า' : 'ช่วงบ่าย'}`,
-            deepLink: '/student/supervision',
-            appointmentId: appointment.id,
-            createdById: user.id,
-            recipients: { create: appointment.students.map(student => ({ accountId: student.placementRequest.enrollment.studentId })) },
-          },
-        })
+      if (user.role === 'staff') {
+        const baseNotification = {
+          type: 'SUPERVISION_SCHEDULE_PUBLISHED',
+          severity: 'INFO' as const,
+          title: 'อัปเดตตารางนิเทศแล้ว',
+          body: `กำหนดนิเทศวันที่ ${schedule.date} ${schedule.period === 'morning' ? 'ช่วงเช้า' : 'ช่วงบ่าย'}`,
+          appointmentId: appointment.id,
+          createdById: user.id,
+        }
+        const studentIds = [...new Set(appointment.students.map(student => student.placementRequest.enrollment.studentId))]
+        if (studentIds.length) {
+          await transaction.notification.create({
+            data: { ...baseNotification, deepLink: '/student/supervision', recipients: { create: studentIds.map(accountId => ({ accountId })) } },
+          })
+        }
+        if (lecturerIds.length) {
+          await transaction.notification.create({
+            data: { ...baseNotification, deepLink: '/lecturer/supervision', recipients: { create: lecturerIds.map(accountId => ({ accountId })) } },
+          })
+        }
       }
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
     return { id: appointment.id, status: appointment.status === 'POSTPONED' ? 'published' : appointment.status.toLowerCase() }

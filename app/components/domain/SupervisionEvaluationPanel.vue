@@ -79,6 +79,7 @@ const evaluationsLoading = ref(true)
 const evaluationsLoadError = ref('')
 const stagedStudentEvaluations = ref<Record<string, StudentEvaluationInput>>({})
 const stagedCompanyEvaluation = ref<CompanyEvaluationInput | null>(null)
+const selectedCompanyEvaluatorId = ref(props.currentLecturerId)
 const studentForm = reactive({
   ratings: {} as Record<string, string>,
   strengths: '',
@@ -98,11 +99,16 @@ const companyForm = reactive({
 const evaluatorLecturerIds = computed(() => props.appointment.result.actualLecturerIds.length
   ? props.appointment.result.actualLecturerIds
   : props.appointment.lecturerIds)
-const companyEvaluation = computed(() => getCompanyEvaluation(props.appointment.id))
+const appointmentCompanyEvaluations = computed(() => companyEvaluations.value
+  .filter(evaluation => evaluation.appointmentId === props.appointment.id))
+const companyEvaluatorOptions = computed(() => appointmentCompanyEvaluations.value.map(evaluation => ({
+  value: evaluation.evaluatorId,
+  label: props.lecturerName(evaluation.evaluatorId),
+})))
+const companyEvaluation = computed(() => getCompanyEvaluation(props.appointment.id, selectedCompanyEvaluatorId.value))
 const isParticipant = computed(() => props.readOnly || props.allowCompanyEvaluation || evaluatorLecturerIds.value.includes(props.currentLecturerId))
-const companyEvaluatorId = computed(() => companyEvaluation.value?.evaluatorId
-  ?? (props.allowCompanyEvaluation ? props.currentLecturerId : evaluatorLecturerIds.value[0] ?? ''))
-const isCompanyEvaluator = computed(() => Boolean(props.allowCompanyEvaluation || companyEvaluatorId.value === props.currentLecturerId))
+const companyEvaluatorId = computed(() => selectedCompanyEvaluatorId.value)
+const isCompanyEvaluator = computed(() => Boolean(props.allowCompanyEvaluation || evaluatorLecturerIds.value.includes(props.currentLecturerId)))
 const selectedStudent = computed(() => props.students.find(student => student.studentId === selectedStudentId.value) ?? null)
 const studentEvaluationFor = (studentId: string) => props.readOnly
   ? studentEvaluations.value.find(item => item.appointmentId === props.appointment.id && item.studentId === studentId && item.status === 'submitted')
@@ -114,11 +120,15 @@ const selectedStudentEvaluation = computed(() => selectedStudentId.value
 const currentStudentSubmitted = computed(() => props.students.filter(student => studentEvaluationFor(student.studentId)?.status === 'submitted').length)
 const currentRequiredCount = computed(() => props.companyOnly ? 1 : props.students.length + (!props.studentOnly && isCompanyEvaluator.value ? 1 : 0))
 const currentSubmittedCount = computed(() => (props.companyOnly ? 0 : currentStudentSubmitted.value) + (!props.studentOnly && isCompanyEvaluator.value && companyEvaluation.value?.status === 'submitted' ? 1 : 0))
-const totalRequiredCount = computed(() => props.companyOnly ? 1 : evaluatorLecturerIds.value.length * props.students.length + (props.studentOnly ? 0 : 1))
+const requiredCompanyEvaluationCount = computed(() => props.allowCompanyEvaluation ? 1 : evaluatorLecturerIds.value.length)
+const totalRequiredCount = computed(() => props.companyOnly ? requiredCompanyEvaluationCount.value : evaluatorLecturerIds.value.length * props.students.length + (props.studentOnly ? 0 : requiredCompanyEvaluationCount.value))
 const totalSubmittedCount = computed(() => (props.companyOnly ? 0 : studentEvaluations.value.filter(evaluation => evaluation.appointmentId === props.appointment.id
   && evaluatorLecturerIds.value.includes(evaluation.lecturerId)
   && props.students.some(student => student.studentId === evaluation.studentId)
-  && evaluation.status === 'submitted').length) + (!props.studentOnly && companyEvaluations.value.some(evaluation => evaluation.appointmentId === props.appointment.id && evaluation.status === 'submitted') ? 1 : 0))
+  && evaluation.status === 'submitted').length) + (!props.studentOnly ? appointmentCompanyEvaluations.value.filter(evaluation => evaluation.status === 'submitted'
+    && (props.allowCompanyEvaluation
+      ? evaluation.evaluatorId === props.currentLecturerId
+      : evaluatorLecturerIds.value.includes(evaluation.evaluatorId))).length : 0))
 const evaluationComplete = computed(() => totalSubmittedCount.value === totalRequiredCount.value)
 const selectedStudentLocked = computed(() => selectedStudentEvaluation.value?.status === 'submitted')
 const companyLocked = computed(() => companyEvaluation.value?.status === 'submitted')
@@ -203,6 +213,9 @@ const hydrateEvaluations = async () => {
   evaluationsLoadError.value = ''
   try {
     await loadPersistedEvaluations(props.appointment.id)
+    if (props.readOnly && !getCompanyEvaluation(props.appointment.id, selectedCompanyEvaluatorId.value)) {
+      selectedCompanyEvaluatorId.value = appointmentCompanyEvaluations.value[0]?.evaluatorId ?? ''
+    }
   } catch (error) {
     const status = (error as { statusCode?: number, response?: { status?: number } }).statusCode
       ?? (error as { response?: { status?: number } }).response?.status
@@ -391,6 +404,9 @@ const submitAllEvaluations = async () => {
           <div class="min-w-0">
             <div class="flex items-center gap-2"><Building2 :size="19" class="text-primary" aria-hidden="true" /><h4 id="company-evaluation-heading" class="font-bold text-ink">ประเมินสถานประกอบการ</h4></div>
             <p class="mt-1 text-sm text-muted">ผู้ประเมิน: {{ lecturerName(companyEvaluatorId) }}</p>
+            <div v-if="readOnly && companyEvaluatorOptions.length > 1" class="mt-3 w-full sm:w-72">
+              <UiSelect v-model="selectedCompanyEvaluatorId" :options="companyEvaluatorOptions" label="เลือกผู้ประเมิน" />
+            </div>
           </div>
           <div class="flex shrink-0 items-center gap-2">
             <UiBadge :tone="companyEvaluation?.status === 'submitted' ? 'success' : stagedCompanyEvaluation || companyEvaluation ? 'warning' : 'neutral'">

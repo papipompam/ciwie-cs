@@ -1,4 +1,4 @@
-import { coopCyclesResponseSchema, sortCoopCycles } from '../../shared/coop-cycles'
+import { coopCyclesResponseSchema, sortCoopCycles } from '#shared/coop-cycles'
 import { requireUserSession } from '../utils/session'
 
 const statusMap = {

@@ -26,11 +26,11 @@ describe('persisted company evaluation', () => {
         })()
       : {
           appointmentId: 'A1', studentEvaluations: [],
-          companyEvaluation: {
+          companyEvaluations: [{
             appointmentId: 'A1', evaluatorId: 'staff-1', status: 'draft', submittedAt: null,
             ratings: Object.fromEntries(companyEvaluationCriteria.map(criterion => [criterion.id, '4'])),
             recommendation: '', observations: '', companyRequirements: '', issues: '', suggestions: '',
-          },
+          }],
         })
     const store = useSupervisionEvaluations()
     await expect(store.persistCompanyEvaluation('A1', 'staff-1', {

@@ -32,8 +32,8 @@ const studentProgressStatus = computed<PlacementStatus | undefined>(() => {
   } as const)[status]
 })
 const { getUnassignedCompanies } = useSupervisionGroups()
-const { appointments } = useSupervisionAppointments()
-const { studentEvaluations, companyEvaluations } = useSupervisionEvaluations()
+const { appointments, loadPersistedAppointments } = useSupervisionAppointments()
+const { studentEvaluations, companyEvaluations, loadPersistedEvaluations } = useSupervisionEvaluations()
 const currentLecturerId = computed(() => currentAccount.value?.id ?? '')
 type DashboardTone = 'neutral' | 'warning' | 'info' | 'success' | 'danger'
 
@@ -114,7 +114,7 @@ const currentCycleDashboard: { staff: DashboardData, lecturer: DashboardData, st
 const canSelectDashboardCycle = computed(() => scenario.value.role === 'staff' || scenario.value.role === 'lecturer')
 const dashboardCycles = cycles
 const dashboardCycleId = ref(selectedCycle.value?.id ?? '')
-const cycleOptions = dashboardCycles.map(cycle => ({ value: cycle.id, label: `${cycle.label} · ${cycle.cohort}` }))
+const cycleOptions = computed(() => dashboardCycles.map(cycle => ({ value: cycle.id, label: `${cycle.label} · ${cycle.cohort}` })))
 const dashboardCycle = computed(() => canSelectDashboardCycle.value
   ? dashboardCycles.find(cycle => cycle.id === dashboardCycleId.value) ?? dashboardCycles[0] ?? null
   : selectedCycle.value)
@@ -140,8 +140,22 @@ const loadStaffDashboard = async () => {
     staffBackendDashboard.value = null
   }
 }
-watch([() => scenario.value.role, dashboardCycleId], () => { if (import.meta.client) void loadStaffDashboard() })
-onMounted(loadStaffDashboard)
+const loadLecturerDashboard = async () => {
+  if (scenario.value.role !== 'lecturer' || !dashboardCycleId.value) return
+  await Promise.all([1, 2].map(round => loadPersistedAppointments(dashboardCycleId.value, round as 1 | 2)))
+  const completedIds = appointments.value
+    .filter(appointment => appointment.cycleId === dashboardCycleId.value && appointment.status === 'completed')
+    .map(appointment => appointment.id)
+  await Promise.all(completedIds.map(loadPersistedEvaluations))
+}
+const loadDashboard = async () => {
+  await Promise.all([loadStaffDashboard(), loadLecturerDashboard()])
+}
+watch(() => selectedCycle.value?.id, (selectedId) => {
+  if (selectedId && !dashboardCycles.some(cycle => cycle.id === dashboardCycleId.value)) dashboardCycleId.value = selectedId
+}, { immediate: true })
+watch([() => scenario.value.role, dashboardCycleId], () => { if (import.meta.client) void loadDashboard() })
+onMounted(loadDashboard)
 const dashboard = computed<DashboardData>(() => {
   if (scenario.value.role === 'student') return studentDashboard.value
   if (scenario.value.role === 'staff') return staffDashboard.value
@@ -215,8 +229,10 @@ const pendingCompanyEvaluations = computed(() => lecturerAppointments.value
   .filter(appointment => appointment.status === 'completed')
   .filter((appointment) => {
     const evaluatorIds = appointment.result.actualLecturerIds.length ? appointment.result.actualLecturerIds : appointment.lecturerIds
-    return evaluatorIds[0] === currentLecturerId.value
-      && !companyEvaluations.value.some(evaluation => evaluation.appointmentId === appointment.id && evaluation.status === 'submitted')
+    return evaluatorIds.includes(currentLecturerId.value)
+      && !companyEvaluations.value.some(evaluation => evaluation.appointmentId === appointment.id
+        && evaluation.evaluatorId === currentLecturerId.value
+        && evaluation.status === 'submitted')
   }).length)
 const lecturerDashboard = computed<DashboardData>(() => ({
   summary: [

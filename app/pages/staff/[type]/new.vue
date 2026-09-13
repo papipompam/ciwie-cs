@@ -19,7 +19,7 @@ useHead({ title: () => context.value.title })
 
 const prefixOptions = computed(() => personPrefixOptions[personType.value])
 const genderOptions = [{ value: 'male', label: 'ชาย' }, { value: 'female', label: 'หญิง' }]
-const cycleOptions = cycles.map(cycle => ({ value: cycle.label, label: cycle.label }))
+const cycleOptions = computed(() => cycles.map(cycle => ({ value: cycle.label, label: cycle.label })))
 const form = reactive<PersonInput>({ id: '', prefix: personType.value === 'student' ? 'นาย' : 'อาจารย์', firstName: '', lastName: '', phone: '', email: '', gender: undefined, cycle: personType.value === 'student' ? 'ภาคเรียนที่ 2/2569' : undefined, section: personType.value === 'student' ? 'หมู่ 1' : undefined })
 const formCycle = computed({
   get: () => form.cycle ?? '',

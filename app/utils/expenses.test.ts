@@ -27,15 +27,21 @@ describe('expense calculation', () => {
     })
   })
 
-  it('ไม่คำนวณเมื่ออาจารย์ในสายยังไม่มีข้อมูลเพศ', () => {
-    expect(() => calculateSupervisionLineExpense({
+  it('รวมอาจารย์ที่ยังไม่มีข้อมูลเพศไว้ในห้องพักรวมชั่วคราว', () => {
+    expect(calculateSupervisionLineExpense({
       fuel: 0,
       roomRate: 1000,
       nights: 1,
       allowanceRate: 0,
       allowanceDays: 1,
       roomCapacity: 2,
-    }, [{ id: 'LECTURER-UNKNOWN', gender: null }])).toThrow('LECTURER_GENDER_REQUIRED')
+    }, [{ id: 'LECTURER-UNKNOWN', gender: null }])).toMatchObject({
+      lecturerCount: 1,
+      maleRoomCount: 0,
+      femaleRoomCount: 0,
+      roomCount: 1,
+      amounts: { accommodation: 1000 },
+    })
   })
 
   it('รวมค่าน้ำมัน ค่าที่พัก และเบี้ยเลี้ยงเป็นยอดค่าใช้จ่ายทั้งหมด', () => {

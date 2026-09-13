@@ -9,6 +9,7 @@ const { cycleId, round } = useSupervisionContext()
 const { appointments, loadPersistedAppointments } = useSupervisionAppointments()
 const { getCompanies } = useSupervisionGroups()
 const { currentAccount } = useAuthPrototype()
+const { people, loadPersistedPeople } = usePeopleDirectory()
 const { exportStudentEvaluations, exportCompanyEvaluations } = useEvaluationExport()
 const { showToast } = useToast()
 const loading = ref(true)
@@ -27,6 +28,10 @@ const completedAppointments = computed(() => appointments.value
 const companyName = (appointment: SupervisionAppointment) => companies.value.find(company => company.id === appointment.companyId)?.name
   ?? appointment.display?.companyName
   ?? appointment.companyId
+const evaluatorName = (id: string) => {
+  const person = people.value.find(item => item.id === id)
+  return person ? `${person.prefix}${person.firstName} ${person.lastName}` : id
+}
 const appointmentStudents = (appointment: SupervisionAppointment) => appointment.studentIds.map((studentId) => {
   const student = companies.value.find(company => company.id === appointment.companyId)?.students.find(item => item.studentId === studentId)
   if (student) return { id: student.id, studentId, studentName: student.studentName, position: student.position }
@@ -42,7 +47,7 @@ const loadAppointments = async () => {
   if (!cycleId.value) { loading.value = false; loadError.value = false; return }
   loading.value = true
   loadError.value = false
-  try { await loadPersistedAppointments(cycleId.value, round.value) }
+  try { await Promise.all([loadPersistedAppointments(cycleId.value, round.value), loadPersistedPeople('lecturer')]) }
   catch { loadError.value = true }
   finally { loading.value = false }
 }
@@ -124,7 +129,7 @@ watch([cycleId, round], loadAppointments)
       :appointment="selectedAppointment"
       :students="selectedStudentId ? appointmentStudents(selectedAppointment).filter(student => student.studentId === selectedStudentId) : appointmentStudents(selectedAppointment)"
       :current-lecturer-id="currentAccount?.id ?? ''"
-      :lecturer-name="id => id"
+      :lecturer-name="evaluatorName"
       :can-manage="false"
       read-only
       dialog-only

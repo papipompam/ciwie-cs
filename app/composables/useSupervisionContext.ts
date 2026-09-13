@@ -14,7 +14,7 @@ export const useSupervisionContext = () => {
   }, { immediate: true })
   if (route.query.round === '1' || route.query.round === '2') round.value = Number(route.query.round) as SupervisionRound
 
-  const cycleOptions = cycles.map(cycle => ({ value: cycle.id, label: cycle.label }))
+  const cycleOptions = computed(() => cycles.map(cycle => ({ value: cycle.id, label: cycle.label })))
   const roundOptions = [
     { value: '1', label: 'นิเทศครั้งที่ 1' },
     { value: '2', label: 'นิเทศครั้งที่ 2' },

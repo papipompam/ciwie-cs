@@ -10,6 +10,19 @@ export const getStudentSemester = (cycle?: string): string => cycle?.split('/')[
 
 export const getStudentAcademicYear = (cycle?: string): string | undefined => cycle?.match(/\/(\d{4})$/)?.[1]
 
+type StudentAcademicYearSource = { id: string, cycle?: string, cohortYear?: number }
+
+export const getStudentDirectoryAcademicYear = (student: StudentAcademicYearSource): string | undefined => (
+  getStudentAcademicYear(student.cycle)
+  ?? (student.cohortYear ? String(student.cohortYear) : undefined)
+  ?? (getStudentCohortYear(student.id) === 'ไม่ระบุรุ่น' ? undefined : getStudentCohortYear(student.id))
+)
+
+export const getStudentDirectoryAcademicYears = (students: StudentAcademicYearSource[]): string[] => [...new Set(students
+  .map(getStudentDirectoryAcademicYear)
+  .filter((year): year is string => Boolean(year)))]
+  .sort((a, b) => Number(b) - Number(a))
+
 // Imported students may not have a cycle enrollment yet. Keep them in directory
 // views so staff can see and assign the missing academic context.
 export const isStudentVisibleForCoopSemester = (_cycle?: string): boolean => true

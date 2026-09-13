@@ -23,7 +23,11 @@ export default defineEventHandler(async (event) => {
       status: true,
       groupCompany: { select: { group: { select: { lecturers: { select: { lecturerId: true } } } } } },
       lecturers: { select: { lecturerId: true } },
-      companyEvaluation: { select: { evaluatorId: true, status: true } },
+      companyEvaluations: {
+        where: { evaluatorId: user.id },
+        select: { status: true },
+        take: 1,
+      },
     },
   })
   if (!appointment) throw createError({ statusCode: 404, statusMessage: 'SUPERVISION_APPOINTMENT_NOT_FOUND' })
@@ -33,14 +37,10 @@ export default defineEventHandler(async (event) => {
   ])
   if (user.role === 'lecturer' && !assignedLecturers.has(user.id)) throw createError({ statusCode: 403, statusMessage: 'FORBIDDEN' })
   if (appointment.status !== 'COMPLETED') throw createError({ statusCode: 409, statusMessage: 'SUPERVISION_NOT_COMPLETED' })
-  if (appointment.companyEvaluation?.status === 'SUBMITTED') throw createError({ statusCode: 409, statusMessage: 'EVALUATION_LOCKED' })
-  if (user.role === 'lecturer' && appointment.companyEvaluation && appointment.companyEvaluation.evaluatorId !== user.id) {
-    throw createError({ statusCode: 403, statusMessage: 'EVALUATION_OWNED_BY_ANOTHER_EVALUATOR' })
-  }
+  if (appointment.companyEvaluations[0]?.status === 'SUBMITTED') throw createError({ statusCode: 409, statusMessage: 'EVALUATION_LOCKED' })
   const ratings = parsed.data.ratings
   const submittedAt = parsed.data.status === 'submitted' ? new Date() : null
   const data = {
-    evaluatorId: user.id,
     status: parsed.data.status === 'submitted' ? 'SUBMITTED' as const : 'DRAFT' as const,
     workRelevanceScore: ratings.field_relevance ?? null,
     workChallengeScore: ratings.work_scope ?? null,
@@ -62,10 +62,33 @@ export default defineEventHandler(async (event) => {
     suggestions: parsed.data.suggestions || null,
     submittedAt,
   }
-  const evaluation = await prisma.companyEvaluation.upsert({
-    where: { appointmentId },
-    update: data,
-    create: { appointmentId, ...data },
+  const evaluation = await prisma.$transaction(async (transaction) => {
+    const saved = await transaction.companyEvaluation.upsert({
+      where: { appointmentId_evaluatorId: { appointmentId, evaluatorId: user.id } },
+      update: data,
+      create: { appointmentId, evaluatorId: user.id, ...data },
+    })
+    if (parsed.data.status === 'submitted') {
+      const staffAccounts = await transaction.user.findMany({
+        where: { role: 'STAFF', status: 'ACTIVE', id: { not: user.id } },
+        select: { id: true },
+      })
+      if (staffAccounts.length) {
+        await transaction.notification.create({
+          data: {
+            type: 'COMPANY_EVALUATION_SUBMITTED',
+            severity: 'INFO',
+            title: 'มีผลประเมินสถานประกอบการใหม่',
+            body: `ส่งแบบประเมินสถานประกอบการของนัด ${appointmentId} แล้ว`,
+            deepLink: '/staff/evaluations',
+            appointmentId,
+            createdById: user.id,
+            recipients: { create: staffAccounts.map(account => ({ accountId: account.id })) },
+          },
+        })
+      }
+    }
+    return saved
   })
   return { id: evaluation.id, status: parsed.data.status, submittedAt: submittedAt?.toISOString() ?? null }
 })

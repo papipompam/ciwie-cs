@@ -58,7 +58,7 @@ describe('company APIs', () => {
   it('creates the province, company, and site in one transaction', async () => {
     body = {
       name: 'บริษัท ตัวอย่าง จำกัด', branch: 'สำนักงานใหญ่', province: 'บุรีรัมย์', region: 'ภาคตะวันออกเฉียงเหนือ',
-      address: '123 ถนนตัวอย่าง', contactName: 'คุณสมชาย', contactPhone: '044-000-000', latitude: 14.99, longitude: 103.1,
+      address: '123 ถนนตัวอย่าง', contactName: 'คุณสมชาย', latitude: 14.99, longitude: 103.1,
     }
     await expect(addCompany({} as Parameters<typeof addCompany>[0])).resolves.toMatchObject({ id: 'SITE-1', status: 'active' })
     expect(createCompany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ createdById: 'staff-001' }) }))

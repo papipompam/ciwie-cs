@@ -2,7 +2,7 @@
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Download, Plus, RotateCcw, Search, Upload } from '@lucide/vue'
 import type { PeopleFileFormat } from '~/composables/usePeopleImport'
 import type { PersonType } from '~/composables/usePeopleDirectory'
-import { compareStudentDirectoryPeople, getStudentAcademicYear, isStudentVisibleForCoopSemester, selectableCoopSemester } from '~/composables/useStudentCohortContext'
+import { compareStudentDirectoryPeople, getStudentDirectoryAcademicYear, getStudentDirectoryAcademicYears, isStudentVisibleForCoopSemester, selectableCoopSemester } from '~/composables/useStudentCohortContext'
 import { getPageCount, paginateItems } from '~/utils/table'
 import { hasConfirmedPlacement as hasPlacement } from '~/utils/studentPlacementStatus'
 
@@ -37,19 +37,16 @@ const search = ref('')
 const accountStatus = ref('all')
 const placementStatus = ref('all')
 const placementStatusOptions = [{ value: 'all', label: 'ทุกสถานะที่ฝึกงาน' }, { value: 'placed', label: 'ได้ที่ฝึกงานแล้ว' }, { value: 'unplaced', label: 'ยังไม่ได้ที่ฝึกงาน' }]
-const currentAcademicYear = computed(() => String(selectedCycle.value?.academicYear ?? ''))
+const currentAcademicYear = computed(() => String(selectedCycle.value?.academicYear ?? 'all'))
 const academicYearOptions = computed(() => {
-  const years = new Set(people.value
-    .filter(person => person.type === 'student')
-    .map(person => getStudentAcademicYear(person.cycle))
-    .filter((year): year is string => Boolean(year)))
-  if (currentAcademicYear.value) years.add(currentAcademicYear.value)
-  return [{ value: 'all', label: 'ทุกปีการศึกษา' }, ...[...years].sort((a, b) => b.localeCompare(a, 'th')).map(year => ({ value: year, label: `ปีการศึกษา ${year}` }))]
+  const years = getStudentDirectoryAcademicYears(people.value.filter(person => person.type === 'student'))
+  if (currentAcademicYear.value !== 'all' && !years.includes(currentAcademicYear.value)) years.unshift(currentAcademicYear.value)
+  return [{ value: 'all', label: 'ทุกปีการศึกษา' }, ...years.map(year => ({ value: year, label: `ปีการศึกษา ${year}` }))]
 })
 const studentSectionOptions = computed(() => {
   const sections = [...new Set(people.value
     .filter(person => person.type === 'student')
-    .filter(person => studentAcademicYear.value === 'all' || getStudentAcademicYear(person.cycle) === studentAcademicYear.value)
+    .filter(person => studentAcademicYear.value === 'all' || getStudentDirectoryAcademicYear(person) === studentAcademicYear.value)
     .map(person => person.section)
     .filter((section): section is NonNullable<typeof section> => Boolean(section)))].sort((a, b) => a.localeCompare(b, 'th', { numeric: true }))
   return [{ value: 'all', label: 'ทุกหมู่' }, ...sections.map(section => ({ value: section, label: section }))]
@@ -86,7 +83,7 @@ const filteredPeople = computed(() => {
   const keyword = search.value.trim().toLocaleLowerCase('th')
   return people.value
     .filter(person => person.type === personType.value)
-    .filter(person => personType.value !== 'student' || studentAcademicYear.value === 'all' || getStudentAcademicYear(person.cycle) === studentAcademicYear.value)
+    .filter(person => personType.value !== 'student' || studentAcademicYear.value === 'all' || getStudentDirectoryAcademicYear(person) === studentAcademicYear.value)
     .filter(person => personType.value !== 'student' || isStudentVisibleForCoopSemester(person.cycle))
     .filter(person => personType.value !== 'student' || studentSection.value === 'all' || person.section === studentSection.value)
     .filter(person => !keyword || [person.id, person.prefix, person.firstName, person.lastName, person.company]

@@ -1,5 +1,5 @@
 import type { PersonRecord } from '../composables/usePeopleDirectory'
-import type { PlacementRequestPreview } from '../../shared/placement-requests'
+import type { PlacementRequestPreview } from '#shared/placement-requests'
 
 export interface StudentPlacementSummary {
   confirmed: number

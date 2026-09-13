@@ -18,6 +18,7 @@ interface PersonUserRecord {
   phone: string | null
   email: string | null
   gender: 'MALE' | 'FEMALE' | null
+  cohortYear: number | null
   section: string | null
   cycleEnrollments: Array<{
     cycle: { label: string }
@@ -51,6 +52,7 @@ export const toPersonRecord = (person: PersonUserRecord, auditLogs: PersonAuditL
     ...(person.phone ? { phone: person.phone } : {}),
     ...(person.email ? { email: person.email } : {}),
     ...(person.gender ? { gender: person.gender === 'MALE' ? 'male' as const : 'female' as const } : {}),
+    ...(person.cohortYear ? { cohortYear: person.cohortYear } : {}),
     recordStatus: recordStatusMap[person.recordStatus],
     accountStatus: accountStatusMap[person.status],
     ...(enrollment ? { cycle: enrollment.cycle.label } : {}),
@@ -66,7 +68,7 @@ export const toPersonRecord = (person: PersonUserRecord, auditLogs: PersonAuditL
 
 export const personSelect = {
   id: true, username: true, role: true, status: true, recordStatus: true,
-  namePrefix: true, firstName: true, lastName: true, phone: true, email: true, gender: true, section: true,
+  namePrefix: true, firstName: true, lastName: true, phone: true, email: true, gender: true, cohortYear: true, section: true,
   cycleEnrollments: {
     where: { enrollmentStatus: 'ACTIVE' as const }, orderBy: { joinedAt: 'desc' as const }, take: 1,
     select: {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compareStudentDirectoryPeople, getDefaultStudentCohort, getStudentAcademicYear, isStudentVisibleForCoopSemester } from './useStudentCohortContext'
+import { compareStudentDirectoryPeople, getDefaultStudentCohort, getStudentAcademicYear, getStudentDirectoryAcademicYear, getStudentDirectoryAcademicYears, isStudentVisibleForCoopSemester } from './useStudentCohortContext'
 
 describe('student directory cycle visibility', () => {
   it('keeps imported students visible before they are assigned to a coop cycle', () => {
@@ -23,6 +23,16 @@ describe('student directory academic year', () => {
 
   it('returns no year when the student has no coop cycle', () => {
     expect(getStudentAcademicYear()).toBeUndefined()
+  })
+
+  it('builds year filters for students without cycle enrollment', () => {
+    expect(getStudentDirectoryAcademicYear({ id: '66123456701', cohortYear: 2566 })).toBe('2566')
+    expect(getStudentDirectoryAcademicYear({ id: '67123456701' })).toBe('2567')
+    expect(getStudentDirectoryAcademicYears([
+      { id: '66123456701', cohortYear: 2566 },
+      { id: '67123456701' },
+      { id: '65123456701', cycle: 'ภาคเรียนที่ 2/2569', cohortYear: 2565 },
+    ])).toEqual(['2569', '2567', '2566'])
   })
 })
 

@@ -660,7 +660,7 @@ model SupervisionAppointment {
   resultRecordedBy  User?                            @relation("AppointmentResultRecordedBy", fields: [resultRecordedById], references: [id], onDelete: SetNull)
   lecturers         SupervisionAppointmentLecturer[]
   students          SupervisionAppointmentStudent[]
-  companyEvaluation CompanyEvaluation?
+  companyEvaluations CompanyEvaluation[]
   notifications     Notification[]
 
   @@index([groupCompanyId, status])
@@ -739,7 +739,7 @@ model StudentEvaluation {
 
 model CompanyEvaluation {
   id                          String                 @id @default(cuid()) @db.VarChar(30)
-  appointmentId               String                 @unique @db.VarChar(30)
+  appointmentId               String                 @db.VarChar(30)
   evaluatorId                 String                 @db.VarChar(30)
   rubricVersion               Int                    @default(1)
   status                      EvaluationStatus       @default(DRAFT)
@@ -768,6 +768,7 @@ model CompanyEvaluation {
   appointment SupervisionAppointment @relation(fields: [appointmentId], references: [id], onDelete: Restrict)
   evaluator   User                   @relation(fields: [evaluatorId], references: [id], onDelete: Restrict)
 
+  @@unique([appointmentId, evaluatorId])
   @@index([evaluatorId, status])
   @@map("company_evaluations")
 }

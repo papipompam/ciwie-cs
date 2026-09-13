@@ -85,7 +85,7 @@ describe('staff supervision group API', () => {
     body = { cycleId: 'CYCLE-1', round: 1, maxDistanceKm: 100, maxCompanies: 5 }
     const result = await suggestGroups({} as Parameters<typeof suggestGroups>[0])
     expect(result.groups).toEqual([{ name: 'กลุ่มนิเทศ 1', companyIds: ['SITE-1'] }])
-    expect(result.algorithm).toMatchObject({ method: 'complete-link', metric: 'haversine-km' })
+    expect(result.algorithm).toMatchObject({ method: 'complete-link', metric: 'haversine-km-or-administrative-area' })
   })
 
   it('persists a suggestion atomically with no lecturer assignment', async () => {

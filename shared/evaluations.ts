@@ -113,5 +113,5 @@ export const persistedCompanyEvaluationSchema = persistedEvaluationBaseSchema.ex
 export const persistedEvaluationBundleSchema = z.object({
   appointmentId: z.string().trim().min(1).max(30),
   studentEvaluations: z.array(persistedStudentEvaluationSchema).max(500),
-  companyEvaluation: persistedCompanyEvaluationSchema.nullable(),
+  companyEvaluations: z.array(persistedCompanyEvaluationSchema).max(100),
 }).strict()

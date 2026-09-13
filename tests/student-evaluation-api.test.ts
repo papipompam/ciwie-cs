@@ -12,6 +12,7 @@ vi.stubGlobal('getRouterParam', (_event: unknown, key: string) => key === 'appoi
 vi.stubGlobal('readBody', async () => body)
 vi.stubGlobal('createError', (details: { statusCode: number, statusMessage: string }) => Object.assign(new Error(details.statusMessage), details))
 const upsert = vi.fn(async ({ create }: { create: Record<string, unknown> }) => ({ id: 'EVALUATION-1', ...create }))
+const notificationCreate = vi.fn(async () => ({ id: 'NOTIFICATION-1' }))
 const findFirst = vi.fn(async () => ({
   id: 'APPOINTMENT-STUDENT-1',
   appointment: {
@@ -21,7 +22,14 @@ const findFirst = vi.fn(async () => ({
   },
   studentEvaluations: [],
 }))
-vi.stubGlobal('usePrisma', () => ({ supervisionAppointmentStudent: { findFirst }, studentEvaluation: { upsert } }))
+vi.stubGlobal('usePrisma', () => ({
+  supervisionAppointmentStudent: { findFirst },
+  $transaction: vi.fn(async (callback: (transaction: unknown) => unknown) => callback({
+    studentEvaluation: { upsert },
+    user: { findMany: vi.fn(async () => [{ id: 'staff-001' }]) },
+    notification: { create: notificationCreate },
+  })),
+}))
 
 const { default: saveStudentEvaluation } = await import('../server/api/evaluations/students/[appointmentId]/[studentId].put')
 
@@ -37,6 +45,12 @@ describe('student evaluation API', () => {
     await expect(saveStudentEvaluation({} as Parameters<typeof saveStudentEvaluation>[0])).resolves.toMatchObject({ status: 'submitted' })
     expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
       create: expect.objectContaining({ evaluatorLecturerId: 'lecturer-001', responsibilityScore: 5, disciplineScore: 4, problemSolvingScore: 5 }),
+    }))
+    expect(notificationCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        type: 'STUDENT_EVALUATION_SUBMITTED',
+        recipients: { create: [{ accountId: 'staff-001' }] },
+      }),
     }))
   })
 
