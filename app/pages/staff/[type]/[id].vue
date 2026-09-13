@@ -145,7 +145,12 @@ const confirmPasswordReset = async () => {
   catch { temporaryPasswordError.value = 'รีเซ็ตรหัสผ่านไม่สำเร็จ กรุณาลองอีกครั้ง' }
   finally { isSaving.value = false }
 }
-const formatDateTime = (date: string) => new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(date))
+// Keep SSR and browser output identical; Vercel renders in UTC while users are in Thailand.
+const formatDateTime = (date: string) => new Intl.DateTimeFormat('th-TH', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+  timeZone: 'Asia/Bangkok',
+}).format(new Date(date))
 </script>
 
 <template>
