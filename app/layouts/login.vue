@@ -1,6 +1,8 @@
 <template>
   <div class="grid min-h-dvh w-full overflow-hidden bg-canvas lg:grid-cols-2">
     <section class="relative hidden min-h-dvh overflow-hidden bg-sidebar px-12 py-10 lg:flex lg:items-center xl:px-20" aria-labelledby="login-welcome-title">
+      <div class="pointer-events-none absolute inset-0 bg-cover bg-center opacity-90" style="background-image: url('/images/login-hero.png');" aria-hidden="true" />
+      <div class="pointer-events-none absolute inset-0 bg-gradient-to-r from-sidebar/95 via-sidebar/65 to-sidebar/10" aria-hidden="true" />
       <div class="pointer-events-none absolute -left-20 -top-24 size-72 rounded-full bg-primary/20 blur-3xl" />
       <div class="pointer-events-none absolute -bottom-24 right-0 size-96 rounded-full bg-primary/10 blur-3xl" />
       <div class="pointer-events-none absolute left-12 top-12 size-2 rounded-full bg-primary/70" />
