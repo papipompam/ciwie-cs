@@ -146,6 +146,17 @@ describe('people APIs', () => {
     expect(upsertEnrollment).toHaveBeenCalled()
   })
 
+  it('allows clearing optional contact fields when updating a person', async () => {
+    body = {
+      id: '66123456701', prefix: 'นาย', firstName: 'ธนกฤต', lastName: 'พูนทรัพย์',
+      phone: '', email: '', cycle: 'ภาคเรียนที่ 2/2569', section: 'หมู่ 1',
+    }
+    await updatePerson({} as Parameters<typeof updatePerson>[0])
+    expect(updateUser).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ phone: '', email: '' }),
+    }))
+  })
+
   it('increments the session version when suspending an account', async () => {
     body = { action: 'suspend' }
     await updatePerson({} as Parameters<typeof updatePerson>[0])
