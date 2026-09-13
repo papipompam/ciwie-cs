@@ -1,5 +1,5 @@
 import type { StudentSection } from './usePeopleDirectory'
-import { selectableCoopSemester } from './useCoopCycles'
+export const selectableCoopSemester = 'all'
 
 export const getStudentCohortYear = (studentId: string): string => {
   const shortYear = studentId.match(/^(\d{2})/)?.[1]
@@ -12,15 +12,14 @@ export const getStudentAcademicYear = (cycle?: string): string | undefined => cy
 
 // Imported students may not have a cycle enrollment yet. Keep them in directory
 // views so staff can see and assign the missing academic context.
-export const isStudentVisibleForCoopSemester = (cycle?: string): boolean =>
-  !cycle || getStudentSemester(cycle) === selectableCoopSemester
+export const isStudentVisibleForCoopSemester = (_cycle?: string): boolean => true
 
 export const getDefaultStudentCohort = (students: Array<{ id: string, cycle?: string }>): string => {
   const years = students
     .filter(student => isStudentVisibleForCoopSemester(student.cycle))
     .map(student => getStudentCohortYear(student.id))
     .filter(year => year !== 'ไม่ระบุรุ่น')
-  return [...new Set(years)].sort((a, b) => b.localeCompare(a, 'th'))[0] ?? 'all'
+  return [...new Set(years)].sort((a, b) => Number(b) - Number(a))[0] ?? 'all'
 }
 
 type StudentDirectoryPerson = {
@@ -51,7 +50,7 @@ export const useStudentCohortContext = () => {
     const years = [...new Set(people.value
       .filter(person => person.type === 'student')
       .map(person => getStudentCohortYear(person.id)))]
-      .sort((a, b) => b.localeCompare(a, 'th'))
+      .sort((a, b) => Number(b) - Number(a))
 
     return [
       { value: 'all', label: 'ทุกรุ่น' },
@@ -75,11 +74,9 @@ export const useStudentCohortContext = () => {
   })
   const selectedStudentSectionLabel = computed(() => studentSectionOptions.value
     .find(option => option.value === studentSection.value)?.label ?? 'ทุกหมู่')
-  const studentSemesterOptions = computed(() => [
-    { value: selectableCoopSemester, label: selectableCoopSemester },
-  ])
+  const studentSemesterOptions = computed(() => [{ value: selectableCoopSemester, label: 'ทุกภาคเรียน' }])
   const selectedStudentSemesterLabel = computed(() => studentSemesterOptions.value
-    .find(option => option.value === studentSemester.value)?.label ?? selectableCoopSemester)
+    .find(option => option.value === studentSemester.value)?.label ?? 'ทุกภาคเรียน')
   const ensureAvailableStudentFilters = () => {
     if (!studentSectionOptions.value.some(option => option.value === studentSection.value)) {
       studentSection.value = 'all'

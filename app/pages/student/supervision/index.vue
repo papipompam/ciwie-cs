@@ -12,6 +12,7 @@ const { people } = usePeopleDirectory()
 const { getCompanies } = useSupervisionGroups()
 const { appointments, loadPersistedAppointments } = useSupervisionAppointments()
 const { selectedCycle } = useCoopCycles()
+const selectedCycleId = computed(() => selectedCycle.value?.id ?? '')
 
 const searchQuery = ref('')
 const roundFilter = ref('all')
@@ -28,7 +29,7 @@ const currentStudentId = computed(() => currentAccount.value?.username ?? '')
 const effectiveViewState = computed(() => scenario.value.forceError || appointmentsLoadError.value
   ? 'error'
   : appointmentsLoading.value ? 'loading' : scenario.value.viewState)
-const companies = computed(() => getCompanies(selectedCycle.value.id))
+const companies = computed(() => selectedCycle.value ? getCompanies(selectedCycle.value.id) : [])
 const visibleStatuses: SupervisionAppointmentStatus[] = ['published', 'postponed', 'completed', 'cancelled']
 const roundOptions = [
   { value: 'all', label: 'ทุกครั้งที่นิเทศ' },
@@ -54,8 +55,8 @@ const company = (companyId: string) => {
   const display = appointments.value.find(item => item.companyId === companyId)?.display
   return display
     ? {
-        id: companyId, cycleId: selectedCycle.value.id, name: display.companyName, branch: display.branchName, province: display.province,
-        region: '', address: display.address, contactName: '', contactPhone: '', status: 'active' as const, studentCount: display.students.length,
+        id: companyId, cycleId: selectedCycle.value?.id ?? '', name: display.companyName, branch: display.branchName, province: display.province,
+        region: '', address: display.address, contactName: '', status: 'active' as const, studentCount: display.students.length,
         students: display.students.map(student => ({ id: student.id, studentId: student.id, studentName: student.name, prefix: '', firstName: student.name, lastName: '', section: '', position: student.position })),
       }
     : null
@@ -75,10 +76,10 @@ const formatDate = (date: string) => new Intl.DateTimeFormat('th-TH', {
   year: 'numeric',
 }).format(new Date(`${date}T00:00:00+07:00`))
 
-const studentAppointments = computed(() => appointments.value
-  .filter(item => item.cycleId === selectedCycle.value.id
+const studentAppointments = computed(() => selectedCycleId.value ? appointments.value
+  .filter(item => item.cycleId === selectedCycleId.value
     && item.studentIds.includes(currentStudentId.value)
-    && visibleStatuses.includes(item.status)))
+    && visibleStatuses.includes(item.status)) : [])
 const filteredAppointments = computed(() => {
   if (scenario.value.viewState === 'empty') return []
   const keyword = searchQuery.value.trim().toLocaleLowerCase('th')
@@ -132,12 +133,14 @@ const retry = () => {
 }
 const loadAppointments = async (silent = false) => {
   if (appointmentsLoadInFlight) return
+  const cycleId = selectedCycle.value?.id
+  if (!cycleId) { appointmentsLoading.value = false; return }
   appointmentsLoadInFlight = true
   if (!silent) appointmentsLoading.value = true
   appointmentsLoadError.value = false
   try {
-    await loadPersistedAppointments(selectedCycle.value.id, 1)
-    await loadPersistedAppointments(selectedCycle.value.id, 2)
+    await loadPersistedAppointments(cycleId, 1)
+    await loadPersistedAppointments(cycleId, 2)
   }
   catch { appointmentsLoadError.value = true }
   finally {
@@ -155,7 +158,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (appointmentsPollingTimer) clearInterval(appointmentsPollingTimer)
 })
-watch(() => selectedCycle.value.id, () => { void loadAppointments() })
+watch(() => selectedCycle.value?.id, () => { void loadAppointments() })
 const openDetails = (appointmentId: string) => {
   selectedAppointmentId.value = appointmentId
   detailOpen.value = true
@@ -165,7 +168,7 @@ const openDetails = (appointmentId: string) => {
 <template>
   <div>
     <header class="mb-6">
-      <p class="text-sm font-semibold text-primary">{{ selectedCycle.label }}</p>
+      <p class="text-sm font-semibold text-primary">{{ selectedCycle?.label ?? 'กำลังโหลดรอบสหกิจ' }}</p>
       <h2 class="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-3xl">ตารางนิเทศของฉัน</h2>
       <p class="mt-1 text-sm leading-6 text-muted">ดูวัน เวลา สถานประกอบการ อาจารย์ผู้นิเทศ และเพื่อนที่อยู่ในรายการเดียวกัน</p>
     </header>
@@ -243,7 +246,7 @@ const openDetails = (appointmentId: string) => {
                 <td class="whitespace-nowrap px-4 py-4 text-ink">{{ supervisionPeriodMeta[appointment.period].label }}</td>
                 <td class="max-w-xs px-4 py-4"><p v-for="lecturerId in appointmentLecturerIds(appointment)" :key="lecturerId" class="leading-6 text-ink">{{ lecturerName(lecturerId) }}</p></td>
                 <td class="whitespace-nowrap px-4 py-4"><UiBadge :tone="supervisionAppointmentStatusMeta[appointment.status].tone">{{ supervisionAppointmentStatusMeta[appointment.status].label }}</UiBadge></td>
-                <td class="px-4 py-4 text-right"><button type="button" class="inline-flex min-h-9 items-center justify-center whitespace-nowrap rounded-control border border-divider bg-canvas px-3 text-xs font-semibold text-ink hover:bg-surface" :aria-label="`ดูข้อมูล ${appointment.id}`" @click="openDetails(appointment.id)">ดูข้อมูล</button></td>
+                <td class="px-4 py-4 text-right"><button type="button" class="inline-flex min-h-9 items-center justify-center whitespace-nowrap rounded-control border border-divider bg-canvas px-3 text-xs font-semibold text-ink hover:bg-surface" :aria-label="`ดูข้อมูล ${appointment.appointmentNo}`" @click="openDetails(appointment.id)">ดูข้อมูล</button></td>
               </tr>
             </tbody>
           </table>

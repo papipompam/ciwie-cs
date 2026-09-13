@@ -56,7 +56,7 @@ export const saveCompanyEvaluationSchema = z.discriminatedUnion('status', [
   companyNotesSchema.extend({
     status: z.literal('submitted'),
     ratings: companyRatingSchema,
-    recommendation: companyRecommendationSchema,
+    recommendation: companyRecommendationSchema.optional(),
   }).strict(),
 ])
 

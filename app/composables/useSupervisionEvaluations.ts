@@ -84,36 +84,14 @@ export const companyEvaluationCriteria: EvaluationCriterion[] = [
   { id: 'coordination', label: 'การประสานงานและการสื่อสารกับมหาวิทยาลัยมีความชัดเจนและต่อเนื่อง' },
 ]
 
-const studentEvaluationSeed: StudentEvaluation[] = [
-  {
-    appointmentId: 'SA-006', studentId: '66123456701', lecturerId: 'L0012', status: 'submitted', submittedAt: '2026-08-20T17:00:00+07:00',
-    ratings: { responsibility: '5', ethics: '5', communication: '4', knowledge: '4', work_quality: '4', problem_solving: '4' },
-    strengths: 'รับผิดชอบงานและสื่อสารความคืบหน้าได้ดี', issues: 'ยังต้องฝึกจัดลำดับงานเร่งด่วน', suggestions: 'สรุปแผนงานรายสัปดาห์', followUp: 'ติดตามผลในการนิเทศครั้งถัดไป',
-  },
-  {
-    appointmentId: 'SA-006', studentId: '66123456702', lecturerId: 'L0012', status: 'draft', submittedAt: null,
-    ratings: { responsibility: '4', ethics: '4', communication: '4', knowledge: '3', work_quality: '4', problem_solving: '3' },
-    strengths: 'เรียนรู้เครื่องมือทดสอบได้รวดเร็ว', issues: '', suggestions: '', followUp: '',
-  },
-]
-
-const companyEvaluationSeed: CompanyEvaluation[] = [
-  {
-    appointmentId: 'SA-006', evaluatorId: 'L0012', status: 'submitted', submittedAt: '2026-08-20T17:10:00+07:00',
-    ratings: { field_relevance: '5', work_scope: '4', learning_opportunity: '5', supervisor_readiness: '5', student_support: '4', environment: '5', safety: '5', resources: '4', allowance: '3', transportation: '4', public_transport: '4', nearby_accommodation: '4', coordination: '4' },
-    recommendation: 'recommended', observations: 'พี่เลี้ยงให้คำแนะนำสม่ำเสมอ', companyRequirements: 'ต้องการนักศึกษาด้านพัฒนาเว็บและทดสอบระบบ', issues: '', suggestions: 'ประสานหัวข้องานก่อนเริ่มรอบถัดไป',
-  },
-]
-
 const hasCompleteRatings = (ratings: Record<string, EvaluationRating>, criteria: EvaluationCriterion[]) => criteria
   .every(criterion => Boolean(ratings[criterion.id]))
 const cloneStudentEvaluation = (evaluation: StudentEvaluation): StudentEvaluation => ({ ...evaluation, ratings: { ...evaluation.ratings } })
 const cloneCompanyEvaluation = (evaluation: CompanyEvaluation): CompanyEvaluation => ({ ...evaluation, ratings: { ...evaluation.ratings } })
 
 export const useSupervisionEvaluations = () => {
-  const studentEvaluations = useState<StudentEvaluation[]>('supervision-student-evaluations-v1', () => structuredClone(studentEvaluationSeed))
-  const companyEvaluations = useState<CompanyEvaluation[]>('supervision-company-evaluations-v2', () => structuredClone(companyEvaluationSeed))
-  const { recordEvent } = useScenario()
+  const studentEvaluations = useState<StudentEvaluation[]>('supervision-student-evaluations-v1', () => [])
+  const companyEvaluations = useState<CompanyEvaluation[]>('supervision-company-evaluations-v2', () => [])
   const { currentAccount } = useAuthPrototype()
   const requireStudentEvaluator = () => {
     if (currentAccount.value?.role !== 'lecturer') throw new Error('ไม่มีสิทธิ์ประเมินนักศึกษา')
@@ -146,7 +124,6 @@ export const useSupervisionEvaluations = () => {
   const saveStudentEvaluation = (appointmentId: string, studentId: string, lecturerId: string, input: StudentEvaluationInput) => {
     requireStudentEvaluator()
     const evaluation = writeStudentEvaluation(appointmentId, studentId, lecturerId, input)
-    recordEvent(`บันทึกร่างแบบประเมินนักศึกษา ${studentId}`)
     return cloneStudentEvaluation(evaluation)
   }
 
@@ -156,7 +133,6 @@ export const useSupervisionEvaluations = () => {
     const evaluation = writeStudentEvaluation(appointmentId, studentId, lecturerId, input)
     evaluation.status = 'submitted'
     evaluation.submittedAt = new Date().toISOString()
-    recordEvent(`ส่งแบบประเมินนักศึกษา ${studentId}`)
     return cloneStudentEvaluation(evaluation)
   }
 
@@ -165,10 +141,12 @@ export const useSupervisionEvaluations = () => {
     await requestAwareFetch(`/api/evaluations/students/${appointmentId}/${encodeURIComponent(studentId)}`, {
       method: 'PUT',
       body: { status, ...input },
+      reload: false,
     })
-    return status === 'submitted'
-      ? submitStudentEvaluation(appointmentId, studentId, lecturerId, input)
-      : saveStudentEvaluation(appointmentId, studentId, lecturerId, input)
+    await loadPersistedEvaluations(appointmentId)
+    const saved = getStudentEvaluation(appointmentId, studentId, lecturerId)
+    if (!saved) throw new Error('EVALUATION_SAVE_NOT_RETURNED')
+    return saved
   }
 
   const findCompanyEvaluation = (appointmentId: string) => companyEvaluations.value
@@ -194,7 +172,6 @@ export const useSupervisionEvaluations = () => {
   const saveCompanyEvaluation = (appointmentId: string, evaluatorId: string, input: CompanyEvaluationInput) => {
     requireCompanyEvaluator()
     const evaluation = writeCompanyEvaluation(appointmentId, evaluatorId, input)
-    recordEvent(`บันทึกร่างแบบประเมินสถานประกอบการ ${appointmentId}`)
     return cloneCompanyEvaluation(evaluation)
   }
 
@@ -204,19 +181,21 @@ export const useSupervisionEvaluations = () => {
     const evaluation = writeCompanyEvaluation(appointmentId, evaluatorId, input)
     evaluation.status = 'submitted'
     evaluation.submittedAt = new Date().toISOString()
-    recordEvent(`ส่งแบบประเมินสถานประกอบการ ${appointmentId}`)
     return cloneCompanyEvaluation(evaluation)
   }
 
   const persistCompanyEvaluation = async (appointmentId: string, evaluatorId: string, input: CompanyEvaluationInput, status: EvaluationStatus) => {
     requireCompanyEvaluator()
+    const { recommendation, ...details } = input
     await requestAwareFetch(`/api/evaluations/companies/${appointmentId}`, {
       method: 'PUT',
-      body: { status, ...input },
+      body: { status, ...details, ...(recommendation ? { recommendation } : {}) },
+      reload: false,
     })
-    return status === 'submitted'
-      ? submitCompanyEvaluation(appointmentId, evaluatorId, input)
-      : saveCompanyEvaluation(appointmentId, evaluatorId, input)
+    await loadPersistedEvaluations(appointmentId)
+    const saved = getCompanyEvaluation(appointmentId)
+    if (!saved || saved.evaluatorId !== evaluatorId) throw new Error('EVALUATION_SAVE_NOT_RETURNED')
+    return saved
   }
 
   const loadPersistedEvaluations = async (appointmentId: string) => {

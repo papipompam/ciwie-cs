@@ -86,6 +86,20 @@ export default defineEventHandler(async (event) => {
           },
         })
       }
+      else {
+        await transaction.notification.create({
+          data: {
+            type: 'OUTGOING_REQUEST_SENT',
+            severity: 'INFO',
+            title: 'เจ้าหน้าที่ส่งหนังสือให้แล้ว',
+            body: `หนังสือขอความอนุเคราะห์สำหรับ ${request.companyNameSnapshot} พร้อมให้ดำเนินการต่อ`,
+            deepLink: '/student/applications',
+            placementRequestId: request.id,
+            createdById: user.id,
+            recipients: { create: [{ accountId: request.enrollment.studentId }] },
+          },
+        })
+      }
       return created
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
     return {

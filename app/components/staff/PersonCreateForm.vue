@@ -13,12 +13,28 @@ const context = computed(() => props.personType === 'student'
   ? { idLabel: 'รหัสนักศึกษา', singular: 'นักศึกษา' }
   : { idLabel: 'รหัสอาจารย์', singular: 'อาจารย์' })
 const prefixOptions = computed(() => personPrefixOptions[props.personType])
-const cycleOptions = cycles.map(cycle => ({ value: cycle.label, label: cycle.label }))
-const form = reactive<PersonInput>({ id: '', prefix: props.personType === 'student' ? 'นาย' : 'อาจารย์', firstName: '', lastName: '', phone: '', email: '', gender: undefined, cycle: props.personType === 'student' ? 'ภาคเรียนที่ 2/2569' : undefined, section: props.personType === 'student' ? 'หมู่ 1' : undefined })
-const formCycle = computed({ get: () => form.cycle ?? '', set: value => { form.cycle = value } })
+const selectedAcademicYear = ref('2569')
+const selectedTerm = ref('ภาคเรียนที่ 2')
+const academicYearOptions = computed(() => [...new Set(cycles.map(cycle => String(cycle.academicYear)))].sort((a, b) => b.localeCompare(a, 'th')).map(year => ({ value: year, label: `ปีการศึกษา ${year}` })))
+const termOptions = computed(() => cycles
+  .filter(cycle => String(cycle.academicYear) === selectedAcademicYear.value)
+  .map(cycle => ({ value: cycle.semester, label: cycle.semester })))
+const selectedCycle = computed(() => cycles.find(cycle => String(cycle.academicYear) === selectedAcademicYear.value && cycle.semester === selectedTerm.value))
+const form = reactive<PersonInput>({ id: '', prefix: props.personType === 'student' ? 'นาย' : 'อาจารย์', firstName: '', lastName: '', phone: '', email: '', gender: undefined, cycle: undefined, section: props.personType === 'student' ? 'หมู่ 1' : undefined })
 const formSection = computed({ get: () => form.section ?? '', set: value => { form.section = value as PersonInput['section'] } })
 const errors = reactive<Partial<Record<keyof PersonInput, string>>>({})
 const isSubmitting = ref(false)
+watch(() => cycles.length, () => {
+  if (!selectedCycle.value && cycles[0]) {
+    selectedAcademicYear.value = String(cycles[0].academicYear)
+    selectedTerm.value = cycles[0].semester
+  }
+}, { immediate: true })
+watch(selectedAcademicYear, (year) => {
+  if (!termOptions.value.some(option => option.value === selectedTerm.value)) selectedTerm.value = termOptions.value[0]?.value ?? ''
+  if (year) errors.cycle = undefined
+})
+watch(selectedTerm, () => { errors.cycle = undefined })
 const schema = z.object({
   id: z.string().trim().min(1, 'กรุณากรอกรหัส').max(20, 'รหัสต้องไม่เกิน 20 ตัวอักษร'),
   prefix: z.enum(personPrefixValues, { error: 'กรุณาเลือกคำนำหน้า' }),
@@ -31,7 +47,11 @@ const schema = z.object({
 
 const submit = async () => {
   Object.keys(errors).forEach(key => { errors[key as keyof PersonInput] = undefined })
-  const result = schema.safeParse(form)
+  if (props.personType === 'student' && !selectedCycle.value) {
+    errors.cycle = 'ไม่พบรอบสหกิจของปีการศึกษาและภาคเรียนที่เลือก'
+    return
+  }
+  const result = schema.safeParse(props.personType === 'student' ? { ...form, cycle: selectedCycle.value?.label ?? '' } : form)
   if (!result.success) {
     result.error.issues.forEach((issue) => { errors[issue.path[0] as keyof PersonInput] = issue.message })
     return
@@ -64,9 +84,10 @@ const submit = async () => {
       </section>
       <section class="mt-6 border-t border-divider pt-5" aria-labelledby="student-education-heading">
         <h3 id="student-education-heading" class="text-base font-bold text-ink">ข้อมูลการศึกษา</h3>
-        <div class="mt-4 grid gap-4 sm:grid-cols-2">
-          <div><UiSelect v-model="formCycle" :options="cycleOptions" label="รอบสหกิจศึกษา" :error="errors.cycle" /></div>
+        <div class="mt-4 grid items-end justify-start gap-4 sm:grid-cols-[10rem_10rem_9rem]">
           <div><UiSelect v-model="formSection" :options="studentSectionValues.map(value => ({ value, label: value }))" label="หมู่เรียน" :error="errors.section" required /></div>
+          <div><UiSelect v-model="selectedAcademicYear" :options="academicYearOptions" label="ปีการศึกษา" :error="errors.cycle" required /></div>
+          <div><UiSelect v-model="selectedTerm" :options="termOptions" label="ภาคเรียน" :error="errors.cycle" required /></div>
         </div>
       </section>
     </template>

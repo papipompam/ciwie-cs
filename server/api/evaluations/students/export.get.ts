@@ -45,7 +45,7 @@ export default defineEventHandler(async (event) => {
             select: {
               companyNameSnapshot: true,
               positionTitle: true,
-              enrollment: { select: { student: { select: { namePrefix: true, firstName: true, lastName: true } } } },
+              enrollment: { select: { student: { select: { username: true, namePrefix: true, firstName: true, lastName: true } } } },
             },
           },
         },

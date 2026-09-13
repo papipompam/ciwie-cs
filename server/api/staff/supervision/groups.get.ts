@@ -17,7 +17,7 @@ export default defineEventHandler(async (event) => {
         companySite: {
           select: {
             id: true, branchName: true, address: true, latitude: true, longitude: true,
-            contactName: true, contactPhone: true, recordStatus: true,
+            contactName: true, recordStatus: true,
             company: { select: { legalName: true } },
             province: { select: { nameTh: true, region: true } },
           },

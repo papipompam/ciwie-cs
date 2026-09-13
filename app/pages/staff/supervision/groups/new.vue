@@ -9,7 +9,7 @@ useHead({ title: 'สร้างกลุ่มอาจารย์นิเ�
 const { showToast } = useToast()
 const { people, loadPersistedPeople } = usePeopleDirectory()
 await loadPersistedPeople('lecturer')
-const { getUnassignedCompanies, getAssignedLecturerIds, createGroup } = useSupervisionGroups()
+const { getUnassignedCompanies, getAssignedLecturerIds, persistSuggestedGroups, persistLecturers } = useSupervisionGroups()
 const { cycleId, round, selectedCycleLabel } = useSupervisionContext()
 const name = ref('')
 const lecturerIds = ref<string[]>([])
@@ -72,13 +72,12 @@ const submit = async () => {
   }
   isSaving.value = true
   try {
-    const group = createGroup({
-      cycleId: cycleId.value,
-      round: round.value,
+    const [group] = await persistSuggestedGroups(cycleId.value, round.value, [{
       name: result.data.name,
-      lecturerIds: result.data.lecturerIds,
       companyIds: result.data.companyIds,
-    })
+    }], false)
+    if (!group) throw new Error('GROUP_SAVE_FAILED')
+    if (result.data.lecturerIds.length) await persistLecturers(group.id, result.data.lecturerIds, false)
     showToast({
       title: 'สร้างกลุ่มอาจารย์แล้ว',
       description: `${group.name} · อาจารย์ ${group.lecturerIds.length} คน · สถานประกอบการ ${group.companyIds.length} แห่ง`,

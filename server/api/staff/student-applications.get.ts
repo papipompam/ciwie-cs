@@ -8,7 +8,7 @@ const querySchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
-  await requireUserSession(event, ['staff'])
+  await requireUserSession(event, ['staff', 'lecturer'])
   const query = querySchema.safeParse(getQuery(event))
   if (!query.success) throw createError({ statusCode: 400, statusMessage: 'INVALID_PAGINATION' })
   const prisma = usePrisma()

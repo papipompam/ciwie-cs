@@ -28,11 +28,11 @@ export default defineEventHandler(async (event) => {
     return transaction.companySite.create({
       data: {
         branchName: input.branch, address: input.address, latitude: input.latitude, longitude: input.longitude,
-        provinceId: province.id, companyId: company.id, contactName: input.contactName, contactPhone: input.contactPhone,
+        provinceId: province.id, companyId: company.id, contactName: input.contactName,
       },
       select: {
         id: true, branchName: true, address: true, latitude: true, longitude: true,
-        contactName: true, contactPhone: true, recordStatus: true, createdAt: true, updatedAt: true,
+        contactName: true, recordStatus: true, createdAt: true, updatedAt: true,
         company: { select: { legalName: true } }, province: { select: { nameTh: true, region: true } },
       },
     })

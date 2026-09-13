@@ -10,7 +10,7 @@ interface FakeApplication {
   status: string
   [key: string]: unknown
 }
-type CreateData = Omit<FakeApplication, 'id' | 'studentAccountId'> & Record<string, unknown>
+type CreateData = Omit<FakeApplication, 'studentAccountId'> & Record<string, unknown>
 type UpdateData = Partial<CreateData> & Record<string, unknown>
 const records: FakeApplication[] = []
 const student = { id: 'student-001', username: '66123456701', role: 'student' as const, name: 'นายธนกฤต พูนทรัพย์', status: 'active' as const, sessionVersion: 1 }
@@ -103,6 +103,7 @@ beforeEach(() => {
 describe('student application API', () => {
   it('creates and edits an application owned by the authenticated student', async () => {
     const created = await createApplication(event)
+    expect(created.id).toMatch(/^RE\d{4}$/)
     expect(created).toMatchObject({ studentId: student.username, recipientName: 'ผู้จัดการฝ่ายบุคคล', letterAddress: 'สำนักงานกรุงเทพ' })
 
     request.id = created.id

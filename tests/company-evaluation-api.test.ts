@@ -8,7 +8,7 @@ const ratings = {
   transportation: 4, public_transport: 3, nearby_accommodation: 4, coordination: 5,
 }
 let body: Record<string, unknown> = {
-  status: 'submitted', ratings, recommendation: 'recommended',
+  status: 'submitted', ratings,
   observations: 'พร้อมดูแล', companyRequirements: 'นักศึกษาพัฒนาเว็บ', issues: '', suggestions: '',
 }
 
@@ -31,7 +31,7 @@ beforeEach(() => {
   user = { id: 'staff-001', role: 'staff' }
   appointmentStatus = 'COMPLETED'
   body = {
-    status: 'submitted', ratings, recommendation: 'recommended',
+    status: 'submitted', ratings,
     observations: 'พร้อมดูแล', companyRequirements: 'นักศึกษาพัฒนาเว็บ', issues: '', suggestions: '',
   }
   vi.clearAllMocks()
@@ -59,4 +59,5 @@ describe('company evaluation API', () => {
     appointmentStatus = 'PUBLISHED'
     await expect(saveCompanyEvaluation({} as Parameters<typeof saveCompanyEvaluation>[0])).rejects.toMatchObject({ statusCode: 409 })
   })
+
 })

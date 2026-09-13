@@ -44,8 +44,8 @@ const studentSchema = z.object({
   position: z.string().trim().min(1, 'กรุณากรอกตำแหน่งฝึกงาน').max(150, 'ตำแหน่งต้องไม่เกิน 150 ตัวอักษร'),
 })
 const companyInitialValue = computed<CompanyInput>(() => company.value
-  ? { name: company.value.name, branch: company.value.branch, province: company.value.province, region: company.value.region, address: company.value.address, contactName: company.value.contactName, contactPhone: company.value.contactPhone, latitude: company.value.latitude, longitude: company.value.longitude }
-  : { name: '', branch: '', province: '', region: '', address: '', contactName: '', contactPhone: '' })
+  ? { name: company.value.name, branch: company.value.branch, province: company.value.province, region: company.value.region, address: company.value.address, contactName: company.value.contactName, latitude: company.value.latitude, longitude: company.value.longitude }
+  : { name: '', branch: '', province: '', region: '', address: '', contactName: '' })
 const formatCycleLabel = (cycleId: string) => {
   return cycleCatalog.find(item => item.id === cycleId)?.label ?? cycleId
 }
@@ -181,7 +181,7 @@ const handleDelete = async () => {
       <div class="grid gap-4 sm:grid-cols-3">
         <UiCard><p class="text-xs font-medium text-muted">นักศึกษาฝึกงาน</p><p class="mt-2 text-2xl font-bold text-ink">{{ selectablePlacements.length }} คน</p></UiCard>
         <UiCard><p class="text-xs font-medium text-muted">รอบสหกิจศึกษา</p><p class="mt-2 text-2xl font-bold text-ink">{{ new Set(placements.map(item => item.cycleId)).size }} รอบ</p></UiCard>
-        <UiCard><p class="text-xs font-medium text-muted">ผู้ประสานงาน</p><p class="mt-2 font-bold text-ink">{{ company.contactName }}</p><p class="mt-1 text-sm text-muted">{{ company.contactPhone }}</p></UiCard>
+        <UiCard><p class="text-xs font-medium text-muted">ผู้ประสานงาน</p><p class="mt-2 font-bold text-ink">{{ company.contactName }}</p></UiCard>
       </div>
 
       <UiCard class="mt-6">
@@ -194,7 +194,6 @@ const handleDelete = async () => {
           <div><dt class="text-xs font-medium text-muted">สาขา</dt><dd class="mt-1.5 text-sm text-ink">{{ company.branch }}</dd></div>
           <div><dt class="text-xs font-medium text-muted">จังหวัด / ภูมิภาค</dt><dd class="mt-1.5 text-sm text-ink">{{ company.province }} · {{ company.region }}</dd></div>
           <div><dt class="text-xs font-medium text-muted">ผู้ประสานงาน</dt><dd class="mt-1.5 text-sm text-ink">{{ company.contactName }}</dd></div>
-          <div><dt class="text-xs font-medium text-muted">เบอร์โทรศัพท์</dt><dd class="mt-1.5 text-sm text-ink">{{ company.contactPhone }}</dd></div>
           <div class="sm:col-span-2"><dt class="text-xs font-medium text-muted">ที่อยู่สถานประกอบการ</dt><dd class="mt-1.5 text-sm leading-6 text-ink">{{ company.address }}</dd></div>
         </dl>
       </UiCard>

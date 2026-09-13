@@ -7,7 +7,6 @@ export const companyInputSchema = z.object({
   region: z.enum(['ภาคเหนือ', 'ภาคตะวันออกเฉียงเหนือ', 'ภาคกลาง', 'ภาคตะวันออก', 'ภาคตะวันตก', 'ภาคใต้']),
   address: z.string().trim().min(1).max(5000),
   contactName: z.string().trim().min(1).max(150),
-  contactPhone: z.string().trim().min(1).max(50),
   latitude: z.number().min(-90).max(90).nullable().optional(),
   longitude: z.number().min(-180).max(180).nullable().optional(),
 }).strict()

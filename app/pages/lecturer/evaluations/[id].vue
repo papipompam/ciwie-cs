@@ -20,7 +20,7 @@ const company = computed(() => {
   return display
     ? {
         id: appointment.value.companyId, cycleId: appointment.value.cycleId, name: display.companyName, branch: display.branchName, province: display.province,
-        region: '', address: display.address, contactName: '', contactPhone: '', status: 'active' as const, studentCount: display.students.length,
+        region: '', address: display.address, contactName: '', status: 'active' as const, studentCount: display.students.length,
         students: display.students.map(student => ({ id: student.id, studentId: student.id, studentName: student.name, prefix: '', firstName: student.name, lastName: '', section: '', position: student.position })),
       }
     : null
@@ -70,7 +70,7 @@ watch([appointment, pageTitle], ([value]) => {
     <AppErrorState v-else-if="effectiveViewState === 'error'" title="โหลดแบบประเมินไม่สำเร็จ" description="เกิดข้อผิดพลาดชั่วคราว กรุณาลองอีกครั้ง" @retry="retry" />
     <AppEmptyState v-else-if="!appointment" title="ไม่พบรายการประเมิน" description="รายการนี้อาจถูกย้ายหรือไม่มีอยู่ในข้อมูลตัวอย่าง"><UiButton variant="secondary" @click="navigateTo(backPath)">กลับไปหน้า{{ pageTitle }}</UiButton></AppEmptyState>
     <template v-else>
-      <header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><p class="text-sm font-semibold text-primary">{{ appointment.id }} · นิเทศครั้งที่ {{ appointment.round }}</p><h2 class="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-3xl">{{ pageTitle }}</h2><p class="mt-1 text-sm leading-6 text-muted">{{ company?.name ?? appointment.companyId }} · {{ group?.name }}</p></div><UiBadge :tone="canManage ? 'success' : 'warning'">{{ canManage ? 'พร้อมประเมิน' : 'ยังไม่พร้อมประเมิน' }}</UiBadge></header>
+      <header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><p class="text-sm font-semibold text-primary">{{ appointment.appointmentNo }} · นิเทศครั้งที่ {{ appointment.round }}</p><h2 class="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-3xl">{{ pageTitle }}</h2><p class="mt-1 text-sm leading-6 text-muted">{{ company?.name ?? appointment.companyId }} · {{ group?.name }}</p></div><UiBadge :tone="canManage ? 'success' : 'warning'">{{ canManage ? 'พร้อมประเมิน' : 'ยังไม่พร้อมประเมิน' }}</UiBadge></header>
       <UiAlert v-if="appointment.status !== 'completed'" class="mb-6" tone="warning" title="ประเมินได้หลังนิเทศเสร็จ">กลับไปที่ตารางนิเทศและยืนยันผลการนิเทศก่อนเริ่มทำแบบประเมิน</UiAlert>
       <UiAlert v-else-if="evaluationType === 'student' && !selectedStudentValid" class="mb-6" tone="warning" title="ไม่พบนักศึกษาในรายการนิเทศนี้">กลับไปหน้าประเมินนักศึกษาแล้วเลือกรายการใหม่อีกครั้ง</UiAlert>
       <UiAlert v-else-if="!canManage" class="mb-6" tone="warning" title="ไม่มีสิทธิ์ทำแบบประเมินรายการนี้">เฉพาะอาจารย์ที่เข้าร่วมนิเทศจริงเท่านั้นที่ทำแบบประเมินได้</UiAlert>

@@ -12,6 +12,7 @@ const statusFromPrisma: Record<SupervisionAppointmentStatus, 'draft' | 'publishe
 
 interface PersistedAppointment {
   id: string
+  appointmentNo: string
   scheduledDate: Date | null
   period: SupervisionPeriod | null
   status: SupervisionAppointmentStatus
@@ -33,6 +34,7 @@ interface PersistedAppointment {
 
 export const toSupervisionAppointmentDto = (appointment: PersistedAppointment) => ({
   id: appointment.id,
+  appointmentNo: appointment.appointmentNo,
   cycleId: appointment.groupCompany.cycleId,
   round: roundFromPrisma[appointment.groupCompany.round],
   groupId: appointment.groupCompany.groupId,

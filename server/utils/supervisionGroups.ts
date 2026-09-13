@@ -25,7 +25,6 @@ export type ConfirmedPlacementForGrouping = Prisma.PlacementRequestGetPayload<{
         latitude: true
         longitude: true
         contactName: true
-        contactPhone: true
         recordStatus: true
         company: { select: { legalName: true } }
         province: { select: { nameTh: true, region: true } }
@@ -55,7 +54,6 @@ export const toSupervisionCompanies = (requests: ConfirmedPlacementForGrouping[]
       region: site.province.region ? regionLabels[site.province.region] : 'ยังไม่ระบุ',
       address: site.address,
       contactName: site.contactName ?? 'ยังไม่ระบุ',
-      contactPhone: site.contactPhone ?? 'ยังไม่ระบุ',
       status: site.recordStatus === 'ACTIVE' ? 'active' as const : 'inactive' as const,
       latitude: site.latitude === null ? null : Number(site.latitude),
       longitude: site.longitude === null ? null : Number(site.longitude),

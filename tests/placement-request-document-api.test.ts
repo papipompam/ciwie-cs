@@ -6,11 +6,13 @@ import { join } from 'node:path'
 const storageRoot = await mkdtemp(join(tmpdir(), 'cwie-documents-'))
 const requestContext = { id: 'REQUEST-001', documentId: 'DOCUMENT-001', kind: 'company-response' }
 const student = { id: 'student-001', username: '66123456701', role: 'student' as const, name: 'นักศึกษาทดสอบ', status: 'active' as const, sessionVersion: 1 }
+const staff = { id: 'staff-001', username: 'staff001', role: 'staff' as const, name: 'เจ้าหน้าที่ทดสอบ', status: 'active' as const, sessionVersion: 1 }
+let currentUser = student
 let currentStatus = 'WAITING_RESPONSE'
 let createdDocument: Record<string, unknown> | null = null
 let fileMime = 'application/pdf'
 
-vi.mock('../server/utils/session', () => ({ requireUserSession: vi.fn(async () => student) }))
+vi.mock('../server/utils/session', () => ({ requireUserSession: vi.fn(async () => currentUser) }))
 vi.stubGlobal('defineEventHandler', (handler: unknown) => handler)
 vi.stubGlobal('getRouterParam', (_event: unknown, name: string) => name === 'documentId' ? requestContext.documentId : requestContext.id)
 vi.stubGlobal('getRequestHeader', vi.fn(() => 'multipart/form-data; boundary=test'))
@@ -51,6 +53,8 @@ const { default: uploadDocument } = await import('../server/api/placement-reques
 const { default: downloadDocument } = await import('../server/api/placement-requests/[id]/documents/[documentId].get')
 
 beforeEach(() => {
+  currentUser = student
+  requestContext.kind = 'company-response'
   currentStatus = 'WAITING_RESPONSE'
   createdDocument = null
   fileMime = 'application/pdf'
@@ -79,6 +83,23 @@ describe('placement request document API', () => {
     const downloaded = await downloadDocument({} as Parameters<typeof downloadDocument>[0])
     expect(downloaded.toString('utf8')).toContain('%PDF-1.4')
     expect(setResponseHeader).toHaveBeenCalledWith(expect.anything(), 'content-type', 'application/pdf')
+  })
+
+  it('notifies the request student when staff sends an outgoing request', async () => {
+    currentUser = staff
+    requestContext.kind = 'outgoing'
+    currentStatus = 'SUBMITTED'
+
+    await expect(uploadDocument({ node: { req: { headers: {} } } } as Parameters<typeof uploadDocument>[0])).resolves.toMatchObject({ id: 'DOCUMENT-001' })
+
+    expect(currentStatus).toBe('WAITING_RESPONSE')
+    expect(prisma.notification.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        type: 'OUTGOING_REQUEST_SENT',
+        placementRequestId: requestContext.id,
+        recipients: { create: [{ accountId: student.id }] },
+      }),
+    }))
   })
 
   it('rejects a response before staff has issued the outgoing request', async () => {

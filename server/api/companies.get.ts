@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
   const sites = await usePrisma().companySite.findMany({
     select: {
       id: true, branchName: true, address: true, latitude: true, longitude: true,
-      contactName: true, contactPhone: true, recordStatus: true, createdAt: true, updatedAt: true,
+      contactName: true, recordStatus: true, createdAt: true, updatedAt: true,
       company: { select: { legalName: true } },
       province: { select: { nameTh: true, region: true } },
     },

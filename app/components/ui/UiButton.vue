@@ -2,7 +2,7 @@
 import type { Component } from 'vue'
 
 interface Props {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'success'
   size?: 'sm' | 'md'
   type?: 'button' | 'submit' | 'reset'
   loading?: boolean
@@ -24,6 +24,7 @@ const variantClasses = computed(() => ({
   secondary: 'border-divider bg-canvas text-ink hover:bg-surface',
   ghost: 'border-transparent bg-transparent text-ink hover:bg-surface',
   danger: 'border-danger bg-danger text-white hover:bg-red-700',
+  success: 'border-success bg-success text-white hover:bg-green-700',
 }[props.variant]))
 
 const sizeClasses = computed(() => props.size === 'sm'

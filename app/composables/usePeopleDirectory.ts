@@ -59,250 +59,6 @@ export interface StudentApplicationHistory {
   status: StudentApplicationStatus
 }
 
-const initialPeople: PersonRecord[] = [
-  {
-    id: '66123456701',
-    type: 'student',
-    prefix: 'นาย',
-    firstName: 'ธนกฤต',
-    lastName: 'พูนทรัพย์',
-    phone: '0812345601',
-    email: 'thanakrit@example.ac.th',
-    recordStatus: 'active',
-    accountStatus: 'active',
-    cycle: 'ภาคเรียนที่ 2/2569',
-    section: 'หมู่ 1',
-    company: 'บริษัท สยามเทค โซลูชัน จำกัด',
-    activities: [
-      { id: 'ACT-001', action: 'แก้ไขชื่อ', detail: 'ธนกิต → ธนกฤต', actor: 'นางสาวพิมพ์ชนก ใจดี', occurredAt: '2026-08-28T10:20:00+07:00' },
-      { id: 'ACT-002', action: 'เข้าสู่ระบบสำเร็จ', detail: 'เข้าสู่ระบบด้วยบัญชีนักศึกษา', actor: 'นายธนกฤต พูนทรัพย์', occurredAt: '2026-08-30T08:42:00+07:00' },
-    ],
-  },
-  {
-    id: '66123456702',
-    type: 'student',
-    prefix: 'นางสาว',
-    firstName: 'ณัฐชา',
-    lastName: 'ศรีสุข',
-    phone: '0812345602',
-    email: 'natcha@example.ac.th',
-    recordStatus: 'active',
-    accountStatus: 'first-login',
-    cycle: 'ภาคเรียนที่ 2/2569',
-    section: 'หมู่ 1',
-    company: 'บริษัท อีสานดิจิทัล จำกัด',
-    activities: [{ id: 'ACT-003', action: 'สร้างข้อมูลและบัญชี', detail: 'รอเข้าสู่ระบบครั้งแรก', actor: 'นางสาวพิมพ์ชนก ใจดี', occurredAt: '2026-08-25T09:15:00+07:00' }],
-  },
-  {
-    id: '65123456719',
-    type: 'student',
-    prefix: 'นาย',
-    firstName: 'ปุณณภพ',
-    lastName: 'วงศ์คำ',
-    phone: '0812345619',
-    email: 'punnapop@example.ac.th',
-    recordStatus: 'inactive',
-    accountStatus: 'terminated',
-    cycle: 'ภาคเรียนที่ 1/2568',
-    section: 'หมู่ 2',
-    company: 'บริษัท โคราชซอฟต์ จำกัด',
-    activities: [{ id: 'ACT-004', action: 'ยุติการใช้งานข้อมูล', detail: 'ยุติบัญชีและคงประวัติเดิมไว้', actor: 'นางสาวพิมพ์ชนก ใจดี', occurredAt: '2026-05-10T14:30:00+07:00' }],
-  },
-  {
-    id: '66123456704',
-    type: 'student',
-    prefix: 'นางสาว',
-    firstName: 'ภัทรวดี',
-    lastName: 'คำแสน',
-    phone: '0812345604',
-    email: 'phattrawadee@example.ac.th',
-    recordStatus: 'active',
-    accountStatus: 'active',
-    cycle: 'ภาคเรียนที่ 2/2569',
-    section: 'หมู่ 2',
-    activities: [{ id: 'ACT-007', action: 'สร้างข้อมูลและบัญชี', detail: 'สร้างจากการนำเข้าข้อมูล', actor: 'นางสาวพิมพ์ชนก ใจดี', occurredAt: '2026-08-20T11:25:00+07:00' }],
-  },
-  {
-    id: '66123456708',
-    type: 'student',
-    prefix: 'นาย',
-    firstName: 'ชยพล',
-    lastName: 'พรมดี',
-    phone: '0812345608',
-    email: 'chayaphon@example.ac.th',
-    recordStatus: 'active',
-    accountStatus: 'active',
-    cycle: 'ภาคเรียนที่ 2/2569',
-    section: 'หมู่ 1',
-    activities: [{ id: 'ACT-010', action: 'สร้างข้อมูลและบัญชี', detail: 'ยังไม่ได้ส่งคำร้องสถานประกอบการ', actor: 'นางสาวพิมพ์ชนก ใจดี', occurredAt: '2026-08-22T09:10:00+07:00' }],
-  },
-  {
-    id: '66123456725',
-    type: 'student',
-    prefix: 'นางสาว',
-    firstName: 'อรอนงค์',
-    lastName: 'สายใจ',
-    phone: '0812345625',
-    email: 'aronong@example.ac.th',
-    recordStatus: 'active',
-    accountStatus: 'first-login',
-    cycle: 'ภาคฤดูร้อน/2569',
-    section: 'หมู่ 2',
-    activities: [{ id: 'ACT-011', action: 'สร้างข้อมูลและบัญชี', detail: 'รอเข้าสู่ระบบครั้งแรก', actor: 'นางสาวพิมพ์ชนก ใจดี', occurredAt: '2026-08-29T11:00:00+07:00' }],
-  },
-  {
-    id: '66123456746',
-    type: 'student',
-    prefix: 'นาย',
-    firstName: 'วรพล',
-    lastName: 'อินทร์แก้ว',
-    phone: '0812345646',
-    email: 'woraphon@example.ac.th',
-    recordStatus: 'active',
-    accountStatus: 'active',
-    cycle: 'ภาคฤดูร้อน/2569',
-    section: 'หมู่ 1',
-    activities: [{ id: 'ACT-012', action: 'สร้างข้อมูลและบัญชี', detail: 'ยังไม่ได้ส่งคำร้องสถานประกอบการ', actor: 'นางสาวพิมพ์ชนก ใจดี', occurredAt: '2026-08-29T11:20:00+07:00' }],
-  },
-  {
-    id: '66123456750',
-    type: 'student',
-    prefix: 'นางสาว',
-    firstName: 'พิชญาภา',
-    lastName: 'วงศ์ดี',
-    phone: '0812345650',
-    email: 'pitchayapha@example.ac.th',
-    recordStatus: 'active',
-    accountStatus: 'first-login',
-    cycle: 'ภาคเรียนที่ 1/2570',
-    section: 'หมู่ 2',
-    activities: [{ id: 'ACT-013', action: 'สร้างข้อมูลและบัญชี', detail: 'รอเข้าสู่ระบบครั้งแรก', actor: 'นางสาวพิมพ์ชนก ใจดี', occurredAt: '2026-08-30T10:15:00+07:00' }],
-  },
-  {
-    id: '67123456703',
-    type: 'student',
-    prefix: 'นาย',
-    firstName: 'กฤตภาส',
-    lastName: 'แสงแก้ว',
-    phone: '0812345703',
-    email: 'kritthaphat@example.ac.th',
-    recordStatus: 'active',
-    accountStatus: 'active',
-    cycle: 'ภาคเรียนที่ 1/2570',
-    section: 'หมู่ 1',
-    activities: [{ id: 'ACT-014', action: 'สร้างข้อมูลและบัญชี', detail: 'ยังไม่ได้ส่งคำร้องสถานประกอบการ', actor: 'นางสาวพิมพ์ชนก ใจดี', occurredAt: '2026-08-30T10:30:00+07:00' }],
-  },
-  {
-    id: 'L0012',
-    type: 'lecturer',
-    prefix: 'ผศ.ดร.',
-    firstName: 'สมชาย',
-    lastName: 'ใจมั่น',
-    phone: '0891111101',
-    email: 'somchai@example.ac.th',
-    gender: 'male',
-    recordStatus: 'active',
-    accountStatus: 'active',
-    activities: [{ id: 'ACT-005', action: 'เข้าสู่ระบบสำเร็จ', detail: 'เข้าสู่ระบบด้วยบัญชีอาจารย์', actor: 'ผศ.ดร.สมชาย ใจมั่น', occurredAt: '2026-08-30T07:55:00+07:00' }],
-  },
-  {
-    id: 'L0018',
-    type: 'lecturer',
-    prefix: 'อาจารย์',
-    firstName: 'อรทัย',
-    lastName: 'บุญช่วย',
-    phone: '0891111102',
-    email: 'orathai@example.ac.th',
-    gender: 'female',
-    recordStatus: 'active',
-    accountStatus: 'suspended',
-    activities: [{ id: 'ACT-006', action: 'ระงับบัญชีชั่วคราว', detail: 'ระงับการสร้าง Session ใหม่', actor: 'นางสาวพิมพ์ชนก ใจดี', occurredAt: '2026-08-27T16:10:00+07:00' }],
-  },
-  {
-    id: 'L0021',
-    type: 'lecturer',
-    prefix: 'ดร.',
-    firstName: 'กมลชนก',
-    lastName: 'ศรีสวัสดิ์',
-    phone: '0891111103',
-    email: 'kamonchanok@example.ac.th',
-    gender: 'female',
-    recordStatus: 'active',
-    accountStatus: 'active',
-    activities: [{ id: 'ACT-008', action: 'สร้างข้อมูลและบัญชี', detail: 'บัญชีอาจารย์พร้อมใช้งาน', actor: 'นางสาวพิมพ์ชนก ใจดี', occurredAt: '2026-08-20T10:00:00+07:00' }],
-  },
-  {
-    id: 'L0030',
-    type: 'lecturer',
-    prefix: 'อาจารย์',
-    firstName: 'วรัญญา',
-    lastName: 'ทองใบ',
-    phone: '0891111104',
-    email: 'waranya@example.ac.th',
-    gender: 'female',
-    recordStatus: 'active',
-    accountStatus: 'active',
-    activities: [{ id: 'ACT-009', action: 'สร้างข้อมูลและบัญชี', detail: 'บัญชีอาจารย์พร้อมใช้งาน', actor: 'นางสาวพิมพ์ชนก ใจดี', occurredAt: '2026-08-18T13:45:00+07:00' }],
-  },
-  ...Array.from({ length: 41 }, (_, index): PersonRecord => {
-    const number = index + 10
-    return {
-      id: `66${String(100000100 + index).padStart(9, '0')}`,
-      type: 'student',
-      prefix: index % 3 === 0 ? 'นาย' : index % 3 === 1 ? 'นางสาว' : 'นาง',
-      firstName: `นักศึกษา${number}`,
-      lastName: 'ตัวอย่าง',
-      phone: `08${String(100000000 + number).slice(-8)}`,
-      email: `student${String(number).padStart(2, '0')}@example.ac.th`,
-      gender: index % 2 === 0 ? 'male' : 'female',
-      recordStatus: 'active',
-      accountStatus: index % 5 === 0 ? 'first-login' : 'active',
-      cycle: 'ภาคเรียนที่ 2/2569',
-      section: index % 2 === 0 ? 'หมู่ 1' : 'หมู่ 2',
-      activities: [{ id: `ACT-DEMO-${String(index + 1).padStart(3, '0')}`, action: 'สร้างข้อมูลและบัญชี', detail: 'ข้อมูลตัวอย่างสำหรับทดสอบหน้าจอ', actor: 'นางสาวพิมพ์ชนก ใจดี', occurredAt: '2026-09-01T09:00:00+07:00' }],
-    }
-  }),
-  ...Array.from({ length: 4 }, (_, index): PersonRecord => ({
-    id: `L00${31 + index}`,
-    type: 'lecturer',
-    prefix: index % 2 === 0 ? 'อาจารย์' : 'ดร.',
-    firstName: `อาจารย์ตัวอย่าง${index + 1}`,
-    lastName: 'นิเทศ',
-    phone: `089${String(10000000 + index + 1).slice(-7)}`,
-    email: `lecturer${index + 5}@example.ac.th`,
-    gender: index % 2 === 0 ? 'male' : 'female',
-    recordStatus: 'active',
-    accountStatus: 'active',
-    activities: [{ id: `ACT-LECTURER-${String(index + 1).padStart(3, '0')}`, action: 'สร้างข้อมูลและบัญชี', detail: 'ข้อมูลตัวอย่างสำหรับทดสอบหน้าจอ', actor: 'นางสาวพิมพ์ชนก ใจดี', occurredAt: '2026-09-01T09:00:00+07:00' }],
-  })),
-]
-
-const applicationHistory: Record<string, StudentApplicationHistory[]> = {
-  '66123456701': [
-    { id: 'REQ-2569-0142', company: 'บริษัท สยามเทค โซลูชัน จำกัด', position: 'Frontend Developer', appliedAt: '2026-08-18', status: 'confirmed' },
-    { id: 'REQ-2569-0098', company: 'บริษัท ดิจิทัลโฟลว์ จำกัด', position: 'UX/UI Intern', appliedAt: '2026-07-30', status: 'cancelled' },
-  ],
-  '66123456702': [
-    { id: 'REQ-2569-0151', company: 'บริษัท อีสานดิจิทัล จำกัด', position: 'Software Tester', appliedAt: '2026-08-20', status: 'letter-issued' },
-  ],
-  '65123456719': [
-    { id: 'REQ-2568-0064', company: 'บริษัท โคราชซอฟต์ จำกัด', position: 'Backend Developer', appliedAt: '2025-06-12', status: 'confirmed' },
-  ],
-  '66123456704': [
-    { id: 'REQ-2569-0160', company: 'บริษัท บุรีรัมย์เว็บ จำกัด', position: 'Web Developer', appliedAt: '2026-08-22', status: 'returned' },
-  ],
-}
-
-export const getStudentPlacementPosition = (studentId: string, company?: string) => {
-  if (!company) return ''
-  return applicationHistory[studentId]?.find(application => application.company === company)?.position ?? ''
-}
-
-const cloneInitialPeople = () => initialPeople.map(person => ({
-  ...person,
-  activities: person.activities.map(activity => ({ ...activity })),
-}))
-
 /** Replace one person type with the persisted response, including an empty response. */
 export const replacePeopleByType = (existing: PersonRecord[], type: PersonType, records: PersonRecord[]) => [
   ...existing.filter(person => person.type !== type),
@@ -338,12 +94,10 @@ export const studentApplicationStatusMeta: Record<StudentApplicationStatus, { la
 }
 
 export const usePeopleDirectory = () => {
-  const people = useState<PersonRecord[]>('people-directory-v2', () => import.meta.dev ? cloneInitialPeople() : [])
+  const people = useState<PersonRecord[]>('people-directory-v2', () => [])
   const { scenario, recordEvent } = useScenario()
 
   const findPerson = (type: PersonType, id: string) => people.value.find(person => person.type === type && (person.id === id || person.accountId === id))
-  const getStudentApplicationHistory = (id: string) => applicationHistory[id] || []
-
   const addActivity = (person: PersonRecord, action: string, detail: string) => {
     person.activities.unshift({
       id: crypto.randomUUID(),
@@ -453,7 +207,7 @@ export const usePeopleDirectory = () => {
     const result = { created: 0, updated: 0, duplicates: [] as string[], credentials: [] as PeopleImportCredential[] }
     for (let index = 0; index < inputs.length; index += batchSize) {
       const batch = peopleImportResponseSchema.parse(await requestAwareFetch('/api/staff/people/import', {
-        method: 'POST', body: { type, people: inputs.slice(index, index + batchSize) },
+        method: 'POST', body: { type, people: inputs.slice(index, index + batchSize) }, reload: false,
       }))
       result.created += batch.created
       result.updated += batch.updated
@@ -495,7 +249,6 @@ export const usePeopleDirectory = () => {
   return {
     people,
     findPerson,
-    getStudentApplicationHistory,
     createPerson,
     updatePerson,
     suspendAccount,

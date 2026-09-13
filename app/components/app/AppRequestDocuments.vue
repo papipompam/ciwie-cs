@@ -34,6 +34,7 @@ const save = async () => {
   busy.value = true
   try {
     await attach(props.request.id, file.value, props.staff ? 'letter' : 'signedDocument')
+    emit('refresh')
     showToast({ title: props.staff ? 'ส่งหนังสือให้นักศึกษาแล้ว' : 'ส่งหนังสือตอบรับให้เจ้าหน้าที่แล้ว' })
   }
   catch (cause) { error.value = cause instanceof Error ? cause.message : 'บันทึกไม่สำเร็จ' }
@@ -46,7 +47,7 @@ const finishReview = async (outcome: 'return' | 'confirm') => {
     if (!result.success) { error.value = result.error.issues[0]?.message ?? ''; return }
   }
   busy.value = true
-  try { await review(props.request.id, outcome, reason.value); showToast({ title: 'บันทึกผลตรวจแล้ว' }) }
+  try { await review(props.request.id, outcome, reason.value); emit('refresh'); showToast({ title: 'บันทึกผลตรวจแล้ว' }) }
   catch (cause) { error.value = cause instanceof Error ? cause.message : 'บันทึกไม่สำเร็จ' }
   finally { busy.value = false }
 }

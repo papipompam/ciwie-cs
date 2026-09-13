@@ -34,6 +34,7 @@ const statusFilter = ref('all')
 const pageSize = ref('10')
 const currentPage = ref(1)
 const selectedCompanyAppointment = ref<SupervisionAppointment | null>(null)
+const selectedStudentTask = ref<{ appointment: SupervisionAppointment, studentId: string } | null>(null)
 const effectiveViewState = computed(() => scenario.value.forceError || appointmentsLoadError.value
   ? 'error'
   : appointmentsLoading.value ? 'loading' : scenario.value.viewState)
@@ -54,7 +55,7 @@ const company = (id: string) => {
   return display
     ? {
         id, cycleId: cycleId.value, name: display.companyName, branch: display.branchName, province: display.province,
-        region: '', address: display.address, contactName: '', contactPhone: '', status: 'active' as const, studentCount: display.students.length,
+        region: '', address: display.address, contactName: '', status: 'active' as const, studentCount: display.students.length,
         students: display.students.map(student => ({ id: student.id, studentId: student.id, studentName: student.name, prefix: '', firstName: student.name, lastName: '', section: '', position: student.position })),
       }
     : undefined
@@ -103,7 +104,7 @@ const currentAppointments = computed(() => {
     .filter(appointment => statusFilter.value === 'all' || evaluationState(appointment) === statusFilter.value)
     .filter((appointment) => {
       const appointmentCompany = company(appointment.companyId)
-      const searchable = [appointment.id, appointmentCompany?.name, appointmentCompany?.province, groupName(appointment.groupId)]
+      const searchable = [appointment.appointmentNo, appointmentCompany?.name, appointmentCompany?.province, groupName(appointment.groupId)]
       return !keyword || searchable.some(value => value?.toLocaleLowerCase('th').includes(keyword))
     })
     .toSorted((a, b) => b.date.localeCompare(a.date))
@@ -159,7 +160,7 @@ const handleExport = async () => {
 }
 
 watch([searchQuery, statusFilter, pageSize, cycleId, round, evaluationType], () => { currentPage.value = 1 })
-watch([cycleId, round, evaluationType], () => { selectedCompanyAppointment.value = null })
+watch([cycleId, round, evaluationType], () => { selectedCompanyAppointment.value = null; selectedStudentTask.value = null })
 watch(pageCount, (count) => { if (currentPage.value > count) currentPage.value = count })
 
 const clearFilters = () => { searchQuery.value = ''; statusFilter.value = 'all' }
@@ -175,10 +176,6 @@ const retry = () => { scenario.value.forceError = false; scenario.value.viewStat
 onMounted(loadAppointments)
 watch([cycleId, round], loadAppointments)
 const formatDate = (date: string) => new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium' }).format(new Date(`${date}T00:00:00+07:00`))
-const evaluationPath = (appointmentId: string, studentId?: string) => ({
-  path: `/lecturer/evaluations/${appointmentId}`,
-  query: { type: evaluationType.value, ...(studentId ? { student: studentId } : {}) },
-})
 </script>
 
 <template>
@@ -216,14 +213,14 @@ const evaluationPath = (appointmentId: string, studentId?: string) => ({
             <table class="w-full min-w-[980px] text-left text-sm">
               <caption class="sr-only">รายการประเมินนักศึกษารายบุคคล</caption>
               <thead class="bg-surface text-xs font-semibold tracking-wide text-muted uppercase"><tr><th scope="col" class="px-6 py-3">นักศึกษา</th><th scope="col" class="px-4 py-3">สถานประกอบการ / ตำแหน่ง</th><th scope="col" class="px-4 py-3">รายการนิเทศ</th><th scope="col" class="px-4 py-3">สถานะ</th><th scope="col" class="w-28 px-4 py-3"><span class="sr-only">ดำเนินการ</span></th></tr></thead>
-              <tbody class="divide-y divide-divider"><tr v-for="task in paginatedStudentTasks" :key="task.id" class="hover:bg-surface/70"><td class="px-6 py-4"><p class="font-semibold text-ink">{{ task.studentName }}</p><p class="mt-1 text-xs text-muted">{{ task.studentId }}</p></td><td class="px-4 py-4"><p class="font-medium text-ink">{{ task.companyName }}</p><p class="mt-1 text-xs text-muted">{{ task.position }}</p></td><td class="px-4 py-4"><p class="text-ink">{{ task.appointment.id }} · นิเทศครั้งที่ {{ task.appointment.round }}</p><p class="mt-1 text-xs text-muted">{{ formatDate(task.appointment.date) }}</p></td><td class="px-4 py-4"><UiBadge :tone="evaluationStatusMeta[task.state].tone">{{ evaluationStatusMeta[task.state].label }}</UiBadge></td><td class="px-4 py-4 text-right"><UiButton v-if="task.appointment.status === 'completed'" size="sm" variant="secondary" :icon="ClipboardCheck" @click="navigateTo(evaluationPath(task.appointment.id, task.studentId))">{{ task.state === 'completed' ? 'ดูผล' : 'ประเมิน' }}</UiButton><span v-else class="text-xs text-muted">รอนิเทศเสร็จ</span></td></tr></tbody>
+              <tbody class="divide-y divide-divider"><tr v-for="task in paginatedStudentTasks" :key="task.id" class="hover:bg-surface/70"><td class="px-6 py-4"><p class="font-semibold text-ink">{{ task.studentName }}</p><p class="mt-1 text-xs text-muted">{{ task.studentId }}</p></td><td class="px-4 py-4"><p class="font-medium text-ink">{{ task.companyName }}</p><p class="mt-1 text-xs text-muted">{{ task.position }}</p></td><td class="px-4 py-4"><p class="text-ink">{{ task.appointment.appointmentNo }} · นิเทศครั้งที่ {{ task.appointment.round }}</p><p class="mt-1 text-xs text-muted">{{ formatDate(task.appointment.date) }}</p></td><td class="px-4 py-4"><UiBadge :tone="evaluationStatusMeta[task.state].tone">{{ evaluationStatusMeta[task.state].label }}</UiBadge></td><td class="px-4 py-4 text-right"><UiButton v-if="task.appointment.status === 'completed'" size="sm" variant="secondary" :icon="ClipboardCheck" @click="selectedStudentTask = task">{{ task.state === 'completed' ? 'ดูผล' : 'ประเมิน' }}</UiButton><span v-else class="text-xs text-muted">รอนิเทศเสร็จ</span></td></tr></tbody>
             </table>
           </div>
-          <div class="divide-y divide-divider md:hidden"><article v-for="task in paginatedStudentTasks" :key="task.id" class="p-5"><div class="flex items-start justify-between gap-3"><div><h3 class="font-semibold text-ink">{{ task.studentName }}</h3><p class="mt-1 text-xs text-muted">{{ task.studentId }} · {{ task.position }}</p></div><UiBadge :tone="evaluationStatusMeta[task.state].tone">{{ evaluationStatusMeta[task.state].label }}</UiBadge></div><p class="mt-4 text-sm font-medium text-ink">{{ task.companyName }}</p><p class="mt-1 text-xs text-muted">{{ task.appointment.id }} · นิเทศครั้งที่ {{ task.appointment.round }} · {{ formatDate(task.appointment.date) }}</p><div class="mt-4 flex justify-end border-t border-divider pt-3"><UiButton v-if="task.appointment.status === 'completed'" size="sm" variant="secondary" :icon="ClipboardCheck" @click="navigateTo(evaluationPath(task.appointment.id, task.studentId))">{{ task.state === 'completed' ? 'ดูผล' : 'ประเมิน' }}</UiButton><span v-else class="text-xs text-muted">ประเมินได้หลังนิเทศเสร็จ</span></div></article></div>
+          <div class="divide-y divide-divider md:hidden"><article v-for="task in paginatedStudentTasks" :key="task.id" class="p-5"><div class="flex items-start justify-between gap-3"><div><h3 class="font-semibold text-ink">{{ task.studentName }}</h3><p class="mt-1 text-xs text-muted">{{ task.studentId }} · {{ task.position }}</p></div><UiBadge :tone="evaluationStatusMeta[task.state].tone">{{ evaluationStatusMeta[task.state].label }}</UiBadge></div><p class="mt-4 text-sm font-medium text-ink">{{ task.companyName }}</p><p class="mt-1 text-xs text-muted">{{ task.appointment.appointmentNo }} · นิเทศครั้งที่ {{ task.appointment.round }} · {{ formatDate(task.appointment.date) }}</p><div class="mt-4 flex justify-end border-t border-divider pt-3"><UiButton v-if="task.appointment.status === 'completed'" size="sm" variant="secondary" :icon="ClipboardCheck" @click="selectedStudentTask = task">{{ task.state === 'completed' ? 'ดูผล' : 'ประเมิน' }}</UiButton><span v-else class="text-xs text-muted">ประเมินได้หลังนิเทศเสร็จ</span></div></article></div>
         </template>
         <template v-else>
-          <div class="hidden overflow-x-auto md:block"><table class="w-full min-w-[900px] text-left text-sm"><caption class="sr-only">รายการ{{ pageTitle }}หลังการนิเทศ</caption><thead class="bg-surface text-xs font-semibold tracking-wide text-muted uppercase"><tr><th class="px-6 py-3">สถานประกอบการ / กลุ่ม</th><th class="px-4 py-3">วันที่นิเทศ</th><th class="px-4 py-3">จำนวนนักศึกษา</th><th class="px-4 py-3">สถานะ</th><th class="w-28 px-4 py-3"><span class="sr-only">ดำเนินการ</span></th></tr></thead><tbody class="divide-y divide-divider"><tr v-for="appointment in paginatedAppointments" :key="appointment.id" class="hover:bg-surface/70"><td class="px-6 py-4"><p class="font-semibold text-ink">{{ company(appointment.companyId)?.name ?? appointment.companyId }}</p><p class="mt-1 text-xs text-muted">{{ appointment.id }} · {{ groupName(appointment.groupId) }} · นิเทศครั้งที่ {{ appointment.round }}</p></td><td class="whitespace-nowrap px-4 py-4 text-muted">{{ formatDate(appointment.date) }}</td><td class="whitespace-nowrap px-4 py-4 font-semibold text-ink">{{ companyStudentCount(appointment) }} คน</td><td class="px-4 py-4"><UiBadge :tone="evaluationStatusMeta[evaluationState(appointment)].tone">{{ evaluationStatusMeta[evaluationState(appointment)].label }}</UiBadge></td><td class="px-4 py-4 text-right"><UiButton v-if="appointment.status === 'completed'" class="whitespace-nowrap" size="sm" variant="secondary" :icon="ClipboardCheck" @click="selectedCompanyAppointment = appointment">{{ evaluationState(appointment) === 'completed' ? 'ดูผล' : 'ประเมิน' }}</UiButton><span v-else class="text-xs text-muted">รอนิเทศเสร็จ</span></td></tr></tbody></table></div>
-          <div class="divide-y divide-divider md:hidden"><article v-for="appointment in paginatedAppointments" :key="appointment.id" class="p-5"><div class="flex items-start justify-between gap-3"><div><h3 class="font-semibold text-ink">{{ company(appointment.companyId)?.name ?? appointment.companyId }}</h3><p class="mt-1 text-xs text-muted">{{ appointment.id }} · {{ groupName(appointment.groupId) }}</p></div><UiBadge :tone="evaluationStatusMeta[evaluationState(appointment)].tone">{{ evaluationStatusMeta[evaluationState(appointment)].label }}</UiBadge></div><div class="mt-4 grid grid-cols-2 gap-3 text-sm"><div><p class="text-xs text-muted">วันที่นิเทศ</p><p class="mt-1 text-ink">{{ formatDate(appointment.date) }}</p></div><div><p class="text-xs text-muted">จำนวนนักศึกษา</p><p class="mt-1 font-semibold text-ink">{{ companyStudentCount(appointment) }} คน</p></div></div><div class="mt-4 flex justify-end border-t border-divider pt-3"><UiButton v-if="appointment.status === 'completed'" size="sm" variant="secondary" :icon="ClipboardCheck" @click="selectedCompanyAppointment = appointment">{{ evaluationState(appointment) === 'completed' ? 'ดูผลประเมิน' : 'เริ่มประเมิน' }}</UiButton><span v-else class="text-xs text-muted">ประเมินได้หลังนิเทศเสร็จ</span></div></article></div>
+          <div class="hidden overflow-x-auto md:block"><table class="w-full min-w-[900px] text-left text-sm"><caption class="sr-only">รายการ{{ pageTitle }}หลังการนิเทศ</caption><thead class="bg-surface text-xs font-semibold tracking-wide text-muted uppercase"><tr><th class="px-6 py-3">สถานประกอบการ / กลุ่ม</th><th class="px-4 py-3">วันที่นิเทศ</th><th class="px-4 py-3">จำนวนนักศึกษา</th><th class="px-4 py-3">สถานะ</th><th class="w-28 px-4 py-3"><span class="sr-only">ดำเนินการ</span></th></tr></thead><tbody class="divide-y divide-divider"><tr v-for="appointment in paginatedAppointments" :key="appointment.id" class="hover:bg-surface/70"><td class="px-6 py-4"><p class="font-semibold text-ink">{{ company(appointment.companyId)?.name ?? appointment.companyId }}</p><p class="mt-1 text-xs text-muted">{{ appointment.appointmentNo }} · {{ groupName(appointment.groupId) }} · นิเทศครั้งที่ {{ appointment.round }}</p></td><td class="whitespace-nowrap px-4 py-4 text-muted">{{ formatDate(appointment.date) }}</td><td class="whitespace-nowrap px-4 py-4 font-semibold text-ink">{{ companyStudentCount(appointment) }} คน</td><td class="px-4 py-4"><UiBadge :tone="evaluationStatusMeta[evaluationState(appointment)].tone">{{ evaluationStatusMeta[evaluationState(appointment)].label }}</UiBadge></td><td class="px-4 py-4 text-right"><UiButton v-if="appointment.status === 'completed'" class="whitespace-nowrap" size="sm" variant="secondary" :icon="ClipboardCheck" @click="selectedCompanyAppointment = appointment">{{ evaluationState(appointment) === 'completed' ? 'ดูผล' : 'ประเมิน' }}</UiButton><span v-else class="text-xs text-muted">รอนิเทศเสร็จ</span></td></tr></tbody></table></div>
+          <div class="divide-y divide-divider md:hidden"><article v-for="appointment in paginatedAppointments" :key="appointment.id" class="p-5"><div class="flex items-start justify-between gap-3"><div><h3 class="font-semibold text-ink">{{ company(appointment.companyId)?.name ?? appointment.companyId }}</h3><p class="mt-1 text-xs text-muted">{{ appointment.appointmentNo }} · {{ groupName(appointment.groupId) }}</p></div><UiBadge :tone="evaluationStatusMeta[evaluationState(appointment)].tone">{{ evaluationStatusMeta[evaluationState(appointment)].label }}</UiBadge></div><div class="mt-4 grid grid-cols-2 gap-3 text-sm"><div><p class="text-xs text-muted">วันที่นิเทศ</p><p class="mt-1 text-ink">{{ formatDate(appointment.date) }}</p></div><div><p class="text-xs text-muted">จำนวนนักศึกษา</p><p class="mt-1 font-semibold text-ink">{{ companyStudentCount(appointment) }} คน</p></div></div><div class="mt-4 flex justify-end border-t border-divider pt-3"><UiButton v-if="appointment.status === 'completed'" size="sm" variant="secondary" :icon="ClipboardCheck" @click="selectedCompanyAppointment = appointment">{{ evaluationState(appointment) === 'completed' ? 'ดูผลประเมิน' : 'เริ่มประเมิน' }}</UiButton><span v-else class="text-xs text-muted">ประเมินได้หลังนิเทศเสร็จ</span></div></article></div>
         </template>
         <div class="flex flex-col gap-3 border-t border-divider px-5 py-4 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6"><div class="flex items-center gap-3"><p class="whitespace-nowrap text-muted">แสดง {{ resultStart }}–{{ resultEnd }} จาก {{ currentItemCount }} รายการ</p><div class="w-20 shrink-0"><UiSelect v-model="pageSize" :options="pageSizeOptions" label="จำนวนรายการต่อหน้า" :label-visible="false" /></div></div><nav class="flex items-center gap-2" aria-label="การแบ่งหน้าตาราง"><button type="button" class="inline-grid size-10 place-items-center rounded-control border border-divider text-muted hover:bg-surface disabled:opacity-45" :disabled="currentPage === 1" aria-label="หน้าก่อนหน้า" @click="currentPage--"><ChevronLeft :size="18" aria-hidden="true" /></button><span class="min-w-20 text-center font-semibold text-ink">หน้า {{ currentPage }} / {{ pageCount }}</span><button type="button" class="inline-grid size-10 place-items-center rounded-control border border-divider text-muted hover:bg-surface disabled:opacity-45" :disabled="currentPage === pageCount" aria-label="หน้าถัดไป" @click="currentPage++"><ChevronRight :size="18" aria-hidden="true" /></button></nav></div>
       </template>
@@ -240,6 +237,18 @@ const evaluationPath = (appointmentId: string, studentId?: string) => ({
       dialog-only
       initial-company-open
       @company-dialog-close="selectedCompanyAppointment = null"
+    />
+    <SupervisionEvaluationPanel
+      v-if="selectedStudentTask"
+      :appointment="selectedStudentTask.appointment"
+      :students="appointmentStudents(selectedStudentTask.appointment)"
+      :current-lecturer-id="currentLecturerId"
+      :lecturer-name="id => id"
+      :can-manage="selectedStudentTask.appointment.status === 'completed'"
+      student-only
+      dialog-only
+      :initial-student-id="selectedStudentTask.studentId"
+      @student-dialog-close="selectedStudentTask = null"
     />
   </div>
 </template>

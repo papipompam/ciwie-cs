@@ -22,7 +22,7 @@ const findUnique = vi.fn(async () => ({
   lecturers: [{ lecturerId: 'lecturer-001' }, { lecturerId: 'lecturer-002' }],
 }))
 const findMany = vi.fn(async () => ([{
-  id: 'APPOINTMENT-1', appointmentNo: 'SUP-001', scheduledDate: new Date('2026-09-15T00:00:00.000Z'),
+  id: 'APPOINTMENT-1', appointmentNo: 'SV0001', scheduledDate: new Date('2026-09-15T00:00:00.000Z'),
   period: 'MORNING', status: 'COMPLETED', splitReason: null, completedAt: new Date('2026-09-15T08:00:00.000Z'),
   resultSummary: 'เรียบร้อย', resultIssues: null, resultSuggestions: null, companyRequirements: null,
   createdAt: new Date('2026-09-01T00:00:00.000Z'),
@@ -37,6 +37,7 @@ const findMany = vi.fn(async () => ([{
 const findGroupCompany = vi.fn(async () => ({ id: 'GROUP-COMPANY-1' }))
 const findLecturers = vi.fn(async () => [{ id: 'lecturer-001' }])
 const findPlacementRequests = vi.fn(async () => [{ id: 'REQUEST-1', enrollment: { studentId: 'student-001', student: { username: '66123456701' } } }])
+const findLatestAppointment = vi.fn(async () => null)
 const createAppointment = vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: 'APPOINTMENT-NEW', status: 'PUBLISHED', ...data }))
 
 vi.stubGlobal('usePrisma', () => ({
@@ -77,7 +78,7 @@ describe('supervision appointment APIs', () => {
       }),
     }))
     expect(result.appointments[0]).toMatchObject({
-      id: 'APPOINTMENT-1', groupId: 'GROUP-1', companyId: 'SITE-1', round: 1,
+      id: 'APPOINTMENT-1', appointmentNo: 'SV0001', groupId: 'GROUP-1', companyId: 'SITE-1', round: 1,
       studentIds: ['66123456701'], lecturerIds: ['lecturer-001'], status: 'completed',
       result: { summary: 'เรียบร้อย', actualLecturerIds: ['lecturer-001'] },
       display: {
@@ -174,7 +175,7 @@ describe('supervision appointment APIs', () => {
       data: expect.objectContaining({
         type: 'SUPERVISION_SCHEDULE_PUBLISHED',
         appointmentId: 'APPOINTMENT-1',
-        recipients: { create: [{ accountId: 'student-001' }] },
+        recipients: { create: expect.arrayContaining([{ accountId: 'student-001' }]) },
       }),
     }))
   })
@@ -187,7 +188,7 @@ describe('supervision appointment APIs', () => {
       lecturerIds: ['lecturer-001'], publish: true,
     }
     const transaction = vi.fn(async (callback: (transaction: unknown) => unknown) => callback({
-      supervisionAppointment: { create: createAppointment },
+      supervisionAppointment: { findFirst: findLatestAppointment, create: createAppointment },
       notification: { create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: 'NOTIFICATION-1', ...data })) },
     }))
     vi.stubGlobal('usePrisma', () => ({
@@ -201,7 +202,7 @@ describe('supervision appointment APIs', () => {
     })
     expect(createAppointment).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
-        groupCompanyId: 'GROUP-COMPANY-1', status: 'PUBLISHED',
+        appointmentNo: 'SV0001', groupCompanyId: 'GROUP-COMPANY-1', status: 'PUBLISHED',
         lecturers: { create: [{ lecturerId: 'lecturer-001', source: 'MANUAL', role: 'LEAD' }] },
         students: { create: [{ placementRequestId: 'REQUEST-1' }] },
       }),
@@ -221,7 +222,7 @@ describe('supervision appointment APIs', () => {
       user: { findMany: findLecturers },
       placementRequest: { findMany: findPlacementRequests },
       $transaction: vi.fn(async (callback: (transaction: unknown) => unknown) => callback({
-        supervisionAppointment: { create: createAppointment },
+        supervisionAppointment: { findFirst: findLatestAppointment, create: createAppointment },
         notification: { create: notificationCreate },
       })),
     }))
@@ -231,7 +232,7 @@ describe('supervision appointment APIs', () => {
       data: expect.objectContaining({
         type: 'SUPERVISION_SCHEDULE_PUBLISHED',
         appointmentId: 'APPOINTMENT-NEW',
-        recipients: { create: [{ accountId: 'student-001' }] },
+        recipients: { create: expect.arrayContaining([{ accountId: 'student-001' }]) },
       }),
     }))
   })

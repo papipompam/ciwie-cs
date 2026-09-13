@@ -15,6 +15,9 @@ export default defineEventHandler(async (event) => {
   const prisma = usePrisma()
   const account = await prisma.user.findUnique({ where: { id: user.id }, select: { passwordHash: true, status: true } })
   if (!account) throw createError({ statusCode: 401, statusMessage: 'AUTHENTICATION_REQUIRED' })
+  if (user.role === 'student' && account.status !== 'FIRST_LOGIN') {
+    throw createError({ statusCode: 403, statusMessage: 'STUDENT_PASSWORD_CHANGE_NOT_ALLOWED' })
+  }
   if (account.status !== 'FIRST_LOGIN' && (!body.data.currentPassword || !await verifyPassword(body.data.currentPassword, account.passwordHash))) {
     throw createError({ statusCode: 400, statusMessage: 'CURRENT_PASSWORD_INVALID' })
   }

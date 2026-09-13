@@ -3,6 +3,16 @@ import { createStudentApplicationSchema } from '#shared/student-applications'
 import { requireUserSession } from '../../utils/session'
 import { bangkokCalendarDate, getActiveEnrollment, toStudentApplicationRecord } from '../../utils/studentApplications'
 
+const nextApplicationId = async (prisma: ReturnType<typeof usePrisma>) => {
+  const records = await prisma.studentApplication.findMany({ where: { id: { startsWith: 'RE' } }, select: { id: true } })
+  const used = new Set(records.map(record => record.id))
+  for (let number = 1; number <= 9999; number += 1) {
+    const id = `RE${String(number).padStart(4, '0')}`
+    if (!used.has(id)) return id
+  }
+  throw createError({ statusCode: 409, statusMessage: 'APPLICATION_NUMBER_EXHAUSTED' })
+}
+
 export default defineEventHandler(async (event) => {
   const parsed = createStudentApplicationSchema.safeParse(await readBody(event))
   if (!parsed.success) {
@@ -11,9 +21,11 @@ export default defineEventHandler(async (event) => {
 
   const user = await requireUserSession(event, ['student'])
   const enrollment = await getActiveEnrollment(user.id)
+  const prisma = usePrisma()
   try {
-    const application = await usePrisma().studentApplication.create({
+    const application = await prisma.studentApplication.create({
       data: {
+        id: await nextApplicationId(prisma),
         enrollmentId: enrollment.id,
         companyNameSnapshot: parsed.data.companyName,
         companyLocation: parsed.data.companyLocation,

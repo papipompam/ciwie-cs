@@ -16,6 +16,17 @@ describe('geographic complete-link clustering', () => {
     expect(result.groups).toHaveLength(3)
     expect(result.missingIds).toEqual(['invalid', 'missing', 'null'])
   })
+  it('groups companies without coordinates by their administrative area', () => {
+    const result = clusterCompanies([
+      { id: 'bkk-1', region: 'ภาคกลาง', province: 'กรุงเทพมหานคร', address: 'เขตพญาไท กรุงเทพมหานคร' },
+      { id: 'bkk-2', region: 'ภาคกลาง', province: 'กรุงเทพมหานคร', address: 'เขตพญาไท กรุงเทพมหานคร' },
+      { id: 'brm-1', region: 'ภาคตะวันออกเฉียงเหนือ', province: 'บุรีรัมย์', address: 'อำเภอเมืองบุรีรัมย์ จังหวัดบุรีรัมย์' },
+      { id: 'unknown' },
+    ], { maxDistanceKm: 10, maxCompanies: 5 })
+
+    expect(result.groups).toEqual([['bkk-1', 'bkk-2'], ['brm-1']])
+    expect(result.missingIds).toEqual(['unknown'])
+  })
   it('does not chain together companies beyond the pairwise distance limit', () => {
     const result = clusterCompanies([0, 0.06, 0.12].map((longitude, index) => ({ id: String(index), latitude: 0, longitude })), { maxDistanceKm: 10, maxCompanies: 5 })
     expect(result.groups).toHaveLength(2)

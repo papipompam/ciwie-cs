@@ -1,5 +1,6 @@
 import type { SupervisionRound } from './useSupervisionGroups'
 import {
+  deleteSupervisionAppointmentResponseSchema,
   supervisionAppointmentResponseSchema,
   supervisionAppointmentsResponseSchema,
 } from '#shared/supervision-appointments'
@@ -19,6 +20,7 @@ export interface SupervisionResult {
 
 export interface SupervisionAppointment {
   id: string
+  appointmentNo: string
   cycleId: string
   round: SupervisionRound
   groupId: string
@@ -72,8 +74,8 @@ const emptyResult = (): SupervisionResult => ({
 })
 
 export const supervisionPeriodMeta: Record<SupervisionPeriod, { label: string }> = {
-  morning: { label: 'ช่วงเช้า' },
-  afternoon: { label: 'ช่วงบ่าย' },
+  morning: { label: '10.00-12.00' },
+  afternoon: { label: '13.00-15.00' },
 }
 
 export const supervisionAppointmentStatusMeta: Record<SupervisionAppointmentStatus, { label: string, tone: 'neutral' | 'info' | 'success' | 'warning' | 'danger' }> = {
@@ -93,6 +95,7 @@ export const useSupervisionAppointments = () => {
     const appointment: SupervisionAppointment = {
       ...input,
       id: `SA-${String(nextNumber).padStart(3, '0')}`,
+      appointmentNo: `SV${String(nextNumber).padStart(4, '0')}`,
       status: 'draft',
       result: emptyResult(),
       createdAt: new Date().toISOString(),
@@ -185,6 +188,14 @@ export const useSupervisionAppointments = () => {
     return mergeAppointment(response.appointment)
   }
 
+  const persistDeleteAppointment = async (appointmentId: string) => {
+    const result = deleteSupervisionAppointmentResponseSchema.parse(await requestAwareFetch(`/api/staff/supervision/appointments/${appointmentId}`, {
+      method: 'DELETE',
+    }))
+    appointments.value = appointments.value.filter(item => item.id !== result.id)
+    return result
+  }
+
   const persistSaveResult = async (appointmentId: string, input: Omit<SupervisionResultInput, 'actualLecturerIds'>) => {
     await requestAwareFetch(`/api/supervision/appointments/${appointmentId}`, {
       method: 'PATCH', body: { action: 'save-result', ...input },
@@ -218,6 +229,7 @@ export const useSupervisionAppointments = () => {
     completeAppointment,
     loadPersistedAppointments,
     loadPersistedAppointment,
+    persistDeleteAppointment,
     persistUpdateAppointment,
     persistSaveResult,
     persistCompleteAppointment,

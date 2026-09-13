@@ -40,7 +40,7 @@ const currentAppointments = computed(() => appointments.value
     const query = searchQuery.value.trim().toLocaleLowerCase('th')
     if (!query) return true
     const searchableText = [
-      item.id,
+      item.appointmentNo,
       companyName(item.companyId),
       companyBranch(item.companyId),
       companyProvince(item.companyId),
@@ -168,7 +168,7 @@ watchEffect(() => {
             <tbody class="divide-y divide-divider">
               <tr v-for="item in currentAppointments" :key="item.id" class="hover:bg-surface/70">
                 <td class="px-5 py-4 align-top"><p class="font-semibold text-ink">{{ companyName(item.companyId) }}</p><p class="mt-1 text-xs leading-5 text-muted">{{ companyBranch(item.companyId) }} · {{ companyProvince(item.companyId) }}</p></td>
-                <td class="px-4 py-4 align-top"><p class="font-medium text-ink">{{ formatDate(item.date) }}</p><p class="mt-1 text-xs text-muted">{{ supervisionPeriodMeta[item.period].label }} · {{ item.id }}</p><UiBadge class="mt-2" :tone="supervisionAppointmentStatusMeta[item.status].tone">{{ supervisionAppointmentStatusMeta[item.status].label }}</UiBadge></td>
+                <td class="px-4 py-4 align-top"><p class="font-medium text-ink">{{ formatDate(item.date) }}</p><p class="mt-1 text-xs text-muted">{{ supervisionPeriodMeta[item.period].label }} · {{ item.appointmentNo }}</p><UiBadge class="mt-2" :tone="supervisionAppointmentStatusMeta[item.status].tone">{{ supervisionAppointmentStatusMeta[item.status].label }}</UiBadge></td>
                 <td class="px-4 py-4 align-top"><p class="font-medium text-ink">{{ groupName(item.groupId) }}</p><UiBadge v-if="isResponsibleGroup(item)" class="mt-2" tone="info">กลุ่มของคุณ</UiBadge></td>
                 <td class="px-4 py-4 align-top"><div v-if="item.lecturerIds.length" class="space-y-1"><p v-for="id in item.lecturerIds" :key="id" class="text-sm leading-5 text-ink">{{ lecturerName(id) }}</p></div><p v-else class="text-sm text-danger">ยังไม่มีอาจารย์เข้าร่วม</p></td>
                 <td class="px-4 py-4 align-top"><p class="font-semibold text-ink">{{ item.studentIds.length }} คน</p><p class="mt-1 text-xs text-muted">ดูรายชื่อในรายละเอียด</p></td>
@@ -181,7 +181,7 @@ watchEffect(() => {
         <div class="mobile-card-list md:hidden">
           <article v-for="item in currentAppointments" :key="item.id" class="bg-canvas p-5">
             <div class="flex items-start justify-between gap-3"><div class="min-w-0"><h3 class="font-semibold text-ink">{{ companyName(item.companyId) }}</h3><p class="mt-1 text-xs text-muted">{{ companyBranch(item.companyId) }} · {{ companyProvince(item.companyId) }}</p></div><UiButton class="shrink-0" size="sm" variant="secondary" @click="navigateTo(`/lecturer/supervision/${item.id}`)">ดูข้อมูล</UiButton></div>
-            <div class="mt-3 flex flex-wrap items-center gap-2"><UiBadge v-if="isResponsibleGroup(item)" tone="info">กลุ่มของคุณ</UiBadge><UiBadge :tone="supervisionAppointmentStatusMeta[item.status].tone">{{ supervisionAppointmentStatusMeta[item.status].label }}</UiBadge><span class="text-sm text-muted">{{ formatDate(item.date) }} · {{ supervisionPeriodMeta[item.period].label }}</span></div>
+            <div class="mt-3 flex flex-wrap items-center gap-2"><UiBadge v-if="isResponsibleGroup(item)" tone="info">กลุ่มของคุณ</UiBadge><UiBadge :tone="supervisionAppointmentStatusMeta[item.status].tone">{{ supervisionAppointmentStatusMeta[item.status].label }}</UiBadge><span class="text-sm text-muted">{{ item.appointmentNo }} · {{ formatDate(item.date) }} · {{ supervisionPeriodMeta[item.period].label }}</span></div>
             <dl class="mt-3 grid gap-2 border-t border-divider pt-3 text-sm"><div><dt class="text-xs font-medium text-muted">กลุ่มรับผิดชอบ</dt><dd class="mt-1 text-ink">{{ groupName(item.groupId) }}</dd></div><div><dt class="text-xs font-medium text-muted">อาจารย์ผู้เข้าร่วม</dt><dd class="mt-1 text-ink">{{ item.lecturerIds.length ? item.lecturerIds.map(lecturerName).join(', ') : 'ยังไม่มีอาจารย์เข้าร่วม' }}</dd></div><div><dt class="text-xs font-medium text-muted">นักศึกษา</dt><dd class="mt-1 text-ink">{{ studentNames(item).join(', ') }} ({{ item.studentIds.length }} คน)</dd></div></dl>
             <UiButton v-if="canComplete(item)" class="mt-4 w-full" :icon="CheckCircle2" :loading="completingAppointmentId === item.id" @click="completeSupervision(item)">นิเทศเสร็จ</UiButton>
           </article>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ArrowDown, ArrowUp, BriefcaseBusiness, CheckCircle2, ChevronLeft, ChevronRight, Clock3, RotateCcw, Search, Users, X } from '@lucide/vue'
-import { selectableCoopSemester } from '~/composables/useCoopCycles'
+import { getStudentCohortYear, useStudentCohortContext } from '~/composables/useStudentCohortContext'
 import type { PersonRecord } from '~/composables/usePeopleDirectory'
 import { applicationStatusGroupMeta, applicationStatusGroupOptions, getStudentApplicationStatusGroup } from '~/composables/useStudentApplications'
 import type { StudentApplication, StudentApplicationStatusGroup, TrackedApplicationStatus } from '~/composables/useStudentApplications'
@@ -14,24 +14,25 @@ definePageMeta({
 useHead({ title: 'ข้อมูลการสมัครสหกิจของนักศึกษา' })
 
 const { scenario } = useScenario()
+const { currentAccount } = useAuthPrototype()
 const { people, loadPersistedPeople } = usePeopleDirectory()
 const { applications, getStudentApplications, updateApplicationStatus } = useStudentApplications()
 const { showToast } = useToast()
 const staffApplicationsEndpoint: string = '/api/staff/student-applications'
-const { data: persistedApplications, status: applicationFetchStatus, error: applicationFetchError, refresh: refreshApplications } = await useFetch<StudentApplication[]>(staffApplicationsEndpoint, { immediate: scenario.value.role === 'staff' })
-watch(persistedApplications, (items) => { if (items && scenario.value.role === 'staff') applications.value = items }, { immediate: true })
+const { data: persistedApplications, status: applicationFetchStatus, error: applicationFetchError, refresh: refreshApplications } = await useFetch<StudentApplication[]>(staffApplicationsEndpoint)
+watch(persistedApplications, (items) => { if (items) applications.value = items }, { immediate: true })
 const { status: peopleFetchStatus, error: peopleFetchError, refresh: refreshPeople } = await useAsyncData(
   'applications-students-directory',
   () => loadPersistedPeople('student'),
 )
-watch(() => scenario.value.role, (role) => {
+watch(() => currentAccount.value?.role, (role) => {
   if (import.meta.client && (role === 'staff' || role === 'lecturer')) {
     void refreshPeople()
-    if (role === 'staff') void refreshApplications()
+    void refreshApplications()
   }
 })
 const { studentCohort, studentSection, studentSemester } = useStudentCohortContext()
-const isStaffView = computed(() => scenario.value.role === 'staff')
+const isStaffView = computed(() => currentAccount.value?.role === 'staff')
 const pageDescription = computed(() => isStaffView.value
   ? 'ติดตามบริษัทที่นักศึกษาแต่ละคนยื่นสมัคร ตำแหน่ง และสถานะการตอบกลับล่าสุดของนักศึกษาทั้งหมด'
   : 'ดูบริษัทที่นักศึกษาแต่ละคนยื่นสมัคร ตำแหน่ง และสถานะการตอบกลับล่าสุด')
@@ -74,7 +75,6 @@ const cohortApplications = computed(() => {
     return student
       && (studentCohort.value === 'all' || getStudentCohortYear(student.id) === studentCohort.value)
       && (studentSection.value === 'all' || student.section === studentSection.value)
-      && getStudentSemester(student.cycle) === selectableCoopSemester
   })
 })
 const summaryCards = computed(() => {

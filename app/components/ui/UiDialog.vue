@@ -17,6 +17,7 @@ interface Props {
   open?: boolean
   closeOnConfirm?: boolean
   size?: 'md' | 'lg' | 'xl'
+  contentClass?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -24,6 +25,7 @@ const props = withDefaults(defineProps<Props>(), {
   open: undefined,
   closeOnConfirm: true,
   size: 'md',
+  contentClass: undefined,
 })
 const emit = defineEmits<{
   'update:open': [value: boolean]
@@ -50,7 +52,7 @@ watch(() => props.open, (value) => {
     <DialogTrigger v-if="$slots.trigger" as-child><slot name="trigger" /></DialogTrigger>
     <DialogPortal>
       <DialogOverlay class="fixed inset-0 z-50 bg-black/45" />
-      <DialogContent class="fixed top-1/2 left-1/2 z-50 max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-panel border border-divider bg-canvas p-6 shadow-2xl outline-none" :class="sizeClass">
+      <DialogContent class="fixed top-1/2 left-1/2 z-50 max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-panel border border-divider bg-canvas p-6 shadow-2xl outline-none" :class="[sizeClass, props.contentClass]">
         <DialogTitle class="pr-10 text-lg font-bold text-ink">{{ title }}</DialogTitle>
         <DialogDescription v-if="description" class="mt-2 text-sm leading-6 text-muted">{{ description }}</DialogDescription>
         <DialogClose class="absolute top-4 right-4 grid size-9 place-items-center rounded-control text-muted hover:bg-surface hover:text-ink" aria-label="ปิดกล่องข้อความ">

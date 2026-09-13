@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
   const appointment = await usePrisma().supervisionAppointment.findUnique({
     where: { id: appointmentId },
     select: {
-      id: true, scheduledDate: true, period: true, status: true, splitReason: true,
+      id: true, appointmentNo: true, scheduledDate: true, period: true, status: true, splitReason: true,
       completedAt: true, resultSummary: true, resultIssues: true, resultSuggestions: true,
       companyRequirements: true, createdAt: true,
       groupCompany: {

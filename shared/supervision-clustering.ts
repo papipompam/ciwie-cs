@@ -4,6 +4,9 @@ export interface LocatedCompany {
   id: string
   latitude?: number | null
   longitude?: number | null
+  region?: string
+  province?: string
+  address?: string
 }
 
 export const coordinatesSchema = z.object({
@@ -23,19 +26,33 @@ export const distanceKm = (a: { latitude: number, longitude: number }, b: { lati
   return 6371 * 2 * Math.asin(Math.sqrt(Math.min(1, h)))
 }
 
+const administrativeAreaKey = (company: LocatedCompany) => {
+  const province = company.province?.trim()
+  if (!province) return null
+  const district = company.address?.match(/(?:อำเภอ|เขต)\s*([^\s,]+)/)?.[1]?.trim()
+  return [company.region?.trim() || 'ยังไม่ระบุภาค', province, district || 'ทั้งจังหวัด'].join('|')
+}
+
 // Complete-link agglomerative clustering: every pair respects the distance limit.
 // Distance is calculated along the earth's surface, not by road or travel time.
 export const clusterCompanies = (companies: LocatedCompany[], options: z.input<typeof clusteringOptionsSchema>) => {
   const { maxDistanceKm, maxCompanies } = clusteringOptionsSchema.parse(options)
   if (new Set(companies.map(company => company.id)).size !== companies.length) throw new Error('รหัสสถานประกอบการซ้ำ')
   const missingIds: string[] = []
+  const fallbackAreas = new Map<string, string[]>()
   const located = companies.toSorted((a, b) => a.id.localeCompare(b.id)).flatMap(company => {
     const result = coordinatesSchema.safeParse(company)
-    if (!result.success) {
+    if (result.success) return [{ id: company.id, ...result.data }]
+
+    const hasCoordinateValue = company.latitude !== null && company.latitude !== undefined
+      || company.longitude !== null && company.longitude !== undefined
+    const areaKey = hasCoordinateValue ? null : administrativeAreaKey(company)
+    if (!areaKey) {
       missingIds.push(company.id)
       return []
     }
-    return [{ id: company.id, ...result.data }]
+    fallbackAreas.set(areaKey, [...(fallbackAreas.get(areaKey) ?? []), company.id])
+    return []
   })
   const clusters = located.map(company => [company])
   while (true) {
@@ -51,5 +68,12 @@ export const clusterCompanies = (companies: LocatedCompany[], options: z.input<t
     clusters[best.a]!.push(...clusters[best.b]!)
     clusters.splice(best.b, 1)
   }
-  return { groups: clusters.map(cluster => cluster.map(company => company.id)), missingIds }
+  const fallbackGroups = [...fallbackAreas.values()].flatMap(ids => ids
+    .toSorted((a, b) => a.localeCompare(b))
+    .reduce<string[][]>((groups, id, index) => {
+      if (index % maxCompanies === 0) groups.push([])
+      groups.at(-1)!.push(id)
+      return groups
+    }, []))
+  return { groups: [...clusters.map(cluster => cluster.map(company => company.id)), ...fallbackGroups], missingIds }
 }

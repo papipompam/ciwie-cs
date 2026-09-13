@@ -85,7 +85,7 @@ const describedBy = computed(() => [helpId.value, errorId.value].filter(Boolean)
           <SelectScrollUpButton class="flex h-9 items-center justify-center text-muted">
             <ChevronUp :size="17" aria-hidden="true" />
           </SelectScrollUpButton>
-          <SelectViewport class="max-h-72">
+          <SelectViewport class="max-h-72 overflow-y-auto">
             <SelectItem
               v-for="option in options"
               :key="option.value"

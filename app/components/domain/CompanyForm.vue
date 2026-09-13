@@ -10,7 +10,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  initialValue: () => ({ name: '', branch: 'สำนักงานใหญ่', province: '', region: '', address: '', contactName: '', contactPhone: '' }),
+  initialValue: () => ({ name: '', branch: 'สำนักงานใหญ่', province: '', region: '', address: '', contactName: '' }),
   submitting: false,
   submitLabel: 'บันทึกข้อมูล',
 })
@@ -31,7 +31,6 @@ const schema = z.object({
   region: z.string().trim().min(1, 'กรุณาเลือกภูมิภาค'),
   address: z.string().trim().min(1, 'กรุณากรอกที่อยู่').max(500, 'ที่อยู่ต้องไม่เกิน 500 ตัวอักษร'),
   contactName: z.string().trim().min(1, 'กรุณากรอกชื่อผู้ประสานงาน').max(150, 'ชื่อต้องไม่เกิน 150 ตัวอักษร'),
-  contactPhone: z.string().trim().min(1, 'กรุณากรอกเบอร์โทรศัพท์').max(30, 'เบอร์โทรศัพท์ต้องไม่เกิน 30 ตัวอักษร'),
   latitude: z.number().min(-90).max(90).nullable().optional(),
   longitude: z.number().min(-180).max(180).nullable().optional(),
 })
@@ -41,7 +40,7 @@ const errors = reactive<Partial<Record<keyof CompanyInput, string>>>({})
 watch(() => props.initialValue, value => Object.assign(form, value), { deep: true })
 
 const submit = () => {
-  Object.assign(errors, { name: undefined, branch: undefined, province: undefined, region: undefined, address: undefined, contactName: undefined, contactPhone: undefined })
+  Object.assign(errors, { name: undefined, branch: undefined, province: undefined, region: undefined, address: undefined, contactName: undefined })
   const result = schema.safeParse({ ...form, branch: form.branch?.trim() || 'สำนักงานใหญ่' })
   if (!result.success) {
     result.error.issues.forEach((issue) => { errors[issue.path[0] as keyof CompanyInput] = issue.message })
@@ -58,7 +57,6 @@ const submit = () => {
       <div><UiInput v-model="form.branch" label="สาขา" placeholder="เช่น สำนักงานใหญ่" :error="errors.branch" /></div>
       <div><UiInput v-model="form.province" label="จังหวัด" placeholder="กรอกจังหวัด" :error="errors.province" required /></div>
       <div><UiSelect v-model="form.region" :options="regionOptions" label="ภูมิภาค" :error="errors.region" required /></div>
-      <div><UiInput v-model="form.contactPhone" type="tel" label="เบอร์โทรศัพท์" placeholder="เช่น 044-000-000" :error="errors.contactPhone" required /></div>
       <div class="sm:col-span-2"><UiInput v-model="form.contactName" label="ผู้ประสานงาน" placeholder="ชื่อผู้ประสานงานของสถานประกอบการ" :error="errors.contactName" required /></div>
       <div class="sm:col-span-2"><UiTextarea v-model="form.address" label="ที่อยู่สถานประกอบการ" placeholder="กรอกที่อยู่สำหรับติดต่อ" :error="errors.address" required /></div>
       <div class="sm:col-span-2"><AppLocationPicker :latitude="form.latitude ?? null" :longitude="form.longitude ?? null" :address="form.address" :show-coordinate-inputs="false" @change="Object.assign(form, $event)" /></div>

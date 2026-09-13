@@ -10,8 +10,8 @@ describe('student directory cycle visibility', () => {
     expect(isStudentVisibleForCoopSemester('ภาคเรียนที่ 2/2569')).toBe(true)
   })
 
-  it('hides students from another semester', () => {
-    expect(isStudentVisibleForCoopSemester('ภาคเรียนที่ 1/2569')).toBe(false)
+  it('keeps students from every persisted semester visible', () => {
+    expect(isStudentVisibleForCoopSemester('ภาคเรียนที่ 1/2569')).toBe(true)
   })
 })
 
@@ -45,14 +45,14 @@ describe('student directory ordering', () => {
 })
 
 describe('student directory default cohort', () => {
-  it('chooses the latest cohort that belongs to the current semester', () => {
+  it('chooses the latest cohort across persisted semesters', () => {
     expect(getDefaultStudentCohort([
       { id: '67123456703', cycle: 'ภาคเรียนที่ 1/2570' },
       { id: '66123456701', cycle: 'ภาคเรียนที่ 2/2569' },
-    ])).toBe('2566')
+    ])).toBe('2567')
   })
 
-  it('returns all when there are no students in the current semester', () => {
-    expect(getDefaultStudentCohort([{ id: '67123456703', cycle: 'ภาคเรียนที่ 1/2570' }])).toBe('all')
+  it('returns the latest cohort even when it is from a different semester', () => {
+    expect(getDefaultStudentCohort([{ id: '67123456703', cycle: 'ภาคเรียนที่ 1/2570' }])).toBe('2567')
   })
 })

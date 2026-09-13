@@ -12,9 +12,9 @@ export const useSupervisionExpenses = () => {
     return response
   }
 
-  const saveExpense = async (groupId: string, input: SupervisionLineExpenseInput) => {
+  const saveExpense = async (groupId: string, input: SupervisionLineExpenseInput, reload = true) => {
     const saved = await requestAwareFetch(`/api/staff/expenses/${encodeURIComponent(groupId)}`, {
-      method: 'PUT', body: input,
+      method: 'PUT', body: input, reload,
     }) as SupervisionExpenseRecord
     const index = records.value.findIndex(record => record.groupId === groupId)
     if (index === -1) records.value.unshift(saved)

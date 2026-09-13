@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { getStudentPlacementPosition, personPrefixOptions, personPrefixValues } from './usePeopleDirectory'
+import { personPrefixOptions, personPrefixValues } from './usePeopleDirectory'
 import type { PersonPrefix, PersonRecord, PersonType, StudentSection } from './usePeopleDirectory'
 
 export type PeopleFileFormat = 'csv' | 'xlsx'
@@ -212,7 +212,7 @@ export const toPeopleWorksheetRows = (people: PersonRecord[], type: PersonType) 
           รหัสนักศึกษา: person.id,
           คำนำหน้า: person.prefix,
           'ชื่อ-นามสกุล': `${person.firstName} ${person.lastName}`.trim(),
-          ตำแหน่งงาน: getStudentPlacementPosition(person.id, person.company),
+          ตำแหน่งงาน: '',
           ชื่อสถานประกอบการ: person.company ?? '',
         }
         return studentRow

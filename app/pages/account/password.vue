@@ -7,6 +7,8 @@ useHead({ title: 'เปลี่ยนรหัสผ่าน' })
 
 const { currentAccount, changePassword } = useAuthPrototype()
 const { showToast } = useToast()
+const canChangePassword = computed(() => Boolean(currentAccount.value)
+  && (currentAccount.value?.role !== 'student' || currentAccount.value.status === 'first-login'))
 const currentPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
@@ -54,12 +56,12 @@ const submitPassword = async () => {
 
 <template>
   <div class="mx-auto max-w-3xl">
-    <div class="mb-6">
+    <div v-if="canChangePassword" class="mb-6">
       <h2 class="text-2xl font-bold tracking-tight text-ink sm:text-3xl">เปลี่ยนรหัสผ่าน</h2>
       <p class="mt-1 text-sm leading-6 text-muted">ตั้งรหัสผ่านใหม่สำหรับบัญชีที่กำลังใช้งาน</p>
     </div>
 
-    <UiCard>
+    <UiCard v-if="canChangePassword">
       <div class="flex items-start gap-3 border-b border-divider pb-5">
         <span class="grid size-11 shrink-0 place-items-center rounded-control bg-warning-soft text-warning"><ShieldCheck :size="22" aria-hidden="true" /></span>
         <div><p class="font-semibold text-ink">{{ currentAccount?.name }}</p><p class="mt-1 text-sm text-muted">ชื่อผู้ใช้ {{ currentAccount?.username }}</p></div>
@@ -72,6 +74,9 @@ const submitPassword = async () => {
         </div>
         <div class="flex justify-end border-t border-divider pt-5"><UiButton type="submit" :icon="KeyRound" :loading="isSubmitting">บันทึกรหัสผ่านใหม่</UiButton></div>
       </form>
+    </UiCard>
+    <UiCard v-else>
+      <AppEmptyState title="นักศึกษาเปลี่ยนรหัสผ่านได้เฉพาะครั้งแรก" description="หากต้องรีเซ็ตรหัสผ่าน โปรดติดต่อเจ้าหน้าที่" />
     </UiCard>
   </div>
 </template>

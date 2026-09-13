@@ -26,6 +26,7 @@ export const toPlacementRequestPreview = (request: PlacementRequestWithStudent):
   const response = request.documents?.find(document => document.documentType === 'COMPANY_RESPONSE')
   return {
     id: request.id,
+  requestNo: request.requestNo,
   cycleId: request.enrollment.cycleId,
   studentName: `${request.enrollment.student.namePrefix}${request.enrollment.student.firstName} ${request.enrollment.student.lastName}`.trim(),
   status: statusMap[request.status],

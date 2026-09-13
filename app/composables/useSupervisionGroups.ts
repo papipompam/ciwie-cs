@@ -18,13 +18,12 @@ export interface CompanyRecord {
   region: string
   address: string
   contactName: string
-  contactPhone: string
   status: CompanyRecordStatus
   createdAt: string
   updatedAt: string
 }
 
-export type CompanyInput = Pick<CompanyRecord, 'name' | 'branch' | 'province' | 'region' | 'address' | 'contactName' | 'contactPhone' | 'latitude' | 'longitude'>
+export type CompanyInput = Pick<CompanyRecord, 'name' | 'branch' | 'province' | 'region' | 'address' | 'contactName' | 'latitude' | 'longitude'>
 
 export interface SupervisionCompanyStudent {
   id: string
@@ -69,7 +68,6 @@ export interface SupervisionCompany {
   region: string
   address: string
   contactName: string
-  contactPhone: string
   status: CompanyRecordStatus
   studentCount: number
   students: SupervisionCompanyStudent[]
@@ -93,65 +91,12 @@ export interface SupervisionGroupInput {
   companyIds: string[]
 }
 
-const placementsSeed: SupervisionPlacement[] = [
-  { id: 'SP-001', cycleId: 'CYCLE-2569-2', studentId: '66123456701', studentName: 'ธนกฤต พูนทรัพย์', companyId: 'SC-001', company: 'บริษัท สยามเทค โซลูชัน จำกัด', branch: 'สำนักงานใหญ่', province: 'บุรีรัมย์', region: 'ภาคตะวันออกเฉียงเหนือ', position: 'Frontend Developer' },
-  { id: 'SP-002', cycleId: 'CYCLE-2569-2', studentId: '66123456702', studentName: 'ณัฐชา ศรีสุข', companyId: 'SC-001', company: 'บริษัท สยามเทค โซลูชัน จำกัด', branch: 'สำนักงานใหญ่', province: 'บุรีรัมย์', region: 'ภาคตะวันออกเฉียงเหนือ', position: 'Software Tester' },
-  { id: 'SP-003', cycleId: 'CYCLE-2569-2', studentId: '66123456704', studentName: 'ภัทรวดี คำแสน', companyId: 'SC-002', company: 'บริษัท บุรีรัมย์เว็บ จำกัด', branch: 'สำนักงานใหญ่', province: 'บุรีรัมย์', region: 'ภาคตะวันออกเฉียงเหนือ', position: 'Web Developer' },
-  { id: 'SP-004', cycleId: 'CYCLE-2569-2', studentId: '66123456708', studentName: 'ชยพล พรมดี', companyId: 'SC-003', company: 'บริษัท โคราชซอฟต์ จำกัด', branch: 'สำนักงานใหญ่', province: 'นครราชสีมา', region: 'ภาคตะวันออกเฉียงเหนือ', position: 'Backend Developer' },
-  { id: 'SP-005', cycleId: 'CYCLE-2569-2', studentId: '66123456711', studentName: 'ปวีณ์นุช มั่นคง', companyId: 'SC-004', company: 'บริษัท อีสานเทค จำกัด', branch: 'สาขาขอนแก่น', province: 'ขอนแก่น', region: 'ภาคตะวันออกเฉียงเหนือ', position: 'UX/UI Designer' },
-  { id: 'SP-006', cycleId: 'CYCLE-2569-2', studentId: '66123456715', studentName: 'นภัสสร มีสุข', companyId: 'SC-005', company: 'บริษัท นอร์ทเทิร์นดิจิทัล จำกัด', branch: 'สาขาเชียงใหม่', province: 'เชียงใหม่', region: 'ภาคเหนือ', position: 'Data Analyst' },
-  { id: 'SP-007', cycleId: 'CYCLE-2569-2', studentId: '66123456720', studentName: 'ศุภกร รุ่งเรือง', companyId: 'SC-006', company: 'บริษัท บางกอกคลาวด์ จำกัด', branch: 'สำนักงานใหญ่', province: 'กรุงเทพมหานคร', region: 'ภาคกลาง', position: 'Cloud Engineer' },
-  { id: 'SP-008', cycleId: 'CYCLE-2569-SUMMER', studentId: '66123456725', studentName: 'อรอนงค์ สายใจ', companyId: 'SC-007', company: 'บริษัท ภูเก็ตสมาร์ท จำกัด', branch: 'สำนักงานใหญ่', province: 'ภูเก็ต', region: 'ภาคใต้', position: 'Software Developer' },
-  { id: 'SP-009', cycleId: 'CYCLE-2569-2', studentId: '66123456723', studentName: 'กิตติพงษ์ แสงทอง', companyId: 'SC-003', company: 'บริษัท โคราชซอฟต์ จำกัด', branch: 'สำนักงานใหญ่', province: 'นครราชสีมา', region: 'ภาคตะวันออกเฉียงเหนือ', position: 'DevOps Engineer' },
-  { id: 'SP-010', cycleId: 'CYCLE-2569-2', studentId: '66123456727', studentName: 'พิชญา จันทร์ดี', companyId: 'SC-004', company: 'บริษัท อีสานเทค จำกัด', branch: 'สาขาขอนแก่น', province: 'ขอนแก่น', region: 'ภาคตะวันออกเฉียงเหนือ', position: 'Business Analyst' },
-  { id: 'SP-011', cycleId: 'CYCLE-2569-2', studentId: '66123456731', studentName: 'รัฐภูมิ บุญมี', companyId: 'SC-004', company: 'บริษัท อีสานเทค จำกัด', branch: 'สาขาขอนแก่น', province: 'ขอนแก่น', region: 'ภาคตะวันออกเฉียงเหนือ', position: 'Mobile Developer' },
-  { id: 'SP-012', cycleId: 'CYCLE-2569-2', studentId: '66123456734', studentName: 'ศิริพร มณีวงศ์', companyId: 'SC-006', company: 'บริษัท บางกอกคลาวด์ จำกัด', branch: 'สำนักงานใหญ่', province: 'กรุงเทพมหานคร', region: 'ภาคกลาง', position: 'System Engineer' },
-  { id: 'SP-013', cycleId: 'CYCLE-2569-2', studentId: '66123456738', studentName: 'ธนภัทร วงศ์คำ', companyId: 'SC-008', company: 'บริษัท ศูนย์นวัตกรรมดิจิทัลภาคตะวันออก จำกัด', branch: 'สาขาชลบุรี', province: 'ชลบุรี', region: 'ภาคตะวันออก', position: 'AI Engineer' },
-  { id: 'SP-014', cycleId: 'CYCLE-2569-2', studentId: '66123456742', studentName: 'ชนาภา สุขเกษม', companyId: 'SC-008', company: 'บริษัท ศูนย์นวัตกรรมดิจิทัลภาคตะวันออก จำกัด', branch: 'สาขาชลบุรี', province: 'ชลบุรี', region: 'ภาคตะวันออก', position: 'Data Engineer' },
-  { id: 'SP-015', cycleId: 'CYCLE-2569-SUMMER', studentId: '66123456746', studentName: 'วรพล อินทร์แก้ว', companyId: 'SC-007', company: 'บริษัท ภูเก็ตสมาร์ท จำกัด', branch: 'สำนักงานใหญ่', province: 'ภูเก็ต', region: 'ภาคใต้', position: 'QA Engineer' },
-]
-
-const companyRecordsSeed: CompanyRecord[] = [
-  { id: 'SC-001', name: 'บริษัท สยามเทค โซลูชัน จำกัด', branch: 'สำนักงานใหญ่', province: 'บุรีรัมย์', region: 'ภาคตะวันออกเฉียงเหนือ', address: '88/8 ถนนธานี ตำบลในเมือง อำเภอเมืองบุรีรัมย์ จังหวัดบุรีรัมย์ 31000', latitude: 14.993, longitude: 103.102, contactName: 'คุณกาญจนา วัฒนชัย', contactPhone: '044-611-208', status: 'active', createdAt: '2026-07-10T09:00:00+07:00', updatedAt: '2026-08-20T10:30:00+07:00' },
-  { id: 'SC-002', name: 'บริษัท บุรีรัมย์เว็บ จำกัด', branch: 'สำนักงานใหญ่', province: 'บุรีรัมย์', region: 'ภาคตะวันออกเฉียงเหนือ', address: '125 ถนนจิระ ตำบลในเมือง อำเภอเมืองบุรีรัมย์ จังหวัดบุรีรัมย์ 31000', latitude: 14.999, longitude: 103.108, contactName: 'คุณสุเมธ คงมั่น', contactPhone: '044-620-115', status: 'active', createdAt: '2026-07-12T09:00:00+07:00', updatedAt: '2026-08-21T14:10:00+07:00' },
-  { id: 'SC-003', name: 'บริษัท โคราชซอฟต์ จำกัด', branch: 'สำนักงานใหญ่', province: 'นครราชสีมา', region: 'ภาคตะวันออกเฉียงเหนือ', address: '299 ถนนมิตรภาพ ตำบลในเมือง อำเภอเมืองนครราชสีมา จังหวัดนครราชสีมา 30000', latitude: 14.98, longitude: 102.097, contactName: 'คุณปรีชา ศรีสุข', contactPhone: '044-255-901', status: 'active', createdAt: '2026-07-14T09:00:00+07:00', updatedAt: '2026-08-22T09:45:00+07:00' },
-  { id: 'SC-004', name: 'บริษัท อีสานเทค จำกัด', branch: 'สาขาขอนแก่น', province: 'ขอนแก่น', region: 'ภาคตะวันออกเฉียงเหนือ', address: '55/21 ถนนศรีจันทร์ ตำบลในเมือง อำเภอเมืองขอนแก่น จังหวัดขอนแก่น 40000', latitude: 16.432, longitude: 102.823, contactName: 'คุณอรอนงค์ แก้วใส', contactPhone: '043-225-478', status: 'active', createdAt: '2026-07-18T09:00:00+07:00', updatedAt: '2026-08-23T11:20:00+07:00' },
-  { id: 'SC-005', name: 'บริษัท นอร์ทเทิร์นดิจิทัล จำกัด', branch: 'สาขาเชียงใหม่', province: 'เชียงใหม่', region: 'ภาคเหนือ', address: '18 ถนนนิมมานเหมินท์ ตำบลสุเทพ อำเภอเมืองเชียงใหม่ จังหวัดเชียงใหม่ 50200', latitude: 18.796, longitude: 98.967, contactName: 'คุณธนกร พิทักษ์วงศ์', contactPhone: '053-218-644', status: 'active', createdAt: '2026-07-20T09:00:00+07:00', updatedAt: '2026-08-24T13:30:00+07:00' },
-  { id: 'SC-006', name: 'บริษัท บางกอกคลาวด์ จำกัด', branch: 'สำนักงานใหญ่', province: 'กรุงเทพมหานคร', region: 'ภาคกลาง', address: '99 อาคารคลาวด์ทาวเวอร์ ถนนรัชดาภิเษก เขตดินแดง กรุงเทพมหานคร 10400', latitude: 13.77, longitude: 100.573, contactName: 'คุณณัฐพล พงษ์สวัสดิ์', contactPhone: '02-245-8890', status: 'active', createdAt: '2026-07-22T09:00:00+07:00', updatedAt: '2026-08-25T08:50:00+07:00' },
-  { id: 'SC-007', name: 'บริษัท ภูเก็ตสมาร์ท จำกัด', branch: 'สำนักงานใหญ่', province: 'ภูเก็ต', region: 'ภาคใต้', address: '42 ถนนเทพกระษัตรี ตำบลตลาดใหญ่ อำเภอเมืองภูเก็ต จังหวัดภูเก็ต 83000', latitude: 7.884, longitude: 98.39, contactName: 'คุณสุนิสา รัตนกุล', contactPhone: '076-221-490', status: 'active', createdAt: '2026-07-24T09:00:00+07:00', updatedAt: '2026-08-26T10:15:00+07:00' },
-  { id: 'SC-008', name: 'บริษัท ศูนย์นวัตกรรมดิจิทัลภาคตะวันออก จำกัด', branch: 'สาขาชลบุรี', province: 'ชลบุรี', region: 'ภาคตะวันออก', address: '700/12 นิคมอุตสาหกรรมอมตะซิตี้ ตำบลคลองตำหรุ อำเภอเมืองชลบุรี จังหวัดชลบุรี 20000', latitude: 13.361, longitude: 101.009, contactName: 'คุณภาคภูมิ วงศ์อนันต์', contactPhone: '038-458-721', status: 'active', createdAt: '2026-07-26T09:00:00+07:00', updatedAt: '2026-08-27T16:40:00+07:00' },
-  { id: 'SC-009', name: 'ห้างหุ้นส่วนจำกัด บุรีรัมย์อินโนเวชัน', branch: 'สำนักงานใหญ่', province: 'บุรีรัมย์', region: 'ภาคตะวันออกเฉียงเหนือ', address: '19 ถนนปลัดเมือง ตำบลในเมือง อำเภอเมืองบุรีรัมย์ จังหวัดบุรีรัมย์ 31000', contactName: 'คุณศิริพร บุญมาก', contactPhone: '044-612-990', status: 'inactive', createdAt: '2025-06-10T09:00:00+07:00', updatedAt: '2026-05-15T13:00:00+07:00' },
-]
-
-const studentPrefixes: Record<string, 'นาย' | 'นางสาว'> = {
-  '66123456701': 'นาย', '66123456702': 'นางสาว', '66123456704': 'นางสาว', '66123456708': 'นาย', '66123456711': 'นางสาว',
-  '66123456715': 'นางสาว', '66123456720': 'นาย', '66123456725': 'นางสาว', '66123456723': 'นาย', '66123456727': 'นางสาว',
-  '66123456731': 'นาย', '66123456734': 'นางสาว', '66123456738': 'นาย', '66123456742': 'นางสาว', '66123456746': 'นาย',
-}
-
-const studentSections: Record<string, string> = {
-  '66123456701': 'หมู่ 1', '66123456702': 'หมู่ 1', '66123456704': 'หมู่ 2', '66123456708': 'หมู่ 1', '66123456711': 'หมู่ 2',
-  '66123456715': 'หมู่ 1', '66123456720': 'หมู่ 2', '66123456725': 'หมู่ 2', '66123456723': 'หมู่ 1', '66123456727': 'หมู่ 2',
-  '66123456731': 'หมู่ 1', '66123456734': 'หมู่ 2', '66123456738': 'หมู่ 1', '66123456742': 'หมู่ 2', '66123456746': 'หมู่ 1',
-}
-
-const groupsSeed: SupervisionGroup[] = [
-  { id: 'SG-001', cycleId: 'CYCLE-2569-2', round: 1, name: 'กลุ่มอาจารย์ 1', lecturerIds: ['L0012'], companyIds: ['SC-001', 'SC-002'], createdAt: '2026-08-29T10:00:00+07:00' },
-  { id: 'SG-002', cycleId: 'CYCLE-2569-2', round: 2, name: 'กลุ่มอาจารย์ 1', lecturerIds: ['L0021'], companyIds: ['SC-001', 'SC-003'], createdAt: '2026-08-30T09:30:00+07:00' },
-  { id: 'SG-003', cycleId: 'CYCLE-2569-2', round: 1, name: 'กลุ่มอาจารย์ 2', lecturerIds: ['L0021'], companyIds: ['SC-003'], createdAt: '2026-08-30T13:15:00+07:00' },
-]
-
-// Keep local demo records available for trying the grouping flow; production still uses persisted data only.
-const demoSeedEnabled = import.meta.dev
-
 export const useSupervisionGroups = () => {
-  const placements = useState<SupervisionPlacement[]>('supervision-placements-v5', () => demoSeedEnabled ? structuredClone(placementsSeed) : [])
-  const groups = useState<SupervisionGroup[]>('supervision-groups-v4', () => demoSeedEnabled ? structuredClone(groupsSeed) : [])
-  const companyRecords = useState<CompanyRecord[]>('company-records-v2', () => demoSeedEnabled ? structuredClone(companyRecordsSeed) : [])
+  const placements = useState<SupervisionPlacement[]>('supervision-placements-v5', () => [])
+  const groups = useState<SupervisionGroup[]>('supervision-groups-v4', () => [])
+  const companyRecords = useState<CompanyRecord[]>('company-records-v2', () => [])
   const supervisionLecturers = useState<SupervisionLecturerDto[]>('supervision-lecturers-v2', () => [])
-  const studentProfiles = useState<Record<string, { prefix: string, section: string }>>('supervision-student-profiles-v2', () => demoSeedEnabled ? Object.fromEntries(
-    Object.keys(studentPrefixes).map(id => [id, { prefix: studentPrefixes[id] ?? 'นาย', section: studentSections[id] ?? 'ยังไม่กำหนด' }]),
-  ) : {})
+  const studentProfiles = useState<Record<string, { prefix: string, section: string }>>('supervision-student-profiles-v2', () => ({}))
   const { recordEvent } = useScenario()
   const { currentAccount } = useAuthPrototype()
   const requireStaff = () => {
@@ -159,7 +104,6 @@ export const useSupervisionGroups = () => {
   }
 
   const syncPersistedContext = (cycleId: string, data: { companies: SupervisionCompanyDto[], groups: SupervisionGroupDto[], lecturers: SupervisionLecturerDto[] }) => {
-    if (demoSeedEnabled && !data.companies.length && !data.groups.length && !data.lecturers.length) return
     groups.value = [
       ...groups.value.filter(group => group.cycleId !== cycleId),
       ...data.groups,
@@ -188,7 +132,6 @@ export const useSupervisionGroups = () => {
         region: company.region,
         address: company.address,
         contactName: company.contactName,
-        contactPhone: company.contactPhone,
         status: company.status,
         latitude: company.latitude,
         longitude: company.longitude,
@@ -212,21 +155,23 @@ export const useSupervisionGroups = () => {
     return data
   }
 
-  const persistSuggestedGroups = async (cycleId: string, round: SupervisionRound, proposed: Array<{ name: string, companyIds: string[] }>) => {
+  const persistSuggestedGroups = async (cycleId: string, round: SupervisionRound, proposed: Array<{ name: string, companyIds: string[] }>, reload = true) => {
     requireStaff()
     const saved = await requestAwareFetch('/api/staff/supervision/groups', {
       method: 'POST',
       body: { cycleId, round, groups: proposed },
+      reload,
     }) as SupervisionGroupDto[]
     groups.value = [...groups.value, ...saved]
     return saved
   }
 
-  const persistLecturers = async (groupId: string, lecturerIds: string[]) => {
+  const persistLecturers = async (groupId: string, lecturerIds: string[], reload = true) => {
     requireStaff()
     const saved = await requestAwareFetch(`/api/staff/supervision/groups/${groupId}/lecturers`, {
       method: 'PATCH',
       body: { lecturerIds },
+      reload,
     }) as SupervisionGroupDto
     const index = groups.value.findIndex(group => group.id === saved.id)
     if (index !== -1) Object.assign(groups.value[index]!, saved)
@@ -257,7 +202,6 @@ export const useSupervisionGroups = () => {
         latitude: record?.latitude,
         longitude: record?.longitude,
         contactName: record?.contactName ?? 'ยังไม่มีข้อมูลผู้ประสานงาน',
-        contactPhone: record?.contactPhone ?? 'ยังไม่มีข้อมูลเบอร์โทรศัพท์',
         status: record?.status ?? 'active',
         studentCount: 1,
         students: [student],
@@ -348,7 +292,7 @@ export const useSupervisionGroups = () => {
       return
     }
     const company = companyRecords.value.find(item => item.name === application.companyName && item.address === application.companyLocation)
-      ?? createCompany({ name: application.companyName, branch: 'สำนักงานใหญ่', province: application.province, region: 'ยังไม่ระบุ', address: application.companyLocation, contactName: 'ยังไม่ระบุ', contactPhone: 'ยังไม่ระบุ', latitude: application.latitude, longitude: application.longitude })
+      ?? createCompany({ name: application.companyName, branch: 'สำนักงานใหญ่', province: application.province, region: 'ยังไม่ระบุ', address: application.companyLocation, contactName: 'ยังไม่ระบุ', latitude: application.latitude, longitude: application.longitude })
     placements.value.push({ id: `SP-${request.id}`, cycleId, studentId: application.studentId, studentName: request.studentName, companyId: company.id, company: company.name, branch: company.branch, province: company.province, region: company.region, position: application.position })
     const { people } = usePeopleDirectory()
     const person = people.value.find(item => item.type === 'student' && item.id === application.studentId)

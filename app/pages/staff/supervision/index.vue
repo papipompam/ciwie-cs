@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Download, RotateCcw, Search, Users, X } from '@lucide/vue'
+import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Download, RotateCcw, Search, Trash2, Users, X } from '@lucide/vue'
 import type { SupervisionAppointment, SupervisionAppointmentStatus } from '~/composables/useSupervisionAppointments'
 import { getPageCount, paginateItems } from '~/utils/table'
 
@@ -9,7 +9,7 @@ useHead({ title: 'ตารางนิเทศ' })
 const { scenario } = useScenario()
 const { currentAccount } = useAuthPrototype()
 const { cycleId, round } = useSupervisionContext()
-const { appointments, loadPersistedAppointments } = useSupervisionAppointments()
+const { appointments, loadPersistedAppointments, persistDeleteAppointment } = useSupervisionAppointments()
 const { groups, getCompanies } = useSupervisionGroups()
 const { people } = usePeopleDirectory()
 const { studentEvaluations, companyEvaluations } = useSupervisionEvaluations()
@@ -36,8 +36,13 @@ const pageSize = ref('10')
 const currentPage = ref(1)
 const detailOpen = ref(false)
 const selectedAppointmentId = ref<string | null>(null)
+const deleteAppointmentDialogOpen = ref(false)
+const appointmentToDelete = ref<SupervisionAppointment | null>(null)
+const deletingAppointment = ref(false)
+const deleteAppointmentError = ref('')
 const appointmentsLoading = ref(true)
 const appointmentsLoadError = ref(false)
+const hasSelectedCycle = computed(() => Boolean(cycleId.value))
 
 const effectiveViewState = computed(() => scenario.value.forceError || appointmentsLoadError.value
   ? 'error'
@@ -85,6 +90,11 @@ const requiredEvaluationCount = (appointment: SupervisionAppointment) => {
 }
 
 const loadAppointments = async () => {
+  if (!hasSelectedCycle.value) {
+    appointmentsLoading.value = false
+    appointmentsLoadError.value = false
+    return
+  }
   appointmentsLoading.value = true
   appointmentsLoadError.value = false
   try { await loadPersistedAppointments(cycleId.value, round.value) }
@@ -106,7 +116,7 @@ const filteredAppointments = computed(() => {
     .filter(item => statusFilter.value === 'all' || item.status === statusFilter.value)
     .filter((item) => {
       const values = [
-        item.id,
+        item.appointmentNo,
         companyName(item),
         groupName(item),
         ...item.lecturerIds.map(lecturerName),
@@ -142,7 +152,28 @@ const retry = () => {
   scenario.value.viewState = 'data'
   void loadAppointments()
 }
-
+const requestDeleteAppointment = (appointment: SupervisionAppointment) => {
+  appointmentToDelete.value = appointment
+  deleteAppointmentError.value = ''
+  deleteAppointmentDialogOpen.value = true
+}
+const deleteSelectedAppointment = async () => {
+  if (deletingAppointment.value || !appointmentToDelete.value) return
+  deletingAppointment.value = true
+  deleteAppointmentError.value = ''
+  try {
+    const deleted = await persistDeleteAppointment(appointmentToDelete.value.id)
+    if (selectedAppointmentId.value === deleted.id) {
+      detailOpen.value = false
+      selectedAppointmentId.value = null
+    }
+    deleteAppointmentDialogOpen.value = false
+    showToast({ title: 'ลบรายการนิเทศแล้ว', description: `${companyName(appointmentToDelete.value)} · ${formatDate(appointmentToDelete.value.date)}` })
+    appointmentToDelete.value = null
+  }
+  catch (cause) { deleteAppointmentError.value = cause instanceof Error ? cause.message : 'ลบรายการนิเทศไม่สำเร็จ กรุณาลองใหม่' }
+  finally { deletingAppointment.value = false }
+}
 watch([searchQuery, statusFilter, pageSize, cycleId, round], () => { currentPage.value = 1 })
 watch(pageCount, (count) => { if (currentPage.value > count) currentPage.value = count })
 </script>
@@ -199,30 +230,30 @@ watch(pageCount, (count) => { if (currentPage.value > count) currentPage.value =
 
       <div v-if="effectiveViewState === 'loading'" class="space-y-3 p-5 sm:p-6" aria-label="กำลังโหลดรายการนิเทศ"><UiSkeleton v-for="row in 5" :key="row" class="h-14" /></div>
       <div v-else-if="effectiveViewState === 'error'" class="p-5 sm:p-6"><AppErrorState title="โหลดตารางนิเทศไม่สำเร็จ" description="เกิดข้อผิดพลาดชั่วคราว กรุณาลองอีกครั้ง" @retry="retry" /></div>
-      <div v-else-if="!paginatedAppointments.length" class="p-5 sm:p-6"><AppEmptyState :title="hasActiveFilters ? 'ไม่พบรายการที่ตรงกับตัวกรอง' : 'ยังไม่มีตารางนิเทศในรอบนี้'" :description="hasActiveFilters ? 'ลองเปลี่ยนคำค้นหรือล้างตัวกรองที่ใช้อยู่' : 'จัดกลุ่มอาจารย์และกำหนดรายการนิเทศก่อน ตารางจึงจะแสดงที่นี่'" /></div>
+      <div v-else-if="!paginatedAppointments.length" class="p-5 sm:p-6"><AppEmptyState :title="hasActiveFilters ? 'ไม่พบรายการที่ตรงกับตัวกรอง' : hasSelectedCycle ? 'ยังไม่มีตารางนิเทศในรอบนี้' : 'ยังไม่มีรอบสหกิจ'" :description="hasActiveFilters ? 'ลองเปลี่ยนคำค้นหรือล้างตัวกรองที่ใช้อยู่' : hasSelectedCycle ? 'จัดกลุ่มอาจารย์และกำหนดรายการนิเทศก่อน ตารางจึงจะแสดงที่นี่' : 'สร้างรอบสหกิจก่อน จึงจะแสดงตารางนิเทศได้'" /></div>
       <template v-else>
         <div class="hidden overflow-x-auto md:block">
           <table class="w-full min-w-[1120px] border-collapse text-left text-sm">
             <caption class="sr-only">รายการนิเทศของทุกกลุ่มอาจารย์</caption>
-            <thead class="bg-surface text-xs font-semibold tracking-wide text-muted uppercase"><tr><th class="px-6 py-3">สถานประกอบการ</th><th class="px-4 py-3">วันนิเทศ</th><th class="px-4 py-3">กลุ่ม / อาจารย์</th><th class="px-4 py-3">นักศึกษา</th><th class="px-4 py-3">การประเมิน</th><th class="px-4 py-3">สถานะ</th><th class="w-28 px-4 py-3"><span class="sr-only">ดูข้อมูล</span></th></tr></thead>
+            <thead class="bg-surface text-xs font-semibold tracking-wide text-muted uppercase"><tr><th class="px-6 py-3">สถานประกอบการ</th><th class="px-4 py-3">วันนิเทศ</th><th class="px-4 py-3">กลุ่ม / อาจารย์</th><th class="px-4 py-3">นักศึกษา</th><th class="px-4 py-3">การประเมิน</th><th class="px-4 py-3">สถานะ</th><th class="w-44 px-4 py-3"><span class="sr-only">จัดการรายการ</span></th></tr></thead>
             <tbody class="divide-y divide-divider">
               <tr v-for="appointment in paginatedAppointments" :key="appointment.id" class="hover:bg-surface/70">
                 <td class="px-6 py-4"><p class="font-semibold text-ink">{{ companyName(appointment) }}</p><p class="mt-1 text-xs text-muted">{{ companyBranch(appointment) }} · {{ companyProvince(appointment) }}</p></td>
-                <td class="whitespace-nowrap px-4 py-4"><p class="font-medium text-ink">{{ formatDate(appointment.date) }}</p><p class="mt-1 text-xs text-muted">{{ appointment.id }}</p></td>
+                <td class="whitespace-nowrap px-4 py-4"><p class="font-medium text-ink">{{ formatDate(appointment.date) }}</p><p class="mt-1 text-xs text-muted">{{ appointment.appointmentNo }}</p></td>
                 <td class="px-4 py-4"><p class="font-medium text-ink">{{ groupName(appointment) }}</p><p class="mt-1 text-xs text-muted">{{ appointment.lecturerIds.map(lecturerName).join(', ') || 'ยังไม่มีอาจารย์' }}</p></td>
                 <td class="px-4 py-4"><p class="font-semibold text-ink">{{ appointment.studentIds.length }} คน</p><p class="mt-1 text-xs text-muted">ดูรายชื่อในรายละเอียด</p></td>
                 <td class="whitespace-nowrap px-4 py-4 text-muted"><template v-if="appointment.status === 'completed'">{{ submittedEvaluationCount(appointment) }} / {{ requiredEvaluationCount(appointment) }} รายการ</template><template v-else>ยังไม่เริ่ม</template></td>
                 <td class="whitespace-nowrap px-4 py-4"><UiBadge :tone="supervisionAppointmentStatusMeta[appointment.status].tone">{{ supervisionAppointmentStatusMeta[appointment.status].label }}</UiBadge></td>
-                <td class="px-4 py-4 text-right"><UiButton size="sm" variant="secondary" @click="openDetails(appointment)">ดูข้อมูล</UiButton></td>
+                <td class="px-4 py-4 text-right"><div class="flex justify-end gap-2"><UiButton size="sm" variant="secondary" @click="openDetails(appointment)">ดูข้อมูล</UiButton><UiButton size="sm" variant="danger" :icon="Trash2" :disabled="deletingAppointment" :aria-label="`ลบ ${companyName(appointment)}`" @click="requestDeleteAppointment(appointment)">ลบ</UiButton></div></td>
               </tr>
             </tbody>
           </table>
         </div>
         <div class="divide-y divide-divider md:hidden">
           <article v-for="appointment in paginatedAppointments" :key="appointment.id" class="p-5">
-            <div class="flex items-start justify-between gap-3"><div class="min-w-0"><h3 class="font-semibold text-ink">{{ companyName(appointment) }}</h3><p class="mt-1 text-xs text-muted">{{ appointment.id }} · {{ groupName(appointment) }}</p></div><UiBadge :tone="supervisionAppointmentStatusMeta[appointment.status].tone">{{ supervisionAppointmentStatusMeta[appointment.status].label }}</UiBadge></div>
+            <div class="flex items-start justify-between gap-3"><div class="min-w-0"><h3 class="font-semibold text-ink">{{ companyName(appointment) }}</h3><p class="mt-1 text-xs text-muted">{{ appointment.appointmentNo }} · {{ groupName(appointment) }}</p></div><UiBadge :tone="supervisionAppointmentStatusMeta[appointment.status].tone">{{ supervisionAppointmentStatusMeta[appointment.status].label }}</UiBadge></div>
             <p class="mt-3 text-sm text-muted">{{ formatDate(appointment.date) }} · นักศึกษา {{ appointment.studentIds.length }} คน</p>
-            <div class="mt-4 flex justify-end border-t border-divider pt-3"><UiButton size="sm" variant="secondary" @click="openDetails(appointment)">ดูข้อมูล</UiButton></div>
+            <div class="mt-4 flex justify-end gap-2 border-t border-divider pt-3"><UiButton size="sm" variant="secondary" @click="openDetails(appointment)">ดูข้อมูล</UiButton><UiButton size="sm" variant="danger" :icon="Trash2" :disabled="deletingAppointment" @click="requestDeleteAppointment(appointment)">ลบ</UiButton></div>
           </article>
         </div>
         <div class="flex flex-col gap-3 border-t border-divider px-5 py-4 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6"><div class="flex items-center gap-3"><p class="whitespace-nowrap text-muted">แสดง {{ resultStart }}–{{ resultEnd }} จาก {{ filteredAppointments.length }} รายการ</p><div class="w-20 shrink-0"><UiSelect v-model="pageSize" :options="pageSizeOptions" label="จำนวนรายการต่อหน้า" :label-visible="false" /></div></div><nav class="flex items-center gap-2" aria-label="การแบ่งหน้าตาราง"><button type="button" class="inline-grid size-10 place-items-center rounded-control border border-divider text-muted hover:bg-surface disabled:opacity-45" :disabled="currentPage === 1" aria-label="หน้าก่อนหน้า" @click="currentPage--"><ChevronLeft :size="18" aria-hidden="true" /></button><span class="min-w-20 text-center font-semibold text-ink">หน้า {{ currentPage }} / {{ pageCount }}</span><button type="button" class="inline-grid size-10 place-items-center rounded-control border border-divider text-muted hover:bg-surface disabled:opacity-45" :disabled="currentPage === pageCount" aria-label="หน้าถัดไป" @click="currentPage++"><ChevronRight :size="18" aria-hidden="true" /></button></nav></div>
@@ -250,6 +281,13 @@ watch(pageCount, (count) => { if (currentPage.value > count) currentPage.value =
           allow-company-evaluation
         />
       </div>
+    </UiDialog>
+
+    <UiDialog v-model:open="deleteAppointmentDialogOpen" :close-on-confirm="false" title="ลบรายการนิเทศ" :description="appointmentToDelete ? `${companyName(appointmentToDelete)} · ${formatDate(appointmentToDelete.date)}` : undefined">
+      <UiAlert tone="danger" title="การดำเนินการนี้ย้อนกลับไม่ได้">ระบบจะลบเฉพาะรายการนิเทศนี้ รวมผู้เข้าร่วม นักศึกษา และการประเมินที่ผูกกับรายการ โดยไม่ลบกลุ่มอาจารย์ สถานประกอบการ หรือประวัติการแจ้งเตือน</UiAlert>
+      <p v-if="deleteAppointmentError" role="alert" class="mt-3 text-sm text-danger">{{ deleteAppointmentError }}</p>
+      <template #cancel><UiButton variant="ghost">ยกเลิก</UiButton></template>
+      <template #confirm><UiButton variant="danger" :icon="Trash2" :loading="deletingAppointment" @click="deleteSelectedAppointment">ยืนยันการลบ</UiButton></template>
     </UiDialog>
   </div>
 </template>

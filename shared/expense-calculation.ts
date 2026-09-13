@@ -6,12 +6,13 @@ export const calculateSupervisionLineExpense = (
   input: SupervisionLineExpenseInput,
   lecturers: SupervisionExpenseLecturer[],
 ): SupervisionLineExpenseResult => {
-  if (lecturers.some(lecturer => lecturer.gender === null)) throw new Error('LECTURER_GENDER_REQUIRED')
   const maleLecturerCount = lecturers.filter(lecturer => lecturer.gender === 'male').length
   const femaleLecturerCount = lecturers.filter(lecturer => lecturer.gender === 'female').length
-  const maleRoomCount = Math.ceil(maleLecturerCount / input.roomCapacity)
-  const femaleRoomCount = Math.ceil(femaleLecturerCount / input.roomCapacity)
-  const roomCount = maleRoomCount + femaleRoomCount
+  const maleRoomCount = maleLecturerCount ? Math.ceil(maleLecturerCount / input.roomCapacity) : 0
+  const femaleRoomCount = femaleLecturerCount ? Math.ceil(femaleLecturerCount / input.roomCapacity) : 0
+  const roomCount = maleLecturerCount + femaleLecturerCount
+    ? maleRoomCount + femaleRoomCount
+    : Math.ceil(lecturers.length / input.roomCapacity)
   const amounts: ExpenseAmounts = {
     fuel: roundCurrency(input.fuel),
     accommodation: roundCurrency(roomCount * input.roomRate * input.nights),

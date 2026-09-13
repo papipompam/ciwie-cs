@@ -20,7 +20,6 @@ interface CompanySiteRecord {
   latitude: { toNumber(): number } | number | null
   longitude: { toNumber(): number } | number | null
   contactName: string | null
-  contactPhone: string | null
   recordStatus: 'ACTIVE' | 'INACTIVE'
   createdAt: Date
   updatedAt: Date
@@ -38,7 +37,6 @@ export const toCompanyRecord = (site: CompanySiteRecord) => ({
   region: site.province.region ? regionFromPrisma[site.province.region] : 'ภาคกลาง',
   address: site.address,
   contactName: site.contactName ?? '',
-  contactPhone: site.contactPhone ?? '',
   latitude: decimalNumber(site.latitude),
   longitude: decimalNumber(site.longitude),
   status: site.recordStatus === 'ACTIVE' ? 'active' as const : 'inactive' as const,

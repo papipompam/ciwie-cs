@@ -57,6 +57,7 @@ const navigationGroups = computed<NavigationGroup[]>(() => [
           items: [
             { label: "จัดกลุ่มนิเทศ", to: "/staff/supervision/groups", icon: UsersRound, exact: false },
             { label: "ตารางนิเทศ", to: "/staff/supervision", icon: CalendarDays, exact: true },
+            { label: "การประเมิน", to: "/staff/evaluations", icon: ClipboardCheck, exact: true },
             { label: "สรุปงบประมาณ", to: "/staff/expenses", icon: Calculator, exact: true },
           ],
         },

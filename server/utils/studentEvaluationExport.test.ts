@@ -8,16 +8,18 @@ describe('persisted student evaluation export', () => {
       knowledgeScore: 4, workQualityScore: 5, problemSolvingScore: 3,
       appointmentStudent: { placementRequest: {
         companyNameSnapshot: 'บริษัททดสอบ', positionTitle: 'Developer',
-        enrollment: { student: { namePrefix: 'นาย', firstName: 'ทดสอบ', lastName: 'ระบบ' } },
+        enrollment: { student: { username: '66123456789', namePrefix: 'นาย', firstName: 'ทดสอบ', lastName: 'ระบบ' } },
       } },
     }])
     expect(rows[0]).toMatchObject({
+      'รหัส': '66123456789',
       'ชื่อ-นามสกุล': 'นายทดสอบ ระบบ',
-      'ตำแหน่งงาน': 'Developer',
-      'ชื่อสถานประกอบการ': 'บริษัททดสอบ',
+      'ตำแหน่ง': 'Developer',
+      'สถานประกอบการ': 'บริษัททดสอบ',
       'สรุปผลคะแนน (เฉลี่ยเต็ม 5)': 4,
       'การเรียนรู้และแก้ไขปัญหา': 3,
     })
+    expect(Object.keys(rows[0] ?? {}).slice(0, 5)).toEqual(['รหัส', 'ชื่อ-นามสกุล', 'ตำแหน่ง', 'สถานประกอบการ', 'สรุปผลคะแนน (เฉลี่ยเต็ม 5)'])
   })
 
   it('neutralizes spreadsheet formulas in CSV text', () => {

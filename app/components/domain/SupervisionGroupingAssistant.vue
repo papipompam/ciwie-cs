@@ -1,63 +1,38 @@
 <script setup lang="ts">
-import { clusterCompanies, clusteringOptionsSchema } from '#shared/supervision-clustering'
+import { clusteringOptionsSchema } from '#shared/supervision-clustering'
 import type { SupervisionRound } from '~/composables/useSupervisionGroups'
 
 const props = defineProps<{ cycleId: string, round: SupervisionRound, disabled?: boolean }>()
 interface GroupingSuggestion { groups: Array<{ name: string, companyIds: string[] }>, missingCompanyIds: string[] }
-const { getUnassignedCompanies, persistSuggestedGroups, createSuggestedGroups } = useSupervisionGroups()
+const { getUnassignedCompanies, persistSuggestedGroups } = useSupervisionGroups()
 const { showToast } = useToast()
 const companies = computed(() => getUnassignedCompanies(props.cycleId, props.round))
-const distance = ref('100')
 const capacity = ref('5')
 const preview = ref<GroupingSuggestion | null>(null)
 const error = ref('')
-const fieldErrors = ref<Record<string, string>>({})
 const busy = ref(false)
-const localDemoPreview = ref(false)
-const signature = computed(() => JSON.stringify([props.cycleId, props.round, companies.value.map(company => [company.id, company.latitude, company.longitude]), distance.value, capacity.value]))
+const signature = computed(() => JSON.stringify([props.cycleId, props.round, companies.value.map(company => [company.id, company.latitude, company.longitude]), capacity.value]))
 watch(signature, () => {
   preview.value = null
   error.value = ''
-  fieldErrors.value = {}
-  localDemoPreview.value = false
 })
 const companyName = (id: string) => companies.value.find(company => company.id === id)?.name ?? id
-const buildLocalSuggestion = (options: { maxDistanceKm: number, maxCompanies: number }): GroupingSuggestion => {
-  const result = clusterCompanies(companies.value, options)
-  return {
-    groups: result.groups.map((companyIds, index) => ({ name: `กลุ่มนิเทศ ${index + 1}`, companyIds })),
-    missingCompanyIds: result.missingIds,
-  }
-}
 const suggest = async () => {
   if (busy.value || props.disabled) return
   preview.value = null
   error.value = ''
-  const parsed = clusteringOptionsSchema.safeParse({ maxDistanceKm: distance.value, maxCompanies: capacity.value })
-  if (!parsed.success) { fieldErrors.value = Object.fromEntries(parsed.error.issues.map(issue => [String(issue.path[0]), issue.message])); return }
+  const parsed = clusteringOptionsSchema.safeParse({ maxDistanceKm: 100, maxCompanies: capacity.value })
+  if (!parsed.success) { showToast({ title: 'ข้อมูลการจัดกลุ่มไม่ถูกต้อง', description: parsed.error.issues[0]?.message ?? 'กรุณาตรวจสอบจำนวนสถานประกอบการต่อกลุ่ม' }); return }
   busy.value = true
   try {
     const result = await $fetch<GroupingSuggestion>('/api/staff/supervision/groups/suggest', {
       method: 'POST',
       body: { cycleId: props.cycleId, round: props.round, ...parsed.data },
     })
-    if (import.meta.dev && !result.groups.length && companies.value.length) {
-      preview.value = buildLocalSuggestion(parsed.data)
-      localDemoPreview.value = true
-    }
-    else {
-      preview.value = result
-      localDemoPreview.value = false
-    }
+    preview.value = result
   }
   catch (cause) {
-    if (import.meta.dev && companies.value.length) {
-      preview.value = buildLocalSuggestion(parsed.data)
-      localDemoPreview.value = true
-    }
-    else {
-      error.value = cause instanceof Error ? cause.message : 'จัดกลุ่มไม่สำเร็จ กรุณาลองใหม่'
-    }
+    error.value = cause instanceof Error ? cause.message : 'จัดกลุ่มไม่สำเร็จ กรุณาลองใหม่'
   }
   finally { busy.value = false }
 }
@@ -65,11 +40,8 @@ const save = async () => {
   if (busy.value || props.disabled || !preview.value?.groups.length) return
   busy.value = true
   try {
-    const saved = localDemoPreview.value
-      ? createSuggestedGroups(props.cycleId, props.round, preview.value.groups.map(group => group.companyIds))
-      : await persistSuggestedGroups(props.cycleId, props.round, preview.value.groups)
+    const saved = await persistSuggestedGroups(props.cycleId, props.round, preview.value.groups)
     preview.value = null
-    localDemoPreview.value = false
     showToast({ title: `บันทึก ${saved.length} กลุ่มแล้ว`, description: 'เพิ่มอาจารย์ผู้รับผิดชอบจากการ์ดของแต่ละกลุ่มได้เลย' })
   }
   catch (cause) { error.value = cause instanceof Error ? cause.message : 'บันทึกไม่สำเร็จ กรุณาลองใหม่' }
@@ -80,13 +52,13 @@ const save = async () => {
 <template>
   <UiCard class="mb-6">
     <form novalidate class="flex flex-col gap-3 sm:flex-row sm:items-end" @submit.prevent="suggest">
-      <div class="min-w-0 flex-1"><UiInput v-model="distance" type="number" label="ระยะสูงสุดระหว่างสถานประกอบการ (กม.)" :error="fieldErrors.maxDistanceKm" /></div>
-      <div class="min-w-0 flex-1"><UiInput v-model="capacity" type="number" label="จำนวนสถานประกอบการสูงสุดต่อกลุ่ม" :error="fieldErrors.maxCompanies" /></div>
+      <div class="min-w-0 flex-1"><UiInput v-model="capacity" type="number" label="จำนวนสถานประกอบการสูงสุดต่อกลุ่ม" /></div>
       <UiButton type="submit" :loading="busy" :disabled="disabled || !companies.length">การจัดกลุ่ม</UiButton>
     </form>
     <p v-if="error" role="alert" class="mt-3 text-sm text-danger">{{ error }}</p>
     <div v-if="preview" class="mt-5 space-y-4" aria-live="polite">
-      <UiAlert v-if="preview.missingCompanyIds.length" tone="warning" title="ยังจัดกลุ่มไม่ได้เนื่องจากไม่มีพิกัดที่ถูกต้อง">{{ preview.missingCompanyIds.map(companyName).join(' · ') }} — แก้ไขพิกัดในหน้าสถานประกอบการ หรือจัดกลุ่มด้วยตนเอง</UiAlert>
+      <UiAlert v-if="preview.missingCompanyIds.length" tone="warning" title="ยังจัดกลุ่มไม่ได้เนื่องจากไม่มีข้อมูลพื้นที่เพียงพอ">{{ preview.missingCompanyIds.map(companyName).join(' · ') }} — ระบุอย่างน้อยจังหวัด หรือจัดกลุ่มด้วยตนเอง</UiAlert>
+      <UiAlert v-else-if="companies.some(company => company.latitude == null || company.longitude == null)" tone="info" title="บางกลุ่มจัดจากพื้นที่">บริษัทที่ไม่มีพิกัดถูกจัดตามภาค จังหวัด และอำเภอหรือเขตจากที่อยู่ ระยะทางและค่าเดินทางยังต้องตรวจสอบภายหลัง</UiAlert>
       <div class="grid gap-3 md:grid-cols-2">
         <section v-for="(group, index) in preview.groups" :key="index" class="rounded-control border border-divider p-4">
           <h4 class="font-semibold text-ink">{{ group.name }} · {{ group.companyIds.length }} แห่ง</h4>

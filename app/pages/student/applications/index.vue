@@ -124,22 +124,21 @@ const statusOptions = [
   ...applicationStatusGroupOptions,
 ]
 const statusUpdateOptions = applicationStatusGroupOptions
+const thaiProvinces = [
+  'กรุงเทพมหานคร', 'กระบี่', 'กาญจนบุรี', 'กาฬสินธุ์', 'กำแพงเพชร', 'ขอนแก่น', 'จันทบุรี', 'ฉะเชิงเทรา', 'ชลบุรี', 'ชัยนาท',
+  'ชัยภูมิ', 'ชุมพร', 'ตรัง', 'ตราด', 'ตาก', 'นครนายก', 'นครปฐม', 'นครพนม', 'นครราชสีมา', 'นครศรีธรรมราช', 'นครสวรรค์',
+  'นนทบุรี', 'นราธิวาส', 'น่าน', 'บึงกาฬ', 'บุรีรัมย์', 'ปทุมธานี', 'ประจวบคีรีขันธ์', 'ปราจีนบุรี', 'ปัตตานี', 'พะเยา',
+  'พังงา', 'พัทลุง', 'พิจิตร', 'พิษณุโลก', 'ภูเก็ต', 'มหาสารคาม', 'มุกดาหาร', 'ยะลา', 'ยโสธร', 'ร้อยเอ็ด', 'ระนอง',
+  'ระยอง', 'ราชบุรี', 'ลพบุรี', 'ลำปาง', 'ลำพูน', 'ศรีสะเกษ', 'สกลนคร', 'สงขลา', 'สตูล', 'สมุทรปราการ', 'สมุทรสงคราม',
+  'สมุทรสาคร', 'สระบุรี', 'สระแก้ว', 'สิงห์บุรี', 'สุพรรณบุรี', 'สุราษฎร์ธานี', 'สุรินทร์', 'สุโขทัย', 'หนองคาย', 'หนองบัวลำภู',
+  'อำนาจเจริญ', 'อุดรธานี', 'อุตรดิตถ์', 'อุทัยธานี', 'อุบลราชธานี', 'อ่างทอง', 'เชียงราย', 'เชียงใหม่', 'เพชรบุรี', 'เพชรบูรณ์',
+  'เลย', 'แพร่', 'แม่ฮ่องสอน',
+]
 const provinceOptions = computed(() => [
   { value: 'all', label: 'ทุกจังหวัด' },
-  ...[...new Set(applications.value.map(application => application.province))]
-    .sort((a, b) => a.localeCompare(b, 'th'))
-    .map(province => ({ value: province, label: province })),
+  ...thaiProvinces.map(province => ({ value: province, label: province })),
 ])
-const formProvinceOptions = [
-  'กรุงเทพมหานคร',
-  'ขอนแก่น',
-  'ชลบุรี',
-  'เชียงใหม่',
-  'นครราชสีมา',
-  'บุรีรัมย์',
-  'สงขลา',
-  'สุพรรณบุรี',
-].map(province => ({ value: province, label: province }))
+const formProvinceOptions = thaiProvinces.map(province => ({ value: province, label: province }))
 const pageSizeOptions = [
   { value: '10', label: '10' },
   { value: '20', label: '20' },

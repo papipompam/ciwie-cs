@@ -12,6 +12,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'LECTURER_ASSIGNMENT_INVALID' })
   }
   const prisma = usePrisma()
+  const requestedLecturerIds = parsed.data.lecturerIds
   try {
     const group = await prisma.$transaction(async (transaction) => {
       const current = await transaction.supervisionGroup.findUnique({
@@ -19,21 +20,29 @@ export default defineEventHandler(async (event) => {
         select: { id: true, cycleId: true, round: true, name: true },
       })
       if (!current) throw createError({ statusCode: 404, statusMessage: 'SUPERVISION_GROUP_NOT_FOUND' })
-      const eligible = await transaction.user.count({
-        where: { id: { in: parsed.data.lecturerIds }, role: 'LECTURER', status: 'ACTIVE', recordStatus: 'ACTIVE' },
+      const eligibleLecturers = await transaction.user.findMany({
+        where: {
+          OR: [{ id: { in: requestedLecturerIds } }, { username: { in: requestedLecturerIds } }],
+          role: 'LECTURER', status: 'ACTIVE', recordStatus: 'ACTIVE',
+        },
+        select: { id: true },
       })
+      const lecturerIds = [...new Set(eligibleLecturers.map(lecturer => lecturer.id))]
+      if (lecturerIds.length !== requestedLecturerIds.length) {
+        throw createError({ statusCode: 409, statusMessage: 'LECTURER_NOT_AVAILABLE' })
+      }
       const conflicts = await transaction.supervisionGroupLecturer.count({
         where: {
           groupId: { not: current.id }, cycleId: current.cycleId, round: current.round,
-          lecturerId: { in: parsed.data.lecturerIds },
+          lecturerId: { in: lecturerIds },
         },
       })
-      if (eligible !== parsed.data.lecturerIds.length || conflicts) {
+      if (conflicts) {
         throw createError({ statusCode: 409, statusMessage: 'LECTURER_NOT_AVAILABLE' })
       }
       await transaction.supervisionGroupLecturer.deleteMany({ where: { groupId: current.id } })
       await transaction.supervisionGroupLecturer.createMany({
-        data: parsed.data.lecturerIds.map(lecturerId => ({
+        data: lecturerIds.map(lecturerId => ({
           groupId: current.id, cycleId: current.cycleId, round: current.round, lecturerId,
         })),
       })
@@ -45,7 +54,7 @@ export default defineEventHandler(async (event) => {
           body: `คุณได้รับมอบหมายให้ ${current.name}`,
           deepLink: '/lecturer/supervision',
           createdById: user.id,
-          recipients: { create: parsed.data.lecturerIds.map(accountId => ({ accountId })) },
+          recipients: { create: lecturerIds.map(accountId => ({ accountId })) },
         },
       })
       return transaction.supervisionGroup.findUniqueOrThrow({

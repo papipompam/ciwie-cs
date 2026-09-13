@@ -19,7 +19,7 @@ interface PersistedStudentEvaluation {
       companyNameSnapshot: string
       positionTitle: string
       enrollment: {
-        student: { namePrefix: string, firstName: string, lastName: string }
+        student: { username: string, namePrefix: string, firstName: string, lastName: string }
       }
     }
   }
@@ -34,9 +34,10 @@ export const buildPersistedStudentEvaluationRows = (evaluations: PersistedStuden
   const answered = scores.filter((score): score is number => score !== null)
   const average = answered.length ? Number((answered.reduce((sum, score) => sum + score, 0) / answered.length).toFixed(2)) : ''
   return {
+    'รหัส': student.username,
     'ชื่อ-นามสกุล': `${student.namePrefix}${student.firstName} ${student.lastName}`.trim(),
-    'ตำแหน่งงาน': request.positionTitle,
-    'ชื่อสถานประกอบการ': request.companyNameSnapshot,
+    'ตำแหน่ง': request.positionTitle,
+    'สถานประกอบการ': request.companyNameSnapshot,
     'สรุปผลคะแนน (เฉลี่ยเต็ม 5)': average,
     ...Object.fromEntries(studentScoreColumns.map(([key, label]) => [label, evaluation[key] ?? ''])),
   }

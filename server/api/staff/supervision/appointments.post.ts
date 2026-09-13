@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { createSupervisionAppointmentSchema } from '#shared/supervision-appointments'
 import { requireUserSession } from '../../../utils/session'
@@ -44,9 +43,16 @@ export default defineEventHandler(async (event) => {
   const scheduledDate = new Date(`${input.date}T00:00:00.000Z`)
   const status = input.publish ? 'PUBLISHED' as const : 'DRAFT' as const
   const created = await prisma.$transaction(async (transaction) => {
+    const latest = await transaction.supervisionAppointment.findFirst({
+      where: { appointmentNo: { startsWith: 'SV' } },
+      orderBy: { appointmentNo: 'desc' },
+      select: { appointmentNo: true },
+    })
+    const nextNumber = (Number(latest?.appointmentNo.slice(2)) || 0) + 1
+    if (nextNumber > 9999) throw createError({ statusCode: 422, statusMessage: 'SUPERVISION_APPOINTMENT_NUMBER_EXHAUSTED' })
     const appointment = await transaction.supervisionAppointment.create({
       data: {
-        appointmentNo: `SUP-${input.cycleId}-${input.round}-${randomUUID().slice(0, 8)}`.slice(0, 50),
+        appointmentNo: `SV${String(nextNumber).padStart(4, '0')}`,
         groupCompanyId: groupCompany.id,
         scheduledDate,
         period: input.period === 'morning' ? 'MORNING' : 'AFTERNOON',
@@ -75,7 +81,12 @@ export default defineEventHandler(async (event) => {
           deepLink: '/student/supervision',
           appointmentId: appointment.id,
           createdById: user.id,
-          recipients: { create: requests.map(request => ({ accountId: request.enrollment.studentId })) },
+          recipients: {
+            create: [...new Set([
+              ...requests.map(request => request.enrollment.studentId),
+              ...lecturerIds,
+            ])].map(accountId => ({ accountId })),
+          },
         },
       })
     }

@@ -10,8 +10,11 @@ const resultFields = {
 
 export const supervisionAppointmentsQuerySchema = supervisionContextSchema
 
+export const supervisionAppointmentIdSchema = z.string().trim().min(1).max(30)
+
 export const supervisionAppointmentSchema = z.object({
   id: z.string(),
+  appointmentNo: z.string().regex(/^SV\d{4}$/),
   cycleId: z.string(),
   round: z.union([z.literal(1), z.literal(2)]),
   groupId: z.string(),
@@ -44,6 +47,10 @@ export const supervisionAppointmentsResponseSchema = z.object({
 
 export const supervisionAppointmentResponseSchema = z.object({
   appointment: supervisionAppointmentSchema,
+})
+
+export const deleteSupervisionAppointmentResponseSchema = z.object({
+  id: z.string(),
 })
 
 export const createSupervisionAppointmentSchema = supervisionContextSchema.extend({

@@ -29,7 +29,7 @@ const company = computed(() => {
   return display
     ? {
         id: appointment.value.companyId, cycleId: appointment.value.cycleId, name: display.companyName, branch: display.branchName, province: display.province,
-        region: '', address: display.address, contactName: '', contactPhone: '', status: 'active' as const, studentCount: display.students.length,
+        region: '', address: display.address, contactName: '', status: 'active' as const, studentCount: display.students.length,
         students: display.students.map(student => ({ id: student.id, studentId: student.id, studentName: student.name, prefix: '', firstName: student.name, lastName: '', section: '', position: student.position })),
       }
     : null
@@ -157,7 +157,7 @@ watch(appointment, (value) => {
     <template v-else>
       <header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p class="text-sm font-semibold text-primary">{{ appointment.id }} · นิเทศครั้งที่ {{ appointment.round }}</p>
+          <p class="text-sm font-semibold text-primary">{{ appointment.appointmentNo }} · นิเทศครั้งที่ {{ appointment.round }}</p>
           <h2 class="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-3xl">{{ company?.name ?? appointment.companyId }}</h2>
           <p class="mt-1 text-sm leading-6 text-muted">{{ company?.branch }} · {{ company?.province }} · {{ group?.name }}</p>
         </div>
@@ -175,7 +175,7 @@ watch(appointment, (value) => {
               <h3 class="text-lg font-bold text-ink">วันและอาจารย์ผู้เข้าร่วม</h3>
               <CalendarClock :size="22" class="text-primary" aria-hidden="true" />
             </div>
-            <div class="mt-5 grid gap-4 sm:grid-cols-2">
+            <div class="mt-5 grid grid-cols-2 gap-4">
               <div class="min-w-0">
                 <UiInput v-model="scheduleForm.date" type="date" label="วันที่นิเทศ" required :disabled="!canManage || isLocked" :error="scheduleErrors.date" />
               </div>
@@ -233,7 +233,7 @@ watch(appointment, (value) => {
             <h3 class="text-lg font-bold text-ink">ข้อมูลสถานประกอบการ</h3>
             <dl v-if="company" class="mt-5 space-y-4 text-sm">
               <div><dt class="text-xs text-muted">สาขา / พื้นที่</dt><dd class="mt-1 font-semibold text-ink">{{ company.branch }} · {{ company.province }}</dd></div>
-              <div><dt class="text-xs text-muted">ผู้ประสานงาน</dt><dd class="mt-1 text-ink">{{ company.contactName }} · {{ company.contactPhone }}</dd></div>
+              <div><dt class="text-xs text-muted">ผู้ประสานงาน</dt><dd class="mt-1 text-ink">{{ company.contactName }}</dd></div>
               <div><dt class="text-xs text-muted">ที่อยู่</dt><dd class="mt-1 leading-6 text-ink">{{ company.address }}</dd></div>
             </dl>
           </UiCard>

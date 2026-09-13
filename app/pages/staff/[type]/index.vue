@@ -2,8 +2,7 @@
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Download, Plus, RotateCcw, Search, Upload } from '@lucide/vue'
 import type { PeopleFileFormat } from '~/composables/usePeopleImport'
 import type { PersonType } from '~/composables/usePeopleDirectory'
-import { selectableCoopSemester } from '~/composables/useCoopCycles'
-import { compareStudentDirectoryPeople, getStudentAcademicYear, isStudentVisibleForCoopSemester } from '~/composables/useStudentCohortContext'
+import { compareStudentDirectoryPeople, getStudentAcademicYear, isStudentVisibleForCoopSemester, selectableCoopSemester } from '~/composables/useStudentCohortContext'
 import { getPageCount, paginateItems } from '~/utils/table'
 import { hasConfirmedPlacement as hasPlacement } from '~/utils/studentPlacementStatus'
 
@@ -35,17 +34,16 @@ const context = computed(() => personType.value === 'student'
 useHead({ title: () => context.value.title })
 
 const search = ref('')
-const recordStatus = ref('all')
 const accountStatus = ref('all')
 const placementStatus = ref('all')
 const placementStatusOptions = [{ value: 'all', label: 'ทุกสถานะที่ฝึกงาน' }, { value: 'placed', label: 'ได้ที่ฝึกงานแล้ว' }, { value: 'unplaced', label: 'ยังไม่ได้ที่ฝึกงาน' }]
-const currentAcademicYear = computed(() => selectedCycle.value.academicYear)
+const currentAcademicYear = computed(() => String(selectedCycle.value?.academicYear ?? ''))
 const academicYearOptions = computed(() => {
   const years = new Set(people.value
     .filter(person => person.type === 'student')
     .map(person => getStudentAcademicYear(person.cycle))
     .filter((year): year is string => Boolean(year)))
-  years.add(currentAcademicYear.value)
+  if (currentAcademicYear.value) years.add(currentAcademicYear.value)
   return [{ value: 'all', label: 'ทุกปีการศึกษา' }, ...[...years].sort((a, b) => b.localeCompare(a, 'th')).map(year => ({ value: year, label: `ปีการศึกษา ${year}` }))]
 })
 const studentSectionOptions = computed(() => {
@@ -67,11 +65,6 @@ const effectiveViewState = computed(() => scenario.value.forceError || peopleFet
   ? 'error'
   : peopleFetchStatus.value === 'pending' ? 'loading' : scenario.value.viewState)
 
-const recordStatusOptions = [
-  { value: 'all', label: 'ทุกสถานะข้อมูล' },
-  { value: 'active', label: 'ใช้งาน' },
-  { value: 'inactive', label: 'ยุติการใช้งาน' },
-]
 const accountStatusOptions = [
   { value: 'all', label: 'ทุกสถานะบัญชี' },
   { value: 'first-login', label: 'รอเข้าสู่ระบบครั้งแรก' },
@@ -98,7 +91,6 @@ const filteredPeople = computed(() => {
     .filter(person => personType.value !== 'student' || studentSection.value === 'all' || person.section === studentSection.value)
     .filter(person => !keyword || [person.id, person.prefix, person.firstName, person.lastName, person.company]
       .some(value => value?.toLocaleLowerCase('th').includes(keyword)))
-    .filter(person => personType.value === 'student' || recordStatus.value === 'all' || person.recordStatus === recordStatus.value)
     .filter(person => personType.value === 'student' || accountStatus.value === 'all' || person.accountStatus === accountStatus.value)
     .filter(person => personType.value !== 'student' || placementStatus.value === 'all' || hasPlacement(person) === (placementStatus.value === 'placed'))
     .sort((a, b) => {
@@ -113,9 +105,9 @@ const pageCount = computed(() => getPageCount(filteredPeople.value.length, pageS
 const paginatedPeople = computed(() => paginateItems(filteredPeople.value, currentPage.value, pageSizeNumber.value))
 const resultStart = computed(() => filteredPeople.value.length ? (currentPage.value - 1) * pageSizeNumber.value + 1 : 0)
 const resultEnd = computed(() => Math.min(currentPage.value * pageSizeNumber.value, filteredPeople.value.length))
-const hasFilters = computed(() => Boolean(search.value) || (personType.value === 'lecturer' && (recordStatus.value !== 'all' || accountStatus.value !== 'all')) || (personType.value === 'student' && (placementStatus.value !== 'all' || studentSection.value !== 'all' || studentAcademicYear.value !== currentAcademicYear.value)))
+const hasFilters = computed(() => Boolean(search.value) || (personType.value === 'lecturer' && accountStatus.value !== 'all') || (personType.value === 'student' && (placementStatus.value !== 'all' || studentSection.value !== 'all' || studentAcademicYear.value !== currentAcademicYear.value)))
 
-watch([search, recordStatus, accountStatus, placementStatus, sortDirection, pageSize, personType, studentAcademicYear, studentSection, studentSemester], () => { currentPage.value = 1 })
+watch([search, accountStatus, placementStatus, sortDirection, pageSize, personType, studentAcademicYear, studentSection, studentSemester], () => { currentPage.value = 1 })
 watch(pageCount, count => { if (currentPage.value > count) currentPage.value = count })
 watch(currentAcademicYear, (year) => {
   if (personType.value !== 'student') return
@@ -131,7 +123,6 @@ watchEffect(() => {
 
 const clearFilters = () => {
   search.value = ''
-  recordStatus.value = 'all'
   accountStatus.value = 'all'
   placementStatus.value = 'all'
   if (personType.value === 'student') {
@@ -174,7 +165,7 @@ const handlePeopleUpdated = async () => { await refreshPeople() }
     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div>
         <h2 class="text-2xl font-bold tracking-tight text-ink sm:text-3xl">{{ context.title }}</h2>
-        <p class="mt-1 text-sm leading-6 text-muted">ค้นหา เพิ่ม แก้ไข และจัดการสถานะข้อมูลกับบัญชีโดยไม่ลบประวัติเดิม</p>
+        <p class="mt-1 text-sm leading-6 text-muted">ค้นหา เพิ่ม แก้ไข และจัดการบัญชีโดยไม่ลบประวัติเดิม</p>
       </div>
       <div class="flex flex-wrap gap-2 sm:justify-end">
         <template v-if="personType === 'student'">
@@ -210,7 +201,6 @@ const handlePeopleUpdated = async () => { await refreshPeople() }
             <div v-if="personType === 'student'" class="w-full sm:w-52"><UiSelect v-model="placementStatus" :options="placementStatusOptions" label="กรองสถานะที่ฝึกงาน" :label-visible="false" /></div>
             <div v-if="personType === 'student'" class="w-full sm:w-40"><UiSelect v-model="studentSection" :options="studentSectionOptions" label="กรองตามหมู่เรียน" :label-visible="false" /></div>
             <div v-if="personType === 'student'" class="w-full sm:w-44"><UiSelect v-model="studentAcademicYear" :options="academicYearOptions" label="เลือกปีการศึกษา" :label-visible="false" /></div>
-            <div v-if="personType === 'lecturer'" class="w-full sm:w-52"><UiSelect :key="`record-${personType}`" v-model="recordStatus" :options="recordStatusOptions" :placeholder="recordStatusOptions.find(item => item.value === recordStatus)?.label" label="กรองสถานะข้อมูล" :label-visible="false" /></div>
             <div v-if="personType === 'lecturer'" class="w-full sm:w-56"><UiSelect :key="`account-${personType}`" v-model="accountStatus" :options="accountStatusOptions" :placeholder="accountStatusOptions.find(item => item.value === accountStatus)?.label" label="กรองสถานะบัญชี" :label-visible="false" /></div>
             <button type="button" class="inline-grid size-11 shrink-0 place-items-center rounded-control border border-divider bg-canvas text-ink transition-colors hover:bg-surface" aria-label="รีเซ็ตตาราง" title="รีเซ็ตตาราง" @click="resetTable"><RotateCcw :size="18" aria-hidden="true" /></button>
           </div>
@@ -253,7 +243,7 @@ const handlePeopleUpdated = async () => { await refreshPeople() }
                 <th v-if="personType === 'student'" scope="col" class="px-4 py-3">รอบสหกิจ</th>
                 <th v-if="personType === 'student'" scope="col" class="px-4 py-3">หมู่เรียน</th>
                 <th v-if="personType === 'student'" scope="col" class="px-4 py-3">สถานประกอบการ</th>
-                <th scope="col" class="px-4 py-3">สถานะข้อมูล</th>
+                <th v-if="personType === 'student'" scope="col" class="px-4 py-3">สถานะข้อมูล</th>
                 <th v-if="personType === 'lecturer'" scope="col" class="px-4 py-3">สถานะบัญชี</th>
                 <th scope="col" class="px-4 py-3">ดำเนินการ</th>
               </tr>
@@ -265,7 +255,7 @@ const handlePeopleUpdated = async () => { await refreshPeople() }
                 <td v-if="personType === 'student'" class="px-4 py-4 text-ink">{{ person.cycle || 'ยังไม่กำหนด' }}</td>
                 <td v-if="personType === 'student'" class="whitespace-nowrap px-4 py-4 text-ink">{{ person.section || 'ยังไม่กำหนด' }}</td>
                 <td v-if="personType === 'student'" class="px-4 py-4"><p :class="person.company ? 'text-ink' : 'text-muted'">{{ person.company || 'ยังไม่มีสถานประกอบการ' }}</p></td>
-                <td class="px-4 py-4">
+                <td v-if="personType === 'student'" class="px-4 py-4">
                   <div>
                     <UiBadge :tone="recordStatusMeta[person.recordStatus].tone">{{ recordStatusMeta[person.recordStatus].label }}</UiBadge>
                   </div>
@@ -279,7 +269,7 @@ const handlePeopleUpdated = async () => { await refreshPeople() }
 
         <div class="divide-y divide-divider md:hidden">
           <article v-for="person in paginatedPeople" :key="person.id" class="p-5">
-            <div class="flex items-start justify-between gap-3"><div><h3 class="font-semibold text-ink">{{ getPersonFullName(person) }}</h3><p class="mt-1 text-xs text-muted">{{ person.id }}<template v-if="personType === 'student'"> · {{ person.section || 'ยังไม่กำหนดหมู่' }}</template></p></div><div v-if="personType === 'lecturer'" class="shrink-0 text-right"><p class="text-xs text-muted">สถานะข้อมูล</p><UiBadge class="mt-1" :tone="recordStatusMeta[person.recordStatus].tone">{{ recordStatusMeta[person.recordStatus].label }}</UiBadge></div></div>
+            <div><h3 class="font-semibold text-ink">{{ getPersonFullName(person) }}</h3><p class="mt-1 text-xs text-muted">{{ person.id }}<template v-if="personType === 'student'"> · {{ person.section || 'ยังไม่กำหนดหมู่' }}</template></p></div>
             <dl v-if="personType === 'student'" class="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-divider pt-3">
               <div class="min-w-0"><dt class="text-xs text-muted">รอบสหกิจ</dt><dd class="mt-1 break-words text-sm text-ink">{{ person.cycle || 'ยังไม่กำหนด' }}</dd></div>
               <div class="min-w-0"><dt class="text-xs text-muted">สถานประกอบการ</dt><dd class="mt-1 [overflow-wrap:anywhere] text-sm" :class="person.company ? 'text-ink' : 'text-muted'">{{ person.company || 'ยังไม่มีสถานประกอบการ' }}</dd></div>

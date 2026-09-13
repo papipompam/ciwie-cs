@@ -2,8 +2,7 @@
 import { ArrowDown, ArrowRight, ArrowUp, BriefcaseBusiness, Building2, CalendarDays, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, FileCheck2, GraduationCap, RotateCcw, Search, Users, UsersRound, X } from '@lucide/vue'
 import type { Component } from 'vue'
 import { requestStatusMeta, studentRequestStatusMeta } from '#shared/placement-requests'
-import type { PlacementRequestPreview } from '#shared/placement-requests'
-import type { PlacementStatus } from '~/composables/useStudentPlacements'
+import type { PlacementRequestPreview, PlacementStatus } from '#shared/placement-requests'
 import { getPageCount, paginateItems } from '~/utils/table'
 import { summarizeStudentPlacements } from '~/utils/studentPlacementSummary'
 import type { StudentPlacementSummary } from '~/utils/studentPlacementSummary'
@@ -12,6 +11,7 @@ definePageMeta({ title: 'ภาพรวมระบบ' })
 useHead({ title: 'ภาพรวมระบบ' })
 
 const { scenario } = useScenario()
+const { currentAccount } = useAuthPrototype()
 const { cycles, selectedCycle } = useCoopCycles()
 const { people } = usePeopleDirectory()
 const { requests: placementPreviewRequests } = usePlacementRequestPreview()
@@ -25,8 +25,8 @@ const studentProgressStatus = computed<PlacementStatus | undefined>(() => {
   return ({
     submitted: 'submitted',
     'letter-issued': 'letter-issued',
-    'signed-uploaded': 'response-uploaded',
-    returned: 'response-returned',
+    'signed-uploaded': 'signed-uploaded',
+    returned: 'returned',
     confirmed: 'confirmed',
     cancelled: 'cancelled',
   } as const)[status]
@@ -34,7 +34,7 @@ const studentProgressStatus = computed<PlacementStatus | undefined>(() => {
 const { getUnassignedCompanies } = useSupervisionGroups()
 const { appointments } = useSupervisionAppointments()
 const { studentEvaluations, companyEvaluations } = useSupervisionEvaluations()
-const currentLecturerId = 'L0012'
+const currentLecturerId = computed(() => currentAccount.value?.id ?? '')
 type DashboardTone = 'neutral' | 'warning' | 'info' | 'success' | 'danger'
 
 interface DashboardData {
@@ -113,10 +113,10 @@ const currentCycleDashboard: { staff: DashboardData, lecturer: DashboardData, st
 
 const canSelectDashboardCycle = computed(() => scenario.value.role === 'staff' || scenario.value.role === 'lecturer')
 const dashboardCycles = cycles
-const dashboardCycleId = ref(dashboardCycles.find(cycle => cycle.id === selectedCycle.value.id)?.id ?? dashboardCycles[0]!.id)
+const dashboardCycleId = ref(selectedCycle.value?.id ?? '')
 const cycleOptions = dashboardCycles.map(cycle => ({ value: cycle.id, label: `${cycle.label} · ${cycle.cohort}` }))
 const dashboardCycle = computed(() => canSelectDashboardCycle.value
-  ? dashboardCycles.find(cycle => cycle.id === dashboardCycleId.value) ?? dashboardCycles[0]!
+  ? dashboardCycles.find(cycle => cycle.id === dashboardCycleId.value) ?? dashboardCycles[0] ?? null
   : selectedCycle.value)
 interface StaffBackendDashboard {
   students: StudentPlacementSummary
@@ -124,7 +124,7 @@ interface StaffBackendDashboard {
 }
 const staffBackendDashboard = ref<StaffBackendDashboard | null>(null)
 const loadStaffDashboard = async () => {
-  if (scenario.value.role !== 'staff') return
+  if (scenario.value.role !== 'staff' || !dashboardCycleId.value) return
   try {
     const [stats, requests] = await Promise.all([
       $fetch<StaffBackendDashboard>('/api/staff/dashboard', { query: { cycleId: dashboardCycleId.value } }),
@@ -147,14 +147,16 @@ const dashboard = computed<DashboardData>(() => {
   if (scenario.value.role === 'staff') return staffDashboard.value
   return lecturerDashboard.value
 })
-const staffPlacementSummary = computed(() => summarizeStudentPlacements(
-  people.value.filter(person => person.type === 'student' && person.recordStatus === 'active' && person.cycle === dashboardCycle.value.label),
-  placementPreviewRequests.value,
-  dashboardCycle.value.id,
-))
+const staffPlacementSummary = computed(() => dashboardCycle.value
+  ? summarizeStudentPlacements(
+      people.value.filter(person => person.type === 'student' && person.recordStatus === 'active' && person.cycle === dashboardCycle.value?.label),
+      placementPreviewRequests.value,
+      dashboardCycle.value.id,
+    )
+  : { confirmed: 0, pending: 0, notStarted: 0, total: 0 })
 const effectiveStaffPlacementSummary = computed(() => staffBackendDashboard.value?.students ?? staffPlacementSummary.value)
 const staffRequests = computed(() => placementPreviewRequests.value
-  .filter(request => request.cycleId === dashboardCycle.value.id))
+  .filter(request => request.cycleId === dashboardCycle.value?.id))
 const staffRequestItems = computed<DashboardData['recentItems']>(() => staffRequests.value.map(request => ({
   id: request.id,
   primary: request.studentName,
@@ -168,8 +170,8 @@ const staffDashboard = computed<DashboardData>(() => ({
   summary: [
     { label: 'คำร้องรอออกหนังสือ', value: String(staffBackendDashboard.value?.cards.waitingLetters ?? staffRequests.value.filter(request => request.status === 'submitted').length), hint: '', icon: ClipboardList },
     { label: 'เอกสารลงนามรอตรวจ', value: String(staffBackendDashboard.value?.cards.waitingReview ?? staffRequests.value.filter(request => request.status === 'signed-uploaded').length), hint: '', icon: FileCheck2 },
-    { label: 'รอจัดกลุ่มนิเทศ ครั้งที่ 1', value: String(staffBackendDashboard.value?.cards.unassignedRoundOne ?? getUnassignedCompanies(dashboardCycle.value.id, 1).length), hint: '', icon: UsersRound },
-    { label: 'นัดนิเทศที่เผยแพร่', value: String(staffBackendDashboard.value?.cards.publishedAppointments ?? appointments.value.filter(item => item.cycleId === dashboardCycle.value.id && item.status === 'published').length), hint: '', icon: CalendarDays },
+    { label: 'รอจัดกลุ่มนิเทศ ครั้งที่ 1', value: String(staffBackendDashboard.value?.cards.unassignedRoundOne ?? (dashboardCycle.value ? getUnassignedCompanies(dashboardCycle.value.id, 1).length : 0)), hint: '', icon: UsersRound },
+    { label: 'นัดนิเทศที่เผยแพร่', value: String(staffBackendDashboard.value?.cards.publishedAppointments ?? appointments.value.filter(item => item.cycleId === dashboardCycle.value?.id && item.status === 'published').length), hint: '', icon: CalendarDays },
   ],
   recentTitle: 'คำร้องล่าสุด',
   primaryLabel: 'นักศึกษา',
@@ -198,22 +200,22 @@ const studentDashboard = computed<DashboardData>(() => {
   }
 })
 const lecturerAppointments = computed(() => appointments.value
-  .filter(appointment => appointment.cycleId === dashboardCycle.value.id)
+  .filter(appointment => appointment.cycleId === dashboardCycle.value?.id)
   .filter((appointment) => {
     const evaluatorIds = appointment.result.actualLecturerIds.length ? appointment.result.actualLecturerIds : appointment.lecturerIds
-    return evaluatorIds.includes(currentLecturerId)
+    return evaluatorIds.includes(currentLecturerId.value)
   }))
 const pendingStudentEvaluations = computed(() => lecturerAppointments.value
   .filter(appointment => appointment.status === 'completed')
   .reduce((total, appointment) => total + appointment.studentIds.filter(studentId => !studentEvaluations.value.some(evaluation => evaluation.appointmentId === appointment.id
     && evaluation.studentId === studentId
-    && evaluation.lecturerId === currentLecturerId
+    && evaluation.lecturerId === currentLecturerId.value
     && evaluation.status === 'submitted')).length, 0))
 const pendingCompanyEvaluations = computed(() => lecturerAppointments.value
   .filter(appointment => appointment.status === 'completed')
   .filter((appointment) => {
     const evaluatorIds = appointment.result.actualLecturerIds.length ? appointment.result.actualLecturerIds : appointment.lecturerIds
-    return evaluatorIds[0] === currentLecturerId
+    return evaluatorIds[0] === currentLecturerId.value
       && !companyEvaluations.value.some(evaluation => evaluation.appointmentId === appointment.id && evaluation.status === 'submitted')
   }).length)
 const lecturerDashboard = computed<DashboardData>(() => ({
@@ -323,7 +325,7 @@ watch(pageCount, (count) => {
 watch(() => scenario.value.role, () => {
   requestDialogOpen.value = false
   selectedRequestId.value = null
-  dashboardCycleId.value = selectedCycle.value.id
+  dashboardCycleId.value = selectedCycle.value?.id ?? ''
   resetTable()
 })
 watch(dashboardCycleId, () => {
@@ -339,13 +341,13 @@ onBeforeUnmount(() => {
 
 <template>
   <div>
-    <header v-if="scenario.role === 'lecturer'" class="mb-6">
+    <header v-if="scenario.role === 'lecturer' && dashboardCycle" class="mb-6">
       <p class="text-sm font-semibold text-primary">หน้าหลักอาจารย์นิเทศ</p>
       <h2 class="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-3xl">งานนิเทศของคุณ</h2>
       <p class="mt-1 text-sm leading-6 text-muted">ติดตามนัดหมายและทำแบบประเมินที่ได้รับมอบหมายจากจุดเดียว</p>
     </header>
 
-    <div class="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+    <div v-if="dashboardCycle" class="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
       <div>
         <p class="text-xs font-medium text-muted">รอบที่กำลังแสดง</p>
         <div class="mt-1 flex flex-wrap items-center gap-2">
@@ -366,7 +368,7 @@ onBeforeUnmount(() => {
     </div>
 
     <StudentPlacementProgress
-      v-if="scenario.role === 'student' && effectiveViewState === 'data'"
+      v-if="scenario.role === 'student' && effectiveViewState === 'data' && dashboardCycle"
       class="mb-6"
       :cycle="dashboardCycle"
       :status="studentProgressStatus"
@@ -435,7 +437,7 @@ onBeforeUnmount(() => {
     <AppErrorState v-else-if="effectiveViewState === 'error'" @retry="retry" />
 
     <template v-else>
-      <div v-if="scenario.role === 'staff'" class="grid items-stretch gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(22rem,0.95fr)]">
+      <div v-if="scenario.role === 'staff' && dashboardCycle" class="grid items-stretch gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(22rem,0.95fr)]">
         <section class="grid gap-3 sm:grid-cols-2" aria-label="ตัวเลขสรุป">
           <UiCard v-for="item in summary" :key="item.label" class="h-full">
             <div class="flex items-start justify-between gap-3">
@@ -644,7 +646,7 @@ onBeforeUnmount(() => {
 
         <div class="border-t border-divider pt-5">
           <h3 class="mb-4 font-semibold text-ink">สถานะและการดำเนินการ</h3>
-          <AppRequestDocuments :key="selectedRequest.id" :request="selectedRequest" staff />
+          <AppRequestDocuments :key="selectedRequest.id" :request="selectedRequest" staff @refresh="loadStaffDashboard" />
         </div>
       </div>
     </UiDialog>

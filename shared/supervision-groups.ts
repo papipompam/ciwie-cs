@@ -34,7 +34,6 @@ export interface SupervisionCompanyDto {
   region: string
   address: string
   contactName: string
-  contactPhone: string
   status: 'active' | 'inactive'
   latitude: number | null
   longitude: number | null

@@ -33,6 +33,30 @@ export const useEvaluationExport = () => {
     return Number(response.headers.get('x-export-count') ?? 0)
   }
 
+  const exportCompanyEvaluations = async (appointments: SupervisionAppointment[], format: string) => {
+    if (currentAccount.value?.role !== 'staff') throw new Error('เฉพาะเจ้าหน้าที่เท่านั้นที่ส่งออกคะแนนประเมินสถานประกอบการได้')
+    const fileFormat = z.enum(['csv', 'xlsx']).parse(format)
+    const firstAppointment = appointments[0]
+    if (!firstAppointment) throw new Error('ยังไม่มีรายการนิเทศในขอบเขตที่เลือก')
+    const response = await $fetch.raw<ArrayBuffer>('/api/evaluations/companies/export', {
+      query: { format: fileFormat, cycleId: firstAppointment.cycleId, round: firstAppointment.round },
+      responseType: 'arrayBuffer',
+    })
+    const disposition = response.headers.get('content-disposition') ?? ''
+    const fileName = disposition.match(/filename="([^"]+)"/)?.[1] ?? `company-evaluation-scores.${fileFormat}`
+    const url = URL.createObjectURL(new Blob([response._data!], {
+      type: fileFormat === 'csv' ? 'text/csv;charset=utf-8' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    }))
+    try {
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = fileName
+      anchor.click()
+    }
+    finally { setTimeout(() => URL.revokeObjectURL(url), 0) }
+    return Number(response.headers.get('x-export-count') ?? 0)
+  }
+
   const exportEvaluations = async (appointments: SupervisionAppointment[], format: string) => {
     if (currentAccount.value?.role !== 'staff') throw new Error('เฉพาะเจ้าหน้าที่เท่านั้นที่ส่งออกผลคะแนนได้')
     const fileFormat = z.enum(['csv', 'xlsx']).parse(format)
@@ -63,5 +87,5 @@ export const useEvaluationExport = () => {
     }
     return rows.length
   }
-  return { exportEvaluations, exportStudentEvaluations }
+  return { exportEvaluations, exportStudentEvaluations, exportCompanyEvaluations }
 }

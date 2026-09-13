@@ -35,7 +35,7 @@ export default defineEventHandler(async (event) => {
         where: { id: current.id },
         data: {
           branchName: input.branch, address: input.address, provinceId: province.id,
-          latitude: input.latitude, longitude: input.longitude, contactName: input.contactName, contactPhone: input.contactPhone,
+          latitude: input.latitude, longitude: input.longitude, contactName: input.contactName,
         },
       })
     }
@@ -43,7 +43,7 @@ export default defineEventHandler(async (event) => {
       where: { id: current.id },
       select: {
         id: true, branchName: true, address: true, latitude: true, longitude: true,
-        contactName: true, contactPhone: true, recordStatus: true, createdAt: true, updatedAt: true,
+        contactName: true, recordStatus: true, createdAt: true, updatedAt: true,
         company: { select: { legalName: true } }, province: { select: { nameTh: true, region: true } },
       },
     })

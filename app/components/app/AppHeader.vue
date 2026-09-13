@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Bell, ChevronDown, KeyRound, LogOut, Menu, PanelLeftClose, PanelLeftOpen } from '@lucide/vue'
+import { Bell, ChevronDown, KeyRound, LogOut, Menu, PanelLeftClose, PanelLeftOpen, UserRoundPen } from '@lucide/vue'
 import {
   DropdownMenuContent,
   DropdownMenuItem,
@@ -15,7 +15,11 @@ const emit = defineEmits<{ openNavigation: [], toggleSidebar: [] }>()
 const route = useRoute()
 const { scenario } = useScenario()
 const { roleNotifications, unreadCount, markAllAsRead, openNotification } = useNotifications()
-const { logout } = useAuthPrototype()
+const { currentAccount, logout } = useAuthPrototype()
+const canChangePassword = computed(() => Boolean(currentAccount.value)
+  && (currentAccount.value?.role !== 'student' || currentAccount.value.status === 'first-login'))
+const canEditProfile = computed(() => currentAccount.value?.role === 'student')
+const profileDialogOpen = ref(false)
 
 const handleLogout = async () => {
   await logout()
@@ -133,7 +137,11 @@ const pageTitle = computed(() => {
               <span class="mt-0.5 block text-xs font-normal text-muted">{{ roleLabel }} · ข้อมูลจำลอง</span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator class="my-1 h-px bg-divider" />
-            <DropdownMenuItem class="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2.5 text-sm text-ink outline-none data-[highlighted]:bg-surface" @select="navigateTo('/account/password')">
+            <DropdownMenuItem v-if="canEditProfile" class="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2.5 text-sm text-ink outline-none data-[highlighted]:bg-surface" @select="profileDialogOpen = true">
+              <UserRoundPen :size="17" aria-hidden="true" />
+              แก้ไขข้อมูลส่วนตัว
+            </DropdownMenuItem>
+            <DropdownMenuItem v-if="canChangePassword" class="flex cursor-pointer items-center gap-2 rounded-control px-3 py-2.5 text-sm text-ink outline-none data-[highlighted]:bg-surface" @select="navigateTo('/account/password')">
               <KeyRound :size="17" aria-hidden="true" />
               เปลี่ยนรหัสผ่าน
             </DropdownMenuItem>
@@ -145,5 +153,6 @@ const pageTitle = computed(() => {
         </DropdownMenuPortal>
       </DropdownMenuRoot>
     </div>
+    <StudentProfileDialog v-if="canEditProfile" v-model:open="profileDialogOpen" />
   </header>
 </template>

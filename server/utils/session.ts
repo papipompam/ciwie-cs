@@ -41,7 +41,7 @@ export const getUserSession = async (event: H3Event) => {
 
   const account = await usePrisma().user.findUnique({
     where: { id: user.id },
-    select: { role: true, status: true, recordStatus: true, sessionVersion: true },
+    select: { role: true, status: true, recordStatus: true, sessionVersion: true, namePrefix: true, firstName: true, lastName: true },
   })
   const roleMap = { STAFF: 'staff', LECTURER: 'lecturer', STUDENT: 'student' } as const
   const statusMap = { ACTIVE: 'active', FIRST_LOGIN: 'first-login' } as const
@@ -55,7 +55,10 @@ export const getUserSession = async (event: H3Event) => {
     await session.clear()
     return null
   }
-  return user
+  return {
+    ...user,
+    name: [account.namePrefix, account.firstName, account.lastName].filter(Boolean).join(' '),
+  }
 }
 
 export const requireUserSession = async (event: H3Event, roles?: readonly SessionRole[], allowFirstLogin = false) => {

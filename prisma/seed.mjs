@@ -18,6 +18,18 @@ const hashPassword = async (password) => {
 }
 
 const defaultPasswordHash = await hashPassword(process.env.SEED_DEFAULT_PASSWORD ?? 'Cwie@2569')
+const sampleLecturers = [
+  ['10001', 'นาย', 'ชลัท', 'รังสิมาเทวัญ'],
+  ['10002', 'ผศ.ดร.', 'สมศักดิ์', 'จีวัฒนา'],
+  ['10003', 'ดร.', 'ทิพวัลย์', 'แสนคำ'],
+  ['10004', 'ผศ.ดร.', 'ณัฐพล', 'แสนคำ'],
+  ['10005', 'ดร.', 'ณปภัช', 'วรรณตรง'],
+  ['10006', 'ดร.', 'ชาติวุฒิ', 'ธนาจิรันธร'],
+  ['10007', 'นาย', 'สมพร', 'กระออมแก้ว'],
+  ['10008', 'นาย', 'วิชชา', 'ภัทรนิธิคุณากร'],
+  ['10009', 'นาย', 'วราวุธ', 'จอสูงเนิน'],
+  ['10010', 'ดร.', 'สกรณ์', 'บุษบง'],
+]
 
 try {
   await prisma.user.upsert({
@@ -29,8 +41,8 @@ try {
     },
   })
   await prisma.user.upsert({
-    where: { id: 'lecturer-001' },
-    update: { gender: 'MALE', phone: '0891111100', email: 'lecturer001@example.ac.th', passwordHash: defaultPasswordHash, status: 'ACTIVE', passwordChangedAt: new Date() },
+    where: { username: 'lecturer001' },
+    update: { namePrefix: 'อาจารย์', firstName: 'ผู้นิเทศ', lastName: '', gender: 'MALE', phone: '0891111100', email: 'lecturer001@example.ac.th', passwordHash: defaultPasswordHash, status: 'ACTIVE', recordStatus: 'ACTIVE', passwordChangedAt: new Date() },
     create: {
       id: 'lecturer-001', username: 'lecturer001', passwordHash: defaultPasswordHash, role: 'LECTURER', status: 'ACTIVE',
       namePrefix: 'อาจารย์', firstName: 'ผู้นิเทศ', lastName: '', phone: '0891111100', email: 'lecturer001@example.ac.th', gender: 'MALE',
@@ -39,14 +51,15 @@ try {
   })
   await prisma.user.upsert({
     where: { id: 'student-001' },
-    update: { phone: '0812345601', email: 'thanakrit@example.ac.th', passwordHash: defaultPasswordHash, status: 'ACTIVE', passwordChangedAt: new Date() },
+    update: { username: '000000000000', namePrefix: 'นาย', firstName: 'ตัวอย่าง', lastName: 'ตัวอย่าง', phone: '0812345601', email: 'student-demo@example.ac.th', passwordHash: defaultPasswordHash, status: 'ACTIVE', recordStatus: 'ACTIVE', passwordChangedAt: new Date() },
     create: {
-      id: 'student-001', username: '66123456701', passwordHash: defaultPasswordHash, role: 'STUDENT', status: 'ACTIVE',
-      namePrefix: 'นาย', firstName: 'ธนกฤต', lastName: 'พูนทรัพย์', phone: '0812345601', email: 'thanakrit@example.ac.th', cohortYear: 2566, section: '1',
+      id: 'student-001', username: '000000000000', passwordHash: defaultPasswordHash, role: 'STUDENT', status: 'ACTIVE',
+      namePrefix: 'นาย', firstName: 'ตัวอย่าง', lastName: 'ตัวอย่าง', phone: '0812345601', email: 'student-demo@example.ac.th', cohortYear: 2566, section: '1',
       passwordChangedAt: new Date(), createdById: 'staff-001',
     },
   })
 
+  if (process.env.SEED_DIRECTORY_SAMPLES === 'true') {
   // Additional deterministic accounts keep the demo directory useful for
   // pagination, section sorting, and lecturer grouping previews.
   for (let index = 0; index < 49; index += 1) {
@@ -86,6 +99,19 @@ try {
       },
     })
   }
+  for (const [username, namePrefix, firstName, lastName] of sampleLecturers) {
+    await prisma.user.upsert({
+      where: { username },
+      update: {
+        passwordHash: defaultPasswordHash, role: 'LECTURER', status: 'ACTIVE', recordStatus: 'ACTIVE',
+        namePrefix, firstName, lastName, gender: null, phone: null, email: null,
+      },
+      create: {
+        id: `lecturer-sample-${username}`, username, passwordHash: defaultPasswordHash,
+        role: 'LECTURER', status: 'ACTIVE', namePrefix, firstName, lastName, createdById: 'staff-001',
+      },
+    })
+  }
 
   await prisma.coopCycle.upsert({
     where: { id: 'CYCLE-2569-2' },
@@ -118,6 +144,7 @@ try {
       },
     })
   }
+  }
 
   await prisma.cycleEnrollment.upsert({
     where: { id: 'ENROLLMENT-001' },
@@ -128,6 +155,7 @@ try {
     },
   })
 
+  if (process.env.SEED_DEMO_WORKFLOW === 'true') {
   await prisma.$transaction(async (transaction) => {
     const demoProvince = await transaction.province.upsert({
     where: { nameTh: demoCompany.province },
@@ -261,6 +289,7 @@ try {
     update: { readAt: null },
     create: { notificationId: demoNotification.id, accountId: 'staff-001' },
   })
+  }
 }
 finally {
   await prisma.$disconnect()

@@ -3,6 +3,7 @@ import { Building2, Check, Eye, Pencil, Save } from '@lucide/vue'
 import { z } from 'zod'
 import type { SupervisionAppointment } from '~/composables/useSupervisionAppointments'
 import type { CompanyEvaluationInput, CompanyRecommendation, EvaluationRating, StudentEvaluationInput } from '~/composables/useSupervisionEvaluations'
+import { reloadBrowser } from '~/utils/requestAwareFetch'
 
 interface StudentSummary {
   id: string
@@ -23,11 +24,13 @@ interface Props {
   initialCompanyOpen?: boolean
   dialogOnly?: boolean
   allowCompanyEvaluation?: boolean
+  readOnly?: boolean
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<{
   companyDialogClose: []
+  studentDialogClose: []
 }>()
 const { showToast } = useToast()
 const {
@@ -71,6 +74,7 @@ const companyReviewing = ref(false)
 const isSaving = ref(false)
 const saveAllError = ref('')
 const companyDialogError = ref('')
+const studentDialogError = ref('')
 const evaluationsLoading = ref(true)
 const evaluationsLoadError = ref('')
 const stagedStudentEvaluations = ref<Record<string, StudentEvaluationInput>>({})
@@ -95,19 +99,19 @@ const evaluatorLecturerIds = computed(() => props.appointment.result.actualLectu
   ? props.appointment.result.actualLecturerIds
   : props.appointment.lecturerIds)
 const companyEvaluation = computed(() => getCompanyEvaluation(props.appointment.id))
-const isParticipant = computed(() => props.allowCompanyEvaluation || evaluatorLecturerIds.value.includes(props.currentLecturerId))
+const isParticipant = computed(() => props.readOnly || props.allowCompanyEvaluation || evaluatorLecturerIds.value.includes(props.currentLecturerId))
 const companyEvaluatorId = computed(() => companyEvaluation.value?.evaluatorId
   ?? (props.allowCompanyEvaluation ? props.currentLecturerId : evaluatorLecturerIds.value[0] ?? ''))
 const isCompanyEvaluator = computed(() => Boolean(props.allowCompanyEvaluation || companyEvaluatorId.value === props.currentLecturerId))
 const selectedStudent = computed(() => props.students.find(student => student.studentId === selectedStudentId.value) ?? null)
+const studentEvaluationFor = (studentId: string) => props.readOnly
+  ? studentEvaluations.value.find(item => item.appointmentId === props.appointment.id && item.studentId === studentId && item.status === 'submitted')
+    ?? studentEvaluations.value.find(item => item.appointmentId === props.appointment.id && item.studentId === studentId)
+  : getStudentEvaluation(props.appointment.id, studentId, props.currentLecturerId)
 const selectedStudentEvaluation = computed(() => selectedStudentId.value
-  ? getStudentEvaluation(props.appointment.id, selectedStudentId.value, props.currentLecturerId)
+  ? studentEvaluationFor(selectedStudentId.value)
   : null)
-const currentStudentSubmitted = computed(() => props.students.filter(student => getStudentEvaluation(
-  props.appointment.id,
-  student.studentId,
-  props.currentLecturerId,
-)?.status === 'submitted').length)
+const currentStudentSubmitted = computed(() => props.students.filter(student => studentEvaluationFor(student.studentId)?.status === 'submitted').length)
 const currentRequiredCount = computed(() => props.companyOnly ? 1 : props.students.length + (!props.studentOnly && isCompanyEvaluator.value ? 1 : 0))
 const currentSubmittedCount = computed(() => (props.companyOnly ? 0 : currentStudentSubmitted.value) + (!props.studentOnly && isCompanyEvaluator.value && companyEvaluation.value?.status === 'submitted' ? 1 : 0))
 const totalRequiredCount = computed(() => props.companyOnly ? 1 : evaluatorLecturerIds.value.length * props.students.length + (props.studentOnly ? 0 : 1))
@@ -147,7 +151,7 @@ const studentEvaluationInput = (studentId: string) => {
       followUp: staged.followUp,
     }
   }
-  const saved = getStudentEvaluation(props.appointment.id, studentId, props.currentLecturerId)
+  const saved = studentEvaluationFor(studentId)
   if (!saved) return null
   return {
     ratings: { ...saved.ratings },
@@ -158,10 +162,11 @@ const studentEvaluationInput = (studentId: string) => {
   }
 }
 const openStudentEvaluation = (studentId: string) => {
+  studentDialogError.value = ''
   selectedStudentId.value = studentId
-  studentReviewing.value = false
+  studentReviewing.value = Boolean(props.readOnly)
   resetStudentForm()
-  const evaluation = getStudentEvaluation(props.appointment.id, studentId, props.currentLecturerId)
+  const evaluation = studentEvaluationFor(studentId)
   const input = studentEvaluationInput(studentId)
   if (input) Object.assign(studentForm, input)
   if (evaluation?.status === 'submitted') studentReviewing.value = true
@@ -174,7 +179,7 @@ watch(() => props.initialStudentId, (studentId) => {
 }, { immediate: true })
 const openCompanyEvaluation = () => {
   companyDialogError.value = ''
-  companyReviewing.value = false
+  companyReviewing.value = Boolean(props.readOnly)
   resetCompanyForm()
   const input = stagedCompanyEvaluation.value ?? companyEvaluation.value
   if (input) {
@@ -228,14 +233,23 @@ const companyDraftInput = (): CompanyEvaluationInput => ({
   issues: companyForm.issues,
   suggestions: companyForm.suggestions,
 })
-const setStudentDialogOpen = (open: boolean) => {
+const setStudentDialogOpen = async (open: boolean) => {
   studentDialogOpen.value = open
   if (!open && selectedStudent.value && !selectedStudentLocked.value && hasStudentDraftContent()) {
+    const draft = studentDraftInput()
     stagedStudentEvaluations.value = {
       ...stagedStudentEvaluations.value,
-      [selectedStudent.value.studentId]: studentDraftInput(),
+      [selectedStudent.value.studentId]: draft,
+    }
+    if (props.dialogOnly) {
+      try {
+        await persistStudentEvaluation(props.appointment.id, selectedStudent.value.studentId, props.currentLecturerId, draft, 'draft')
+      } catch {
+        showToast({ title: 'บันทึกฉบับร่างไม่สำเร็จ', description: 'กรุณาเปิดแบบประเมินและลองบันทึกอีกครั้ง' })
+      }
     }
   }
+  if (!open && props.dialogOnly) emit('studentDialogClose')
 }
 const setCompanyDialogOpen = async (open: boolean) => {
   companyDialogOpen.value = open
@@ -265,6 +279,28 @@ const submitCompanyDialog = async () => {
     showToast({ title: 'บันทึกแบบประเมินสถานประกอบการแล้ว', description: 'คะแนนและความคิดเห็นถูกบันทึกเรียบร้อยแล้ว' })
     companyDialogOpen.value = false
     emit('companyDialogClose')
+    reloadBrowser()
+  } catch {
+    showToast({ title: 'บันทึกข้อมูลไม่สำเร็จ', description: 'กรุณาตรวจสอบข้อมูลแล้วลองอีกครั้ง' })
+  } finally {
+    isSaving.value = false
+  }
+}
+const submitStudentDialog = async () => {
+  if (isSaving.value || !props.canManage || !selectedStudent.value) return
+  studentDialogError.value = ''
+  const parsed = studentSubmitSchema.safeParse(studentDraftInput())
+  if (!parsed.success) {
+    studentDialogError.value = parsed.error.issues[0]?.message ?? 'กรุณากรอกแบบประเมินนักศึกษาให้ครบ'
+    return
+  }
+  isSaving.value = true
+  try {
+    await persistStudentEvaluation(props.appointment.id, selectedStudent.value.studentId, props.currentLecturerId, parsed.data, 'submitted')
+    showToast({ title: 'บันทึกแบบประเมินนักศึกษาแล้ว', description: 'คะแนนและข้อเสนอแนะถูกบันทึกเรียบร้อยแล้ว' })
+    studentDialogOpen.value = false
+    emit('studentDialogClose')
+    reloadBrowser()
   } catch {
     showToast({ title: 'บันทึกข้อมูลไม่สำเร็จ', description: 'กรุณาตรวจสอบข้อมูลแล้วลองอีกครั้ง' })
   } finally {
@@ -309,6 +345,7 @@ const submitAllEvaluations = async () => {
       title: props.companyOnly ? 'บันทึกแบบประเมินสถานประกอบการแล้ว' : props.studentOnly ? 'บันทึกแบบประเมินนักศึกษาแล้ว' : 'บันทึกแบบประเมินทั้งหมดแล้ว',
       description: props.companyOnly ? 'คะแนนและความคิดเห็นถูกบันทึกเรียบร้อยแล้ว' : props.studentOnly ? 'แบบประเมินนักศึกษาถูกบันทึกเรียบร้อยแล้ว' : 'แบบประเมินนักศึกษาและสถานประกอบการถูกบันทึกเรียบร้อยแล้ว',
     })
+    reloadBrowser()
   } catch {
     showToast({ title: 'บันทึกข้อมูลไม่สำเร็จ', description: 'กรุณาตรวจสอบข้อมูลแล้วลองอีกครั้ง' })
   } finally {
@@ -352,19 +389,19 @@ const submitAllEvaluations = async () => {
       <section v-if="!studentOnly" id="company-evaluation-panel" class="p-5 sm:p-6" aria-labelledby="company-evaluation-heading">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div class="min-w-0">
-            <div class="flex items-center gap-2"><Building2 :size="19" class="text-primary" aria-hidden="true" /><h4 id="company-evaluation-heading" class="font-bold text-ink">ประเมินสถานประกอบการร่วม</h4></div>
+            <div class="flex items-center gap-2"><Building2 :size="19" class="text-primary" aria-hidden="true" /><h4 id="company-evaluation-heading" class="font-bold text-ink">ประเมินสถานประกอบการ</h4></div>
             <p class="mt-1 text-sm text-muted">ผู้ประเมิน: {{ lecturerName(companyEvaluatorId) }}</p>
           </div>
           <div class="flex shrink-0 items-center gap-2">
             <UiBadge :tone="companyEvaluation?.status === 'submitted' ? 'success' : stagedCompanyEvaluation || companyEvaluation ? 'warning' : 'neutral'">
               {{ companyEvaluation?.status === 'submitted' ? 'ส่งแล้ว' : stagedCompanyEvaluation ? 'กรอกแล้ว · รอบันทึก' : companyEvaluation ? 'ฉบับร่าง' : 'ยังไม่ประเมิน' }}
             </UiBadge>
-            <UiButton v-if="isCompanyEvaluator || companyEvaluation?.status === 'submitted'" size="sm" :variant="companyEvaluation?.status === 'submitted' ? 'secondary' : 'primary'" :icon="companyEvaluation?.status === 'submitted' ? Eye : Building2" @click="openCompanyEvaluation">
-              {{ companyEvaluation?.status === 'submitted' ? 'ดูผล' : 'ประเมิน' }}
+            <UiButton v-if="isCompanyEvaluator || companyEvaluation?.status === 'submitted' || (readOnly && companyEvaluation)" size="sm" :variant="companyEvaluation?.status === 'submitted' || readOnly ? 'secondary' : 'primary'" :icon="companyEvaluation?.status === 'submitted' || readOnly ? Eye : Building2" @click="openCompanyEvaluation">
+              {{ companyEvaluation?.status === 'submitted' || readOnly ? 'ดูผล' : 'ประเมิน' }}
             </UiButton>
           </div>
         </div>
-        <UiAlert v-if="!isCompanyEvaluator && companyEvaluation?.status !== 'submitted'" class="mt-4" tone="info" title="ไม่ต้องกรอกแบบประเมินซ้ำ">รออาจารย์ผู้รับผิดชอบจัดทำแบบประเมินสถานประกอบการร่วม</UiAlert>
+        <UiAlert v-if="!isCompanyEvaluator && companyEvaluation?.status !== 'submitted'" class="mt-4" tone="info" title="ไม่ต้องกรอกแบบประเมินซ้ำ">รออาจารย์ผู้รับผิดชอบจัดทำแบบประเมินสถานประกอบการ</UiAlert>
       </section>
 
       <section v-if="!companyOnly" id="student-evaluation-panel" class="p-5 sm:p-6" :class="{ 'border-t border-divider': !studentOnly }" aria-labelledby="student-evaluation-heading">
@@ -379,11 +416,11 @@ const submitAllEvaluations = async () => {
               <p class="mt-1 text-xs text-muted">{{ student.studentId }} · {{ student.position }}</p>
             </div>
             <div class="flex shrink-0 items-center justify-between gap-2 sm:justify-end">
-              <UiBadge :tone="getStudentEvaluation(appointment.id, student.studentId, currentLecturerId)?.status === 'submitted' ? 'success' : isStudentStaged(student.studentId) || getStudentEvaluation(appointment.id, student.studentId, currentLecturerId) ? 'warning' : 'neutral'">
-                {{ getStudentEvaluation(appointment.id, student.studentId, currentLecturerId)?.status === 'submitted' ? 'ส่งแล้ว' : isStudentStaged(student.studentId) ? 'กรอกแล้ว · รอบันทึก' : getStudentEvaluation(appointment.id, student.studentId, currentLecturerId) ? 'ฉบับร่าง' : 'ยังไม่ประเมิน' }}
+              <UiBadge :tone="studentEvaluationFor(student.studentId)?.status === 'submitted' ? 'success' : isStudentStaged(student.studentId) || studentEvaluationFor(student.studentId) ? 'warning' : 'neutral'">
+                {{ studentEvaluationFor(student.studentId)?.status === 'submitted' ? 'ส่งแล้ว' : isStudentStaged(student.studentId) ? 'กรอกแล้ว · รอบันทึก' : studentEvaluationFor(student.studentId) ? 'ฉบับร่าง' : 'ยังไม่ประเมิน' }}
               </UiBadge>
-              <UiButton size="sm" :variant="getStudentEvaluation(appointment.id, student.studentId, currentLecturerId)?.status === 'submitted' ? 'secondary' : 'primary'" :icon="getStudentEvaluation(appointment.id, student.studentId, currentLecturerId)?.status === 'submitted' ? Eye : Pencil" @click="openStudentEvaluation(student.studentId)">
-                {{ getStudentEvaluation(appointment.id, student.studentId, currentLecturerId)?.status === 'submitted' ? 'ดูผล' : 'ประเมิน' }}
+              <UiButton v-if="!readOnly || studentEvaluationFor(student.studentId)" size="sm" :variant="studentEvaluationFor(student.studentId)?.status === 'submitted' || readOnly ? 'secondary' : 'primary'" :icon="studentEvaluationFor(student.studentId)?.status === 'submitted' || readOnly ? Eye : Pencil" @click="openStudentEvaluation(student.studentId)">
+                {{ studentEvaluationFor(student.studentId)?.status === 'submitted' || readOnly ? 'ดูผล' : 'ประเมิน' }}
               </UiButton>
             </div>
           </article>
@@ -439,7 +476,11 @@ const submitAllEvaluations = async () => {
       <div class="mt-5">
         <div class="[&>textarea]:min-h-32"><UiTextarea v-model="studentForm.suggestions" label="ข้อเสนอแนะให้นักศึกษา" placeholder="แนวทางที่ช่วยให้นักศึกษาพัฒนาต่อ" /></div>
       </div>
-      <div class="mt-6 flex justify-end"><UiButton :icon="Check" @click="setStudentDialogOpen(false)">เสร็จสิ้น</UiButton></div>
+      <div class="mt-6 flex flex-col items-end gap-3 border-t border-divider pt-5">
+        <p v-if="studentDialogError" role="alert" aria-live="assertive" class="self-start text-sm font-medium text-danger">{{ studentDialogError }}</p>
+        <UiButton v-if="dialogOnly" :icon="Save" :loading="isSaving" @click="submitStudentDialog">บันทึกแบบประเมิน</UiButton>
+        <UiButton v-else :icon="Check" @click="setStudentDialogOpen(false)">เสร็จสิ้น</UiButton>
+      </div>
     </template>
     <template v-else>
       <UiAlert tone="success" title="ส่งแบบประเมินแล้ว">ไม่สามารถแก้ไขแบบประเมินที่ส่งแล้วได้</UiAlert>
@@ -454,7 +495,7 @@ const submitAllEvaluations = async () => {
     </template>
     </UiDialog>
 
-    <UiDialog :open="companyDialogOpen" size="xl" :title="companyLocked ? 'ผลประเมินสถานประกอบการ' : 'ประเมินสถานประกอบการร่วม'" @update:open="setCompanyDialogOpen">
+    <UiDialog :open="companyDialogOpen" size="xl" :title="companyLocked ? 'ผลประเมินสถานประกอบการ' : 'ประเมินสถานประกอบการ'" @update:open="setCompanyDialogOpen">
     <p class="mb-4 rounded-control border border-info/25 bg-info-soft px-4 py-3 text-sm leading-6 text-info"><span class="font-semibold">เกณฑ์การให้คะแนน 5 ระดับ:</span> {{ ratingScaleDescription }}</p>
     <template v-if="!companyReviewing">
       <fieldset>

@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import { ArrowLeft, Pencil, Save } from '@lucide/vue'
 import { z } from 'zod'
+import { applicationStatusGroupMeta, getStudentApplicationStatusGroup, type StudentApplication } from '~/composables/useStudentApplications'
 
 definePageMeta({ title: 'รายละเอียดนักศึกษา', middleware: 'lecturer-prototype' })
 useHead({ title: 'รายละเอียดนักศึกษา' })
 
 const route = useRoute()
 const { showToast } = useToast()
-const { findPerson, getStudentApplicationHistory, loadPersistedPeople, persistLecturerStudentName } = usePeopleDirectory()
+const { findPerson, loadPersistedPeople, persistLecturerStudentName } = usePeopleDirectory()
 await loadPersistedPeople('student')
 const student = computed(() => findPerson('student', String(route.params.id)))
 if (!student.value) throw createError({ statusCode: 404, statusMessage: 'ไม่พบข้อมูลนักศึกษา' })
-const applications = computed(() => getStudentApplicationHistory(String(route.params.id)))
+const { data: persistedApplications } = await useFetch<StudentApplication[]>('/api/staff/student-applications')
+const applications = computed(() => (persistedApplications.value ?? []).filter(application => application.studentId === String(route.params.id)))
 const isEditing = ref(false)
 const isSaving = ref(false)
 const form = reactive({ prefix: 'นาย', firstName: '', lastName: '' })
@@ -48,7 +50,7 @@ const formatDate = (date: string) => new Intl.DateTimeFormat('th-TH', { day: 'nu
       <UiCard :padded="false">
         <div class="border-b border-divider p-5 sm:p-6"><h3 class="text-lg font-bold text-ink">ประวัติคำร้องสถานประกอบการ</h3><p class="mt-1 text-sm text-muted">แสดงบริษัท ตำแหน่ง วันที่สมัคร และสถานะของคำร้องทั้งหมด</p></div>
         <div v-if="!applications.length" class="p-5 sm:p-6"><AppEmptyState title="ยังไม่มีประวัติคำร้อง" description="เมื่อนักศึกษาส่งคำร้อง รายการจะปรากฏที่นี่" /></div>
-        <template v-else><div class="hidden overflow-x-auto md:block"><table class="w-full min-w-[700px] text-left text-sm"><thead class="bg-surface text-xs font-semibold tracking-wide text-muted uppercase"><tr><th class="px-6 py-3">เลขที่คำร้อง</th><th class="px-4 py-3">สถานประกอบการ / ตำแหน่ง</th><th class="px-4 py-3">วันที่สมัคร</th><th class="px-4 py-3">สถานะ</th></tr></thead><tbody class="divide-y divide-divider"><tr v-for="application in applications" :key="application.id"><td class="whitespace-nowrap px-6 py-4 font-semibold text-ink">{{ application.id }}</td><td class="px-4 py-4"><p class="font-medium text-ink">{{ application.company }}</p><p class="mt-1 text-xs text-muted">{{ application.position }}</p></td><td class="whitespace-nowrap px-4 py-4 text-muted">{{ formatDate(application.appliedAt) }}</td><td class="px-4 py-4"><UiBadge :tone="studentApplicationStatusMeta[application.status].tone">{{ studentApplicationStatusMeta[application.status].label }}</UiBadge></td></tr></tbody></table></div><div class="divide-y divide-divider md:hidden"><article v-for="application in applications" :key="application.id" class="p-5"><div class="flex items-start justify-between gap-3"><div><h4 class="font-semibold text-ink">{{ application.company }}</h4><p class="mt-1 text-sm text-muted">{{ application.position }}</p></div><UiBadge :tone="studentApplicationStatusMeta[application.status].tone">{{ studentApplicationStatusMeta[application.status].label }}</UiBadge></div><p class="mt-3 text-xs text-muted">{{ application.id }} · {{ formatDate(application.appliedAt) }}</p></article></div></template>
+        <template v-else><div class="hidden overflow-x-auto md:block"><table class="w-full min-w-[700px] text-left text-sm"><thead class="bg-surface text-xs font-semibold tracking-wide text-muted uppercase"><tr><th class="px-6 py-3">เลขที่คำร้อง</th><th class="px-4 py-3">สถานประกอบการ / ตำแหน่ง</th><th class="px-4 py-3">วันที่สมัคร</th><th class="px-4 py-3">สถานะ</th></tr></thead><tbody class="divide-y divide-divider"><tr v-for="application in applications" :key="application.id"><td class="whitespace-nowrap px-6 py-4 font-semibold text-ink">{{ application.id }}</td><td class="px-4 py-4"><p class="font-medium text-ink">{{ application.companyName }}</p><p class="mt-1 text-xs text-muted">{{ application.position }}</p></td><td class="whitespace-nowrap px-4 py-4 text-muted">{{ formatDate(application.appliedAt) }}</td><td class="px-4 py-4"><UiBadge :tone="applicationStatusGroupMeta[getStudentApplicationStatusGroup(application.status)].tone">{{ applicationStatusGroupMeta[getStudentApplicationStatusGroup(application.status)].label }}</UiBadge></td></tr></tbody></table></div><div class="divide-y divide-divider md:hidden"><article v-for="application in applications" :key="application.id" class="p-5"><div class="flex items-start justify-between gap-3"><div><h4 class="font-semibold text-ink">{{ application.companyName }}</h4><p class="mt-1 text-sm text-muted">{{ application.position }}</p></div><UiBadge :tone="applicationStatusGroupMeta[getStudentApplicationStatusGroup(application.status)].tone">{{ applicationStatusGroupMeta[getStudentApplicationStatusGroup(application.status)].label }}</UiBadge></div><p class="mt-3 text-xs text-muted">{{ application.id }} · {{ formatDate(application.appliedAt) }}</p></article></div></template>
       </UiCard>
     </div>
   </div>

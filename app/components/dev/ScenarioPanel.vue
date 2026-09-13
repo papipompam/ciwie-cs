@@ -2,18 +2,17 @@
 import { RotateCcw, SlidersHorizontal, X } from '@lucide/vue'
 import { PopoverClose, PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
 
-const { scenario, events, resetScenario } = useScenario()
+const { scenario, events } = useScenario()
 const { cycles } = useCoopCycles()
-const { resetPlacementData } = useStudentPlacements()
 const { switchPrototypeRole } = useAuthPrototype()
 const roleOptions = [
   { value: 'staff', label: 'เจ้าหน้าที่' },
   { value: 'lecturer', label: 'อาจารย์' },
   { value: 'student', label: 'นักศึกษา' },
 ]
-const cycleOptions = cycles.map(cycle => ({ value: cycle.label, label: cycle.label }))
+const cycleOptions = computed(() => cycles.map(cycle => ({ value: cycle.label, label: cycle.label })))
 const selectedCycle = computed({
-  get: () => cycleOptions.some(option => option.value === scenario.value.cycle) ? scenario.value.cycle : cycleOptions[0]!.value,
+  get: () => cycleOptions.value.some(option => option.value === scenario.value.cycle) ? scenario.value.cycle : (cycleOptions.value[0]?.value ?? ''),
   set: (value: string) => { scenario.value.cycle = value },
 })
 const dataSetOptions = [
@@ -58,9 +57,7 @@ const selectedViewState = computed({
 })
 
 const resetAllMockData = () => {
-  resetScenario()
-  resetPlacementData()
-  void switchPrototypeRole('staff')
+  window.location.reload()
 }
 </script>
 
@@ -75,7 +72,7 @@ const resetAllMockData = () => {
         <div class="flex items-start justify-between gap-3">
           <div>
             <p class="font-bold text-ink">Developer Scenario</p>
-            <p class="mt-0.5 text-xs text-muted">ข้อมูลจำลองจะรีเซ็ตเมื่อโหลดหน้าใหม่</p>
+            <p class="mt-0.5 text-xs text-muted">รีโหลดหน้าเว็บใหม่</p>
           </div>
           <PopoverClose class="grid size-11 place-items-center rounded-md text-muted hover:bg-surface" aria-label="ปิดแผงจำลองสถานการณ์">
             <X :size="17" aria-hidden="true" />

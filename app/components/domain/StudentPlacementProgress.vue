@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Check, FileCheck2 } from '@lucide/vue'
 import type { CoopCycle } from '~/composables/useCoopCycles'
-import type { PlacementStatus } from '~/composables/useStudentPlacements'
+import type { PlacementStatus } from '#shared/placement-requests'
 
 const props = defineProps<{
   cycle: CoopCycle
@@ -20,13 +20,10 @@ const steps = [
 ] as const
 
 const statusStep: Record<PlacementStatus, number> = {
-  draft: 0,
   submitted: 1,
   returned: 1,
-  batched: 1,
   'letter-issued': 2,
-  'response-uploaded': 4,
-  'response-returned': 4,
+  'signed-uploaded': 4,
   confirmed: 5,
   cancelled: 0,
 }

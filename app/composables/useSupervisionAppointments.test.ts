@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useSupervisionAppointments } from './useSupervisionAppointments'
 
 const appointment = {
-  id: 'APPOINTMENT-1', cycleId: 'CYCLE-1', round: 1 as const, groupId: 'GROUP-1', companyId: 'SITE-1',
+  id: 'APPOINTMENT-1', appointmentNo: 'SV0001', cycleId: 'CYCLE-1', round: 1 as const, groupId: 'GROUP-1', companyId: 'SITE-1',
   studentIds: ['66123456701'], date: '2026-09-20', period: 'morning' as const,
   lecturerIds: ['lecturer-001'], status: 'published' as const,
   result: { summary: '', issues: '', suggestions: '', companyRequirements: '', actualLecturerIds: [], completedAt: null },
@@ -50,5 +50,18 @@ describe('persisted supervision appointments', () => {
       body: expect.objectContaining({ action: 'complete', actualLecturerIds: ['lecturer-001'] }),
     })
     expect(completed).toMatchObject({ status: 'completed', result: { completedAt: '2026-09-20T08:00:00.000Z' } })
+  })
+
+  it('removes only the appointment deleted by the API', async () => {
+    const fetch = vi.fn(async () => ({ id: 'APPOINTMENT-1' }))
+    vi.stubGlobal('$fetch', fetch)
+    const store = useSupervisionAppointments()
+    const anotherAppointment = { ...appointment, id: 'APPOINTMENT-2' }
+    store.appointments.value = [appointment, anotherAppointment]
+
+    await expect(store.persistDeleteAppointment('APPOINTMENT-1')).resolves.toEqual({ id: 'APPOINTMENT-1' })
+
+    expect(fetch).toHaveBeenCalledWith('/api/staff/supervision/appointments/APPOINTMENT-1', { method: 'DELETE' })
+    expect(store.appointments.value).toEqual([anotherAppointment])
   })
 })

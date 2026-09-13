@@ -131,8 +131,7 @@ const submitEvent = async () => {
 
   isSubmitting.value = true
   try {
-    await new Promise(resolve => setTimeout(resolve, 250))
-    addEvent(parsed.data)
+    await addEvent(parsed.data)
     selectedDate.value = parsed.data.date
     viewMonthKey.value = parsed.data.date.slice(0, 7)
     addDialogOpen.value = false

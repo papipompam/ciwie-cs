@@ -18,10 +18,12 @@ export const studentRequestStatusMeta = {
   cancelled: { label: 'ยกเลิกคำร้องแล้ว', description: 'คำร้องนี้สิ้นสุดแล้ว', tone: 'neutral' },
 } as const satisfies Record<keyof typeof requestStatusMeta, { label: string, description: string, tone: 'warning' | 'info' | 'danger' | 'success' | 'neutral' }>
 export type RequestStatus = keyof typeof requestStatusMeta
+export type PlacementStatus = RequestStatus
 export interface RequestDocument { name: string, dataUrl: string }
 export interface PlacementRequestPreview {
   cycleId?: string
   id: string
+  requestNo?: string
   application: StudentApplicationRecord
   studentName: string
   status: RequestStatus
