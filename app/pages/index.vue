@@ -7,8 +7,8 @@ import { getPageCount, paginateItems } from '~/utils/table'
 import { summarizeStudentPlacements } from '~/utils/studentPlacementSummary'
 import type { StudentPlacementSummary } from '~/utils/studentPlacementSummary'
 
-definePageMeta({ title: 'ภาพรวมระบบ' })
-useHead({ title: 'ภาพรวมระบบ' })
+definePageMeta({ title: 'หน้าหลัก' })
+useHead({ title: 'หน้าหลัก' })
 
 const { scenario } = useScenario()
 const { currentAccount } = useAuthPrototype()

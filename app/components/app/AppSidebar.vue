@@ -36,7 +36,7 @@ const navigationGroups = computed<NavigationGroup[]>(() => [
   {
     label: "ภาพรวม",
     items: [
-      { label: "ภาพรวมระบบ", to: "/", icon: LayoutDashboard, exact: true },
+      { label: "หน้าหลัก", to: "/", icon: LayoutDashboard, exact: true },
       { label: "ปฏิทินงาน", to: "/calendar", icon: CalendarDays, exact: true },
     ],
   },
