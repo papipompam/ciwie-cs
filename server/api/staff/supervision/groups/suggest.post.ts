@@ -5,6 +5,7 @@ import { roundToPrisma, toSupervisionCompanies } from '../../../../utils/supervi
 
 export default defineEventHandler(async (event) => {
   await requireUserSession(event, ['staff'])
+  // ตรวจรูปแบบ cycleId, round, ระยะสูงสุด และจำนวนบริษัทต่อกลุ่ม
   const parsed = supervisionSuggestionSchema.safeParse(await readBody(event))
   if (!parsed.success) throw createError({ statusCode: 400, statusMessage: 'CLUSTERING_OPTIONS_INVALID' })
   const { cycleId, round, maxDistanceKm, maxCompanies } = parsed.data
@@ -41,7 +42,9 @@ export default defineEventHandler(async (event) => {
     prisma.supervisionGroup.count({ where: { cycleId, round: roundToPrisma(round) } }),
   ])
   const assigned = new Set(assignments.map(item => item.companySiteId))
+  // ไม่นำบริษัทที่ถูกจัดกลุ่มในรอบนี้แล้วมาจัดซ้ำ
   const companies = toSupervisionCompanies(requests).filter(company => !assigned.has(company.id))
+  // ใช้พิกัดคำนวณระยะทาง และ fallback เป็นจังหวัด/พื้นที่เมื่อไม่มีพิกัด
   const result = clusterCompanies(companies, { maxDistanceKm, maxCompanies })
   return {
     groups: result.groups.map((companyIds, index) => ({ name: `กลุ่มนิเทศ ${existingGroupCount + index + 1}`, companyIds })),

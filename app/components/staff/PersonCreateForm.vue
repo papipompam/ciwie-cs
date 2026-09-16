@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// ฟอร์มกลางสำหรับสร้างบัญชีนักศึกษาหรืออาจารย์จากหน้าจัดการบุคคลของเจ้าหน้าที่
 import { Save } from '@lucide/vue'
 import { z } from 'zod'
 import type { PersonInput, PersonType } from '~/composables/usePeopleDirectory'
@@ -24,6 +25,7 @@ const form = reactive<PersonInput>({ id: '', prefix: props.personType === 'stude
 const formSection = computed({ get: () => form.section ?? '', set: value => { form.section = value as PersonInput['section'] } })
 const errors = reactive<Partial<Record<keyof PersonInput, string>>>({})
 const isSubmitting = ref(false)
+// เมื่อรอบสหกิจถูกโหลดหรือเปลี่ยนปีการศึกษา จะปรับภาคเรียนให้เป็นค่าที่เลือกได้เสมอ
 watch(() => cycles.length, () => {
   if (!selectedCycle.value && cycles[0]) {
     selectedAcademicYear.value = String(cycles[0].academicYear)
@@ -45,6 +47,7 @@ const schema = z.object({
   gender: z.enum(['male', 'female']).optional(), cycle: z.string().optional(), section: z.enum(studentSectionValues).optional(),
 })
 
+// ตรวจข้อมูลฝั่งหน้าจอก่อนเรียก API และแสดงข้อผิดพลาดไว้ที่ช่องที่เกี่ยวข้อง
 const submit = async () => {
   Object.keys(errors).forEach(key => { errors[key as keyof PersonInput] = undefined })
   if (props.personType === 'student' && !selectedCycle.value) {
@@ -58,6 +61,7 @@ const submit = async () => {
   }
   isSubmitting.value = true
   try {
+    // API จะสร้างบัญชีและข้อมูลการเข้าร่วมรอบสหกิจภายใน transaction เดียวกัน
     const person = await persistCreatePerson(props.personType, result.data)
     showToast({ title: `เพิ่ม${context.value.singular}แล้ว`, description: `สร้างบัญชี ${person.id} และรอเข้าสู่ระบบครั้งแรก` })
     emit('saved')
@@ -75,11 +79,13 @@ const submit = async () => {
         <h3 id="student-information-heading" class="text-base font-bold text-ink">ข้อมูลนักศึกษา</h3>
         <div class="mt-4 grid gap-4 sm:grid-cols-2">
           <div class="sm:col-span-2"><UiInput v-model="form.id" :label="context.idLabel" placeholder="เช่น 66123456701" :error="errors.id" required /></div>
-          <div><UiSelect v-model="form.prefix" :options="prefixOptions" label="คำนำหน้า" :error="errors.prefix" required /></div>
-          <div><UiInput v-model="form.firstName" label="ชื่อ" placeholder="กรอกชื่อ" :error="errors.firstName" required /></div>
-          <div><UiInput v-model="form.lastName" label="นามสกุล" placeholder="กรอกนามสกุล" :error="errors.lastName" required /></div>
+          <div class="sm:col-span-2 grid gap-4 sm:grid-cols-[10rem_minmax(0,1fr)_minmax(0,1fr)]">
+            <div><UiSelect v-model="form.prefix" :options="prefixOptions" label="คำนำหน้า" :error="errors.prefix" required /></div>
+            <div><UiInput v-model="form.firstName" label="ชื่อ" placeholder="กรอกชื่อ" :error="errors.firstName" required /></div>
+            <div><UiInput v-model="form.lastName" label="นามสกุล" placeholder="กรอกนามสกุล" :error="errors.lastName" required /></div>
+          </div>
           <div><UiInput v-model="form.phone" label="เบอร์โทร" placeholder="08xxxxxxxx" :error="errors.phone" /></div>
-          <div class="sm:col-span-2"><UiInput v-model="form.email" type="email" label="อีเมล" placeholder="name@example.ac.th" :error="errors.email" /></div>
+          <div><UiInput v-model="form.email" type="email" label="อีเมล" placeholder="name@example.ac.th" :error="errors.email" /></div>
         </div>
       </section>
       <section class="mt-6 border-t border-divider pt-5" aria-labelledby="student-education-heading">

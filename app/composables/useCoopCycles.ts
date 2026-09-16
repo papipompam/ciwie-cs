@@ -14,7 +14,7 @@ export const cycleStatusMeta: Record<
   { label: string; tone: "neutral" | "warning" | "info" | "success" }
 > = {
   draft: { label: "ฉบับร่าง", tone: "neutral" },
-  open: { label: "เปิดยื่นสถานประกอบการ", tone: "success" },
+  open: { label: "เปิดรอบสหกิจศึกษา", tone: "success" },
   closed_to_requests: { label: "ปิดรับคำร้องใหม่", tone: "warning" },
   training: { label: "กำลังฝึกงาน", tone: "info" },
   closed: { label: "ปิดรอบ", tone: "neutral" },

@@ -2,6 +2,7 @@ import { peopleImportResponseSchema, peopleResponseSchema, personRecordSchema } 
 import { requestAwareFetch } from '../utils/requestAwareFetch'
 import type { PeopleImportCredential } from './usePeopleImport'
 
+// โมเดลข้อมูลบุคคลที่ใช้ร่วมกันระหว่างหน้าจัดการนักศึกษาและอาจารย์
 export type PersonType = 'student' | 'lecturer'
 export const personPrefixValues = ['นาย', 'นาง', 'นางสาว', 'อาจารย์', 'ดร.', 'ผศ.', 'ผศ.ดร.', 'รศ.', 'รศ.ดร.', 'ศ.', 'ศ.ดร.'] as const
 export type PersonPrefix = typeof personPrefixValues[number]
@@ -94,6 +95,7 @@ export const studentApplicationStatusMeta: Record<StudentApplicationStatus, { la
 }
 
 export const usePeopleDirectory = () => {
+  // เก็บข้อมูลไว้ใน state กลาง เพื่อให้รายการและหน้ารายละเอียดใช้ข้อมูลชุดเดียวกัน
   const people = useState<PersonRecord[]>('people-directory-v2', () => [])
   const { scenario, recordEvent } = useScenario()
 
@@ -170,6 +172,7 @@ export const usePeopleDirectory = () => {
   }
 
   const importPeople = (type: PersonType, rows: PersonInput[]) => {
+    // แถวที่มีรหัสเดิมจะถูกอัปเดต ส่วนรหัสใหม่จะถูกสร้างเป็นรายการใหม่
     let created = 0
     let updated = 0
     rows.forEach((input) => {
@@ -187,12 +190,14 @@ export const usePeopleDirectory = () => {
   }
 
   const loadPersistedPeople = async (type: PersonType) => {
+    // แปลง response ด้วย schema ก่อนนำข้อมูลจาก server เข้า state ของหน้าเว็บ
     const { people: records } = peopleResponseSchema.parse(await requestAwareFetch('/api/people', { query: { type } }))
     people.value = replacePeopleByType(people.value, type, records)
     return records
   }
 
   const persistCreatePerson = async (type: PersonType, input: PersonInput) => {
+    // การสร้างจริงใช้ API ฝั่งเจ้าหน้าที่ ส่วน state จะอัปเดตเมื่อ server ตอบกลับสำเร็จ
     const person = personRecordSchema.parse(await requestAwareFetch('/api/staff/people', { method: 'POST', body: { type, ...input } }))
     people.value.unshift(person)
     return person

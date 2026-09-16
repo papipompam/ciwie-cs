@@ -35,7 +35,7 @@ const formatRange = (start: string, end: string) => {
           <p class="mt-1 text-sm text-muted">{{ cycle.label }} · {{ cycle.cohort }}</p>
         </div>
       </div>
-      <UiBadge :tone="cycleStatusMeta[cycle.status].tone">
+      <UiBadge v-if="cycle.status !== 'open'" :tone="cycleStatusMeta[cycle.status].tone">
         {{ cycleStatusMeta[cycle.status].label }}
       </UiBadge>
     </div>
@@ -50,7 +50,7 @@ const formatRange = (start: string, end: string) => {
         <dd class="mt-1 text-ink">{{ cycle.semester }} · {{ cycle.cohort }}</dd>
       </div>
       <div>
-        <dt class="text-xs text-muted">ช่วงเปิดยื่นสถานประกอบการ</dt>
+        <dt class="text-xs text-muted">ช่วงส่งข้อมูลสถานประกอบการ</dt>
         <dd class="mt-1 text-ink">
           {{ formatRange(cycle.requestStart, cycle.requestEnd) }}
         </dd>
@@ -95,7 +95,7 @@ const formatRange = (start: string, end: string) => {
           class="mt-2 text-xs font-medium"
           :class="index <= currentIndex ? 'text-ink' : 'text-muted'"
         >
-          {{ cycleStatusMeta[status].label }}
+          <template v-if="status !== 'open'">{{ cycleStatusMeta[status].label }}</template>
         </span>
       </li>
       </ol>

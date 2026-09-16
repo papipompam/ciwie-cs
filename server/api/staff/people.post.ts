@@ -5,6 +5,7 @@ import { hashPassword } from '../../utils/password'
 import { personAuditSelect, personSelect, toPersonRecord } from '../../utils/people'
 import { requireUserSession } from '../../utils/session'
 
+// Endpoint นี้ใช้สำหรับเจ้าหน้าที่สร้างบัญชีบุคคลใหม่พร้อมข้อมูลโปรไฟล์
 const createSchema = personInputSchema.extend({ type: personTypeSchema })
 
 export default defineEventHandler(async (event) => {
@@ -12,6 +13,7 @@ export default defineEventHandler(async (event) => {
   const parsed = createSchema.safeParse(await readBody(event))
   if (!parsed.success) throw createError({ statusCode: 400, statusMessage: 'PERSON_INVALID' })
   const input = parsed.data
+  // จำกัดคำนำหน้าและข้อมูลเฉพาะของนักศึกษาหรืออาจารย์ก่อนเขียนฐานข้อมูล
   if (input.type === 'student' && !input.section) throw createError({ statusCode: 400, statusMessage: 'STUDENT_SECTION_REQUIRED' })
   const allowedPrefixes: readonly string[] = input.type === 'student' ? studentPersonPrefixes : lecturerPersonPrefixes
   if (!allowedPrefixes.includes(input.prefix)) throw createError({ statusCode: 400, statusMessage: 'PERSON_PREFIX_INVALID' })
@@ -36,6 +38,7 @@ export default defineEventHandler(async (event) => {
   if (input.type === 'student' && input.cycle && !cycle) throw createError({ statusCode: 400, statusMessage: 'COOP_CYCLE_NOT_FOUND' })
 
   const person = await prisma.$transaction(async (transaction) => {
+    // สร้าง user, enrollment และ audit log ให้สำเร็จหรือย้อนกลับพร้อมกัน
     const created = await transaction.user.create({
       data: {
         username: input.id, passwordHash, role: input.type === 'student' ? 'STUDENT' : 'LECTURER', status: 'FIRST_LOGIN',

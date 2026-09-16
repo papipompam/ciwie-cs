@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// Layout หลักของระบบหลังเข้าสู่ระบบ: sidebar, header, toolbar และพื้นที่เนื้อหา
 import { X } from '@lucide/vue'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot } from 'reka-ui'
 
@@ -61,8 +62,8 @@ watch(() => route.fullPath, () => {
     </div>
 
     <ClientOnly>
-      <ScenarioPanel v-if="isDevelopment" />
       <AppToaster />
+      <ScenarioPanel v-if="isDevelopment" />
     </ClientOnly>
   </div>
 </template>

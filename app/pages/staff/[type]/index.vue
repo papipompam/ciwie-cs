@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// หน้ารายการบุคคลแบบใช้ร่วมกัน: route type จะกำหนดว่าแสดงนักศึกษาหรืออาจารย์
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Download, Plus, RotateCcw, Search, Upload } from '@lucide/vue'
 import type { PeopleFileFormat } from '~/composables/usePeopleImport'
 import type { PersonType } from '~/composables/usePeopleDirectory'
@@ -27,6 +28,7 @@ const { status: peopleFetchStatus, error: peopleFetchError, refresh: refreshPeop
   () => loadPersistedPeople(personType.value),
   { watch: [personType, currentAccount] },
 )
+// สถานะ loading/error/empty/data ของตารางมาจากทั้ง API และโหมดจำลองของระบบ
 
 const context = computed(() => personType.value === 'student'
   ? { title: 'ข้อมูลนักศึกษา', singular: 'นักศึกษา', idLabel: 'รหัสนักศึกษา' }

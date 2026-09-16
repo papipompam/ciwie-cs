@@ -173,6 +173,7 @@ export const useSupervisionAppointments = () => {
   }
 
   const loadPersistedAppointments = async (cycleId: string, round: SupervisionRound) => {
+    // อ่านตารางนิเทศจริงของรอบที่เลือก แล้วแทนที่ข้อมูลเก่าใน state
     const response = supervisionAppointmentsResponseSchema.parse(await requestAwareFetch('/api/supervision/appointments', {
       query: { cycleId, round },
     }))

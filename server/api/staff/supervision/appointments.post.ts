@@ -14,6 +14,7 @@ export default defineEventHandler(async (event) => {
   }
   const round = input.round === 1 ? 'ROUND_1' as const : 'ROUND_2' as const
   const prisma = usePrisma()
+  // ตรวจว่าบริษัทอยู่ในกลุ่มจริง อาจารย์ใช้งานได้ และนักศึกษาฝึกที่บริษัทนี้จริง
   const [groupCompany, lecturers, requests] = await Promise.all([
     prisma.supervisionGroupCompany.findFirst({
       where: { groupId: input.groupId, cycleId: input.cycleId, round, companySiteId: input.companyId },
@@ -42,6 +43,7 @@ export default defineEventHandler(async (event) => {
 
   const scheduledDate = new Date(`${input.date}T00:00:00.000Z`)
   const status = input.publish ? 'PUBLISHED' as const : 'DRAFT' as const
+  // นัดนิเทศ ผู้เข้าร่วม และการแจ้งเตือนต้องสำเร็จพร้อมกันทั้งหมด
   const created = await prisma.$transaction(async (transaction) => {
     const latest = await transaction.supervisionAppointment.findFirst({
       where: { appointmentNo: { startsWith: 'SV' } },
@@ -71,6 +73,7 @@ export default defineEventHandler(async (event) => {
         students: { create: requests.map(request => ({ placementRequestId: request.id })) },
       },
     })
+    // publish=true หมายถึงยืนยันตารางและแจ้งผู้ที่เกี่ยวข้องทันที
     if (input.publish) {
       const baseNotification = {
         type: 'SUPERVISION_SCHEDULE_PUBLISHED',

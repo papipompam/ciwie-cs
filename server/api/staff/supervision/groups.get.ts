@@ -3,12 +3,15 @@ import { requireUserSession } from '../../../utils/session'
 import { toSupervisionCompanies, toSupervisionGroupDto } from '../../../utils/supervisionGroups'
 
 export default defineEventHandler(async (event) => {
+  // Endpoint นี้อนุญาตเฉพาะบัญชีเจ้าหน้าที่
   await requireUserSession(event, ['staff'])
   const parsed = supervisionContextSchema.safeParse(getQuery(event))
   if (!parsed.success) throw createError({ statusCode: 400, statusMessage: 'SUPERVISION_CONTEXT_INVALID' })
   const { cycleId } = parsed.data
   const prisma = usePrisma()
+  // อ่านข้อมูลทั้งสามชุดใน transaction เดียว เพื่อให้เป็น snapshot ช่วงเวลาเดียวกัน
   const [requests, groups, lecturers] = await prisma.$transaction([
+    // นักศึกษาจะปรากฏในหน้าจัดกลุ่มเมื่อคำร้องยืนยันสถานประกอบการแล้วเท่านั้น
     prisma.placementRequest.findMany({
       where: { status: 'CONFIRMED', enrollment: { cycleId }, companySiteId: { not: null } },
       select: {
@@ -32,6 +35,7 @@ export default defineEventHandler(async (event) => {
       orderBy: [{ companySiteId: 'asc' }, { id: 'asc' }],
       take: 5000,
     }),
+    // กลุ่มที่บันทึกแล้ว พร้อมบริษัทและอาจารย์ในกลุ่ม
     prisma.supervisionGroup.findMany({
       where: { cycleId },
       include: {
@@ -41,6 +45,7 @@ export default defineEventHandler(async (event) => {
       orderBy: [{ round: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
       take: 1000,
     }),
+    // รายชื่ออาจารย์ที่ยังใช้งานอยู่สำหรับแสดงในตัวเลือก
     prisma.user.findMany({
       where: { role: 'LECTURER', status: 'ACTIVE', recordStatus: 'ACTIVE' },
       select: { id: true, namePrefix: true, firstName: true, lastName: true, gender: true },
@@ -48,6 +53,7 @@ export default defineEventHandler(async (event) => {
       take: 1000,
     }),
   ])
+  // แปลงข้อมูล Prisma เป็น DTO สำหรับส่งให้หน้าเว็บ โดยไม่ส่งข้อมูลที่ไม่จำเป็น
   return {
     companies: toSupervisionCompanies(requests),
     groups: groups.map(toSupervisionGroupDto),

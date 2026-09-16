@@ -40,12 +40,14 @@ export default defineEventHandler(async (event) => {
       if (conflicts) {
         throw createError({ statusCode: 409, statusMessage: 'LECTURER_NOT_AVAILABLE' })
       }
+      // แทนที่รายชื่อเดิมทั้งหมดด้วยรายชื่อที่เจ้าหน้าที่เลือกใน Popup
       await transaction.supervisionGroupLecturer.deleteMany({ where: { groupId: current.id } })
       await transaction.supervisionGroupLecturer.createMany({
         data: lecturerIds.map(lecturerId => ({
           groupId: current.id, cycleId: current.cycleId, round: current.round, lecturerId,
         })),
       })
+      // แจ้งเตือนอาจารย์ทุกคนทันทีเมื่อถูกมอบหมายเข้ากลุ่ม
       await transaction.notification.create({
         data: {
           type: 'SUPERVISION_GROUP_ASSIGNED',

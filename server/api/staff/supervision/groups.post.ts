@@ -16,6 +16,7 @@ export default defineEventHandler(async (event) => {
   const prismaRound = roundToPrisma(round)
   const prisma = usePrisma()
   try {
+    // ตรวจและสร้างทุกกลุ่มใน transaction เดียว หากกลุ่มใดผิดพลาดจะไม่บันทึกเพียงบางส่วน
     const created = await prisma.$transaction(async (transaction) => {
       const [eligible, assigned, duplicateNames] = await Promise.all([
         transaction.placementRequest.findMany({
@@ -37,6 +38,7 @@ export default defineEventHandler(async (event) => {
       }
       const records = []
       for (const group of groups) {
+        // supervisionGroup คือหัวกลุ่ม ส่วน companies.create สร้างตารางเชื่อมบริษัทเข้ากลุ่ม
         records.push(await transaction.supervisionGroup.create({
           data: {
             code: `SG-${randomUUID()}`,

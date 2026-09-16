@@ -4,13 +4,19 @@ import { reloadBrowser, requestAwareFetch } from '~/utils/requestAwareFetch'
 import type { SupervisionCompany } from '~/composables/useSupervisionGroups'
 
 const route = useRoute()
+// รอบสหกิจและครั้งที่นิเทศมาจากตัวกรองส่วนกลางของระบบ
 const { cycleId, round } = useSupervisionContext()
+// ข้อมูลกลุ่ม บริษัท นักศึกษา และอาจารย์ ถูกโหลด/บันทึกผ่าน composable นี้
 const { groups, getAssignedLecturerIds, getCompanies, supervisionLecturers, loadPersistedGroups, persistSuggestedGroups, persistLecturers } = useSupervisionGroups()
+// ตารางวันที่และช่วงเวลานิเทศที่บันทึกแล้ว
 const { appointments, loadPersistedAppointments } = useSupervisionAppointments()
+// ใช้บันทึกประมาณการค่าใช้จ่ายของแต่ละกลุ่ม
 const { saveExpense } = useSupervisionExpenses()
 const { showToast } = useToast()
 const backendState = ref<'loading' | 'ready' | 'error'>('loading')
 const backendError = ref('')
+
+// State ของแบบฟอร์มบนหน้าจอและ Popup แก้ไขกลุ่ม
 const groupCount = ref('4')
 const appliedGroupCount = ref(4)
 const editingGroupIndex = ref<number | null>(null)
@@ -31,11 +37,15 @@ const expandedCompanyStudents = reactive<Record<string, boolean>>({})
 const removedCompanies = ref<Record<string, boolean>>({})
 const editSnapshot = ref<{ removed: Record<string, boolean>, lecturers: Record<number, string[]>, schedules: Record<number, { date: string, time: string }>, companySchedules: Record<string, { date: string, time: string }> } | null>(null)
 const requestedGroups = computed(() => appliedGroupCount.value)
+// query ?variant=cards ใช้เปลี่ยนเฉพาะรูปแบบการแสดงผล ไม่กระทบข้อมูล
 const variant = computed(() => route.query.variant === 'cards' ? 'cards' : 'table')
 
+// ข้อมูลสำหรับแสดงผลที่แปลงมาจากผลตอบกลับของ Backend
 const companies = reactive<Array<{ id: string, name: string, area: string, address: string, students: number }>>([])
 const lecturerOptions = reactive<Array<{ value: string, label: string }>>([])
 const mapCompany = (company: SupervisionCompany) => ({ id: company.id, name: company.name, area: `${company.province} · ${company.region}`, address: company.address, students: company.studentCount })
+
+// โหลดข้อมูลจริงใหม่เมื่อเปิดหน้า หรือเมื่อเปลี่ยนรอบสหกิจ/ครั้งที่นิเทศ
 const load = async () => {
   const currentCycleId = cycleId.value
   const currentRound = round.value
@@ -49,7 +59,9 @@ const load = async () => {
   backendState.value = 'loading'
   backendError.value = ''
   try {
+    // GET /api/staff/supervision/groups: กลุ่ม บริษัท นักศึกษา และอาจารย์
     await loadPersistedGroups(currentCycleId, currentRound)
+    // GET /api/supervision/appointments: วันที่และช่วงเวลาที่เคยบันทึก
     await loadPersistedAppointments(currentCycleId, currentRound)
     if (cycleId.value !== currentCycleId || round.value !== currentRound) return
     const actualCompanies = getCompanies(currentCycleId)
@@ -74,6 +86,9 @@ watch([cycleId, round], () => { void load() })
 const lecturerName = (id: string) => lecturerOptions.find(option => option.value === id)?.label ?? ''
 const lecturerNames = (ids: string[]) => ids.map(id => lecturerName(id)).filter(Boolean).join(', ')
 const provinceOf = (area: string) => area.split(' · ')[0] ?? area
+
+// กระจายจังหวัดไปยังกลุ่มที่มีจำนวนนักศึกษาน้อยที่สุด เพื่อให้จำนวนใกล้เคียงกัน
+// ส่วนนี้ใช้เป็นผลชั่วคราวก่อนมีผลจัดกลุ่มที่บันทึกจาก Backend
 const provinceGroupMap = computed(() => {
   const totals = new Map<string, number>()
   companies.forEach(company => totals.set(provinceOf(company.area), (totals.get(provinceOf(company.area)) ?? 0) + company.students))
@@ -86,6 +101,7 @@ const provinceGroupMap = computed(() => {
   })
   return assignments
 })
+// วันที่ชุดนี้เป็น fallback สำหรับการแสดงผลเท่านั้น วันที่จริงบันทึกเป็น appointment รายบริษัท
 const scheduleSlots = [
   { date: '15 มี.ค. 2569', time: '10:00–12:00' },
   { date: '16 มี.ค. 2569', time: '13:00–15:00' },
@@ -93,6 +109,8 @@ const scheduleSlots = [
   { date: '18 มี.ค. 2569', time: '13:00–15:00' },
 ]
 const timeOptions = [{ value: '10:00–12:00', label: '10:00–12:00' }, { value: '13:00–15:00', label: '13:00–15:00' }]
+
+// ตัวเลขด้านล่างคำนวณทันทีบนหน้าจอ ส่วนการบันทึกจริงจะตรวจและคำนวณซ้ำที่ Backend
 const travelCost = computed(() => Math.max(0, Number(draftDistance.value) || 0) * 4)
 const allowanceCost = computed(() => Math.max(0, Number(draftLecturerCount.value) || 0) * 240)
 const lodgingCost = computed(() => Math.max(0, Number(draftRooms.value) || 0) * Math.max(0, Number(draftNights.value) || 0) * 800)
@@ -110,6 +128,8 @@ const localSuggestedGroups = computed(() => Array.from({ length: requestedGroups
     schedule: groupSchedules.value[index] ?? scheduleSlots[index % scheduleSlots.length],
   }
 }))
+
+// ให้ความสำคัญกับกลุ่มที่อ่านจาก Database หากยังไม่มีจึงแสดงกลุ่มที่คำนวณชั่วคราว
 const suggestedGroups = computed(() => {
   if (!companies.length) return []
   const persisted = groups.value.filter(group => group.cycleId === cycleId.value && group.round === round.value).map(group => {
@@ -132,6 +152,8 @@ const emptyGroupingState = computed(() => !cycleId.value
 
 const chooseVariant = (next: 'table' | 'cards') => navigateTo({ query: { variant: next === 'cards' ? 'cards' : undefined } })
 const editingGroup = computed(() => editingGroupIndex.value === null ? null : suggestedGroups.value[editingGroupIndex.value] ?? null)
+
+// ไม่แสดงอาจารย์ที่ถูกเลือกอยู่ในกลุ่มอื่นของรอบและครั้งที่นิเทศเดียวกัน
 const unavailableLecturerIds = computed(() => {
   const assigned = getAssignedLecturerIds(cycleId.value, round.value)
   const current = groups.value.find(group => group.cycleId === cycleId.value && group.round === round.value && group.name === editingGroup.value?.name)
@@ -160,6 +182,8 @@ const editDialogOpen = computed({
     }
   },
 })
+
+// เตรียมสำเนาข้อมูลเดิมก่อนเปิด Popup เพื่อให้กดยกเลิกแล้วคืนค่าได้
 const openEdit = (index: number) => {
   editingGroupIndex.value = index
   editError.value = ''
@@ -195,6 +219,8 @@ const setLecturerSelected = (lecturerId: string, selected: boolean | 'indetermin
   draftLecturerCount.value = String(next.length)
   if (editingGroupIndex.value !== null) lecturerAssignments.value = { ...lecturerAssignments.value, [editingGroupIndex.value]: next }
 }
+
+// บันทึกหนึ่งกลุ่มตามลำดับ: อาจารย์ -> งบประมาณ -> นัดนิเทศรายสถานประกอบการ
 const saveEdit = async () => {
   if (savingEdit.value) return
   savingEdit.value = true
@@ -262,6 +288,8 @@ const cancelEdit = () => {
   editSnapshot.value = null
   editingGroupIndex.value = null
 }
+
+// ขอผลจัดกลุ่มจาก Backend แล้วบันทึกกลุ่มที่ระบบเสนอไว้ใน Database
 const runGrouping = async () => {
   if (!cycleId.value || !companies.length) return
   const requested = Math.min(10, Math.max(1, Number(groupCount.value) || 1))

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// หน้าหลักเลือก dashboard ตาม role และรวบรวมข้อมูลสรุปจากแต่ละโมดูล
 import { ArrowDown, ArrowRight, ArrowUp, BriefcaseBusiness, Building2, CalendarDays, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, FileCheck2, GraduationCap, RotateCcw, Search, Users, UsersRound, X } from '@lucide/vue'
 import type { Component } from 'vue'
 import { requestStatusMeta, studentRequestStatusMeta } from '#shared/placement-requests'
@@ -54,6 +55,7 @@ interface QuickAction {
 }
 
 const quickActions = computed<QuickAction[]>(() => ({
+  // ปุ่มลัดจะแตกต่างกันตามบทบาท เพื่อพาผู้ใช้ไปยังงานที่ต้องทำบ่อยที่สุด
   staff: [],
   lecturer: [
     { label: 'ดูตารางนิเทศ', description: 'เปิดนัดหมายและงานนิเทศที่รับผิดชอบ', to: '/lecturer/supervision', icon: CalendarDays, primary: true },
@@ -368,7 +370,7 @@ onBeforeUnmount(() => {
         <p class="text-xs font-medium text-muted">รอบที่กำลังแสดง</p>
         <div class="mt-1 flex flex-wrap items-center gap-2">
           <p class="font-semibold text-ink">{{ dashboardCycle.label }}</p>
-          <UiBadge :tone="cycleStatusMeta[dashboardCycle.status].tone">
+          <UiBadge v-if="dashboardCycle.status !== 'open'" :tone="cycleStatusMeta[dashboardCycle.status].tone">
             {{ cycleStatusMeta[dashboardCycle.status].label }}
           </UiBadge>
         </div>

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+// Schema กลางของข้อมูลบุคคล ใช้ตรวจ input ทั้งฝั่ง client และ server ให้ตรงกัน
 export const personTypeSchema = z.enum(['student', 'lecturer'])
 export const personGenderSchema = z.enum(['male', 'female'])
 export const personPrefixSchema = z.enum(['นาย', 'นาง', 'นางสาว', 'อาจารย์', 'ดร.', 'ผศ.', 'ผศ.ดร.', 'รศ.', 'รศ.ดร.', 'ศ.', 'ศ.ดร.'])
@@ -7,6 +8,7 @@ export const studentPersonPrefixes = ['นาย', 'นาง', 'นางสา
 export const lecturerPersonPrefixes = ['นาย', 'นาง', 'นางสาว', 'อาจารย์', 'ดร.', 'ผศ.', 'ผศ.ดร.', 'รศ.', 'รศ.ดร.', 'ศ.', 'ศ.ดร.'] as const
 
 export const genderFromPersonPrefix = (prefix: z.infer<typeof personPrefixSchema>): z.infer<typeof personGenderSchema> | undefined => {
+  // ใช้คำนำหน้าช่วยกำหนดเพศเริ่มต้น หากเป็นคำนำหน้าที่ระบุเพศไม่ได้จะคืน undefined
   if (prefix === 'นาย') return 'male'
   if (prefix === 'นาง' || prefix === 'นางสาว') return 'female'
   return undefined

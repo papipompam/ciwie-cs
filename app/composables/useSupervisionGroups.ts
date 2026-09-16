@@ -92,6 +92,7 @@ export interface SupervisionGroupInput {
 }
 
 export const useSupervisionGroups = () => {
+  // useState ทำให้หลายหน้าหรือหลาย component ใช้ข้อมูลชุดเดียวกันระหว่างที่แอปทำงาน
   const placements = useState<SupervisionPlacement[]>('supervision-placements-v5', () => [])
   const groups = useState<SupervisionGroup[]>('supervision-groups-v4', () => [])
   const companyRecords = useState<CompanyRecord[]>('company-records-v2', () => [])
@@ -103,6 +104,7 @@ export const useSupervisionGroups = () => {
     if (currentAccount.value?.role !== 'staff') throw new Error('เฉพาะเจ้าหน้าที่เท่านั้นที่จัดกลุ่มนิเทศได้')
   }
 
+  // แปลงผลตอบกลับจาก API ให้เป็น state ที่ component นำไปแสดงผลได้ทันที
   const syncPersistedContext = (cycleId: string, data: { companies: SupervisionCompanyDto[], groups: SupervisionGroupDto[], lecturers: SupervisionLecturerDto[] }) => {
     groups.value = [
       ...groups.value.filter(group => group.cycleId !== cycleId),
@@ -148,6 +150,7 @@ export const useSupervisionGroups = () => {
 
   const loadPersistedGroups = async (cycleId: string, round: SupervisionRound) => {
     requireStaff()
+    // API นี้อ่าน placement_requests, supervision_groups และ users จาก Database
     const data = await requestAwareFetch('/api/staff/supervision/groups', {
       query: { cycleId, round },
     }) as { companies: SupervisionCompanyDto[], groups: SupervisionGroupDto[], lecturers: SupervisionLecturerDto[] }
@@ -157,6 +160,7 @@ export const useSupervisionGroups = () => {
 
   const persistSuggestedGroups = async (cycleId: string, round: SupervisionRound, proposed: Array<{ name: string, companyIds: string[] }>, reload = true) => {
     requireStaff()
+    // บันทึกกลุ่มและความสัมพันธ์ของสถานประกอบการลง Database
     const saved = await requestAwareFetch('/api/staff/supervision/groups', {
       method: 'POST',
       body: { cycleId, round, groups: proposed },
@@ -168,6 +172,7 @@ export const useSupervisionGroups = () => {
 
   const persistLecturers = async (groupId: string, lecturerIds: string[], reload = true) => {
     requireStaff()
+    // บันทึกรายชื่ออาจารย์ประจำกลุ่ม และให้ Backend ตรวจการมอบหมายซ้ำ
     const saved = await requestAwareFetch(`/api/staff/supervision/groups/${groupId}/lecturers`, {
       method: 'PATCH',
       body: { lecturerIds },

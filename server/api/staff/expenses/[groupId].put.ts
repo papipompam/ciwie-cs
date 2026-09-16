@@ -11,6 +11,7 @@ export default defineEventHandler(async (event) => {
   const parsed = supervisionLineExpenseInputSchema.safeParse(await readBody(event))
   if (!parsed.success) throw createError({ statusCode: 400, statusMessage: 'EXPENSE_INPUT_INVALID', data: parsed.error.flatten().fieldErrors })
   const prisma = usePrisma()
+  // อ่านอาจารย์จากกลุ่มจริง แล้วคำนวณและบันทึกงบประมาณภายใน transaction เดียว
   const expense = await prisma.$transaction(async (transaction) => {
     const group = await transaction.supervisionGroup.findFirst({
       where: { id: groupId },
@@ -55,6 +56,7 @@ export default defineEventHandler(async (event) => {
       totalAmount: calculation.total,
       lecturerSnapshot: lecturers,
     }
+    // upsert ทำให้กลุ่มหนึ่งมีงบประมาณหนึ่งรายการ: ยังไม่มีให้สร้าง มีแล้วให้อัปเดต
     const saved = await transaction.supervisionExpense.upsert({
       where: { groupId: group.id },
       create: {

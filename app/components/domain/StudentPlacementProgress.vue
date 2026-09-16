@@ -64,7 +64,7 @@ const formatRange = (start: string, end: string) => {
         <dd class="mt-1 text-ink">{{ semesterLabel }} · {{ cycle.cohort }}</dd>
       </div>
       <div>
-        <dt class="text-xs text-muted">ช่วงเปิดยื่นสถานประกอบการ</dt>
+        <dt class="text-xs text-muted">ช่วงส่งข้อมูลสถานประกอบการ</dt>
         <dd class="mt-1 text-ink">{{ formatRange(cycle.requestStart, cycle.requestEnd) }}</dd>
       </div>
       <div>
