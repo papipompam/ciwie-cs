@@ -74,13 +74,15 @@ const evaluationProgress = (appointment: SupervisionAppointment) => {
     && appointment.studentIds.includes(evaluation.studentId)
     && evaluation.status === 'submitted').length
   if (evaluationType.value === 'student') return { submitted: studentSubmitted, required: appointment.studentIds.length }
-  const companySubmitted = companyEvaluations.value.some(evaluation => evaluation.appointmentId === appointment.id && evaluation.status === 'submitted') ? 1 : 0
+  const companySubmitted = companyEvaluations.value.some(evaluation => evaluation.appointmentId === appointment.id
+    && evaluation.evaluatorId === currentLecturerId.value
+    && evaluation.status === 'submitted') ? 1 : 0
   return { submitted: companySubmitted, required: 1 }
 }
 const evaluationState = (appointment: SupervisionAppointment) => {
   if (appointment.status !== 'completed') return 'not-ready'
   const progress = evaluationProgress(appointment)
-  if (progress.submitted === progress.required) return 'completed'
+  if (progress.required && progress.submitted === progress.required) return 'completed'
   if (progress.submitted) return 'in-progress'
   return 'pending'
 }
@@ -166,6 +168,11 @@ watch(pageCount, (count) => { if (currentPage.value > count) currentPage.value =
 const clearFilters = () => { searchQuery.value = ''; statusFilter.value = 'all' }
 const resetTable = () => { clearFilters(); pageSize.value = '10'; currentPage.value = 1 }
 const loadAppointments = async () => {
+  if (!cycleId.value) {
+    appointmentsLoading.value = false
+    appointmentsLoadError.value = false
+    return
+  }
   appointmentsLoading.value = true
   appointmentsLoadError.value = false
   try { await loadPersistedAppointments(cycleId.value, round.value) }

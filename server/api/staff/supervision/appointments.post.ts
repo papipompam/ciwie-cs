@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
   if (studentIds.length !== input.studentIds.length || lecturerIds.length !== input.lecturerIds.length) {
     throw createError({ statusCode: 400, statusMessage: 'SUPERVISION_PARTICIPANTS_DUPLICATED' })
   }
-  const round = input.round === 1 ? 'ROUND_1' as const : 'ROUND_2' as const
+  const round = input.round
   const prisma = usePrisma()
   // ตรวจว่าบริษัทอยู่ในกลุ่มจริง อาจารย์ใช้งานได้ และนักศึกษาฝึกที่บริษัทนี้จริง
   const [groupCompany, lecturers, requests] = await Promise.all([

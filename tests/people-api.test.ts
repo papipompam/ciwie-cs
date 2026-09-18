@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 let body: Record<string, unknown> = {}
 let query = { type: 'student' }
 let sessionUser = { id: 'staff-001', role: 'staff' }
+let runtimeConfig = { initialAccountPassword: 'Cwie@2569' }
 const person = {
   id: 'student-internal-1', username: '66123456701', role: 'STUDENT', status: 'ACTIVE', recordStatus: 'ACTIVE',
   namePrefix: 'นาย', firstName: 'ธนกฤต', lastName: 'พูนทรัพย์', gender: null, section: '1',
@@ -17,7 +18,7 @@ vi.stubGlobal('getQuery', () => query)
 vi.stubGlobal('readBody', async () => body)
 vi.stubGlobal('getRouterParam', () => '66123456701')
 vi.stubGlobal('setResponseStatus', vi.fn())
-vi.stubGlobal('useRuntimeConfig', () => ({ initialAccountPassword: 'Cwie@2569' }))
+vi.stubGlobal('useRuntimeConfig', () => runtimeConfig)
 vi.stubGlobal('createError', (details: { statusCode: number, statusMessage: string }) => Object.assign(new Error(details.statusMessage), details))
 
 const findMany = vi.fn(async () => [person])
@@ -61,6 +62,7 @@ beforeEach(() => {
   body = {}
   query = { type: 'student' }
   sessionUser = { id: 'staff-001', role: 'staff' }
+  runtimeConfig = { initialAccountPassword: 'Cwie@2569' }
   vi.clearAllMocks()
 })
 
@@ -131,6 +133,15 @@ describe('people APIs', () => {
     body = { type: 'lecturer', id: 'new-lecturer', prefix: 'นางสาว', firstName: 'ทดสอบ', lastName: 'ระบบ' }
     await createPerson({} as Parameters<typeof createPerson>[0])
     expect(createUser).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ role: 'LECTURER', gender: 'FEMALE' }) }))
+  })
+
+  it('creates a lecturer with a one-time password when the production default is missing', async () => {
+    runtimeConfig = { initialAccountPassword: '' }
+    body = { type: 'lecturer', id: 'new-lecturer', prefix: 'อาจารย์', firstName: 'ทดสอบ', lastName: 'ระบบ', gender: 'male' }
+    const result = await createPerson({} as Parameters<typeof createPerson>[0])
+    expect(result).toMatchObject({ temporaryPassword: expect.any(String) })
+    expect(result.temporaryPassword).toHaveLength(16)
+    expect(createUser).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ role: 'LECTURER', status: 'FIRST_LOGIN' }) }))
   })
 
   it('transfers an existing active enrollment before moving a student to another cycle', async () => {

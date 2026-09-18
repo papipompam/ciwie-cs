@@ -10,7 +10,7 @@ let body = {
 }
 
 const group = {
-  id: 'GROUP-1', name: 'สายบุรีรัมย์ 1', cycleId: 'CYCLE-1', round: 'ROUND_1',
+  id: 'GROUP-1', name: 'สายบุรีรัมย์ 1', cycleId: 'CYCLE-1', round: 3,
   lecturers: [
     { lecturer: { id: 'LECTURER-M', namePrefix: 'อาจารย์', firstName: 'ชาย', lastName: 'ทดสอบ', gender: 'MALE' } },
     { lecturer: { id: 'LECTURER-F', namePrefix: 'อาจารย์', firstName: 'หญิง', lastName: 'ทดสอบ', gender: 'FEMALE' } },
@@ -36,7 +36,7 @@ vi.mock('../server/utils/session', () => ({
 vi.stubGlobal('defineEventHandler', (handler: unknown) => handler)
 vi.stubGlobal('getRouterParam', () => 'GROUP-1')
 vi.stubGlobal('readBody', async () => body)
-vi.stubGlobal('getQuery', () => ({ cycleId: 'CYCLE-1', round: '1' }))
+vi.stubGlobal('getQuery', () => ({ cycleId: 'CYCLE-1', round: '3' }))
 vi.stubGlobal('createError', (details: { statusCode: number, statusMessage: string }) => Object.assign(new Error(details.statusMessage), details))
 vi.stubGlobal('usePrisma', () => ({
   supervisionGroup: { findFirst: findGroup, findMany: vi.fn(async () => [group]) },
@@ -91,7 +91,7 @@ describe('staff supervision expense API', () => {
     const result = await listExpenses({} as Parameters<typeof listExpenses>[0])
     expect(result).toEqual({
       groups: [{
-        id: 'GROUP-1', name: 'สายบุรีรัมย์ 1', cycleId: 'CYCLE-1', round: 1, companyCount: 2,
+        id: 'GROUP-1', name: 'สายบุรีรัมย์ 1', cycleId: 'CYCLE-1', round: 3, companyCount: 2,
         lecturers: [
           { id: 'LECTURER-M', name: 'อาจารย์ชาย ทดสอบ', gender: 'male' },
           { id: 'LECTURER-F', name: 'อาจารย์หญิง ทดสอบ', gender: 'female' },
@@ -100,7 +100,7 @@ describe('staff supervision expense API', () => {
       records: [],
     })
     expect(findExpenses).toHaveBeenCalledWith(expect.objectContaining({
-      where: { group: { cycleId: 'CYCLE-1', round: 'ROUND_1' } },
+      where: { group: { cycleId: 'CYCLE-1', round: 3 } },
     }))
   })
 })

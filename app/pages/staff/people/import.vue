@@ -12,9 +12,10 @@ const { scenario } = useScenario()
 const { showToast } = useToast()
 const { people, loadPersistedPeople, persistImportPeople } = usePeopleDirectory()
 const { parseFile, downloadTemplate, downloadInvalidRows, downloadTemporaryCredentials } = usePeopleImport()
+const { cycles } = useCoopCycles()
 
 const selectedType = ref<PersonType>(route.query.type === 'lecturer' ? 'lecturer' : 'student')
-const selectedCohortYear = ref('2569')
+const selectedCycleId = ref('')
 const selectedFile = ref<File | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 const stage = ref<'upload' | 'preview' | 'complete'>('upload')
@@ -38,10 +39,8 @@ const typeOptions = [
   { value: 'student', label: 'ข้อมูลนักศึกษา' },
   { value: 'lecturer', label: 'ข้อมูลอาจารย์' },
 ]
-const academicYearOptions = Array.from({ length: 7 }, (_, index) => {
-  const year = 2565 + index
-  return { value: String(year), label: `ปีการศึกษา ${year}` }
-})
+const cycleOptions = computed(() => cycles.map(cycle => ({ value: cycle.id, label: `${cycle.label} · ${cycle.cohort}` })))
+const selectedCycle = computed(() => cycles.find(cycle => cycle.id === selectedCycleId.value))
 const statusOptions = [
   { value: 'all', label: 'ทุกผลการตรวจ' },
   { value: 'new', label: 'พร้อมเพิ่มใหม่' },
@@ -77,6 +76,9 @@ const currentStep = computed(() => stage.value === 'upload' ? 1 : stage.value ==
 
 watch([search, statusFilter, pageSize], () => { currentPage.value = 1 })
 watch(pageCount, count => { if (currentPage.value > count) currentPage.value = count })
+watch(() => cycles.length, () => {
+  if (!selectedCycle.value) selectedCycleId.value = cycles.find(cycle => cycle.status === 'open')?.id ?? cycles[0]?.id ?? ''
+}, { immediate: true })
 watch(selectedType, async (type) => {
   resetImport()
   await loadPersistedPeople(type)
@@ -178,6 +180,10 @@ const handleDownloadCredentials = async () => {
 
 const handleImport = async () => {
   if (!importableRows.value.length || isImporting.value) return
+  if (selectedType.value === 'student' && !selectedCycle.value) {
+    parseError.value = 'กรุณาสร้างและเลือกรอบสหกิจศึกษาก่อนนำเข้านักศึกษา'
+    return
+  }
   isImporting.value = true
   try {
     const imported = await persistImportPeople(selectedType.value, importableRows.value.map(row => ({
@@ -187,8 +193,7 @@ const handleImport = async () => {
       lastName: row.lastName,
       ...(row.phone ? { phone: row.phone } : {}),
       ...(row.email ? { email: row.email } : {}),
-      ...(selectedType.value === 'student' ? { cohortYear: Number(selectedCohortYear.value) } : {}),
-      ...(row.cycle ? { cycle: row.cycle } : {}),
+      ...(selectedType.value === 'student' && selectedCycle.value ? { cohortYear: selectedCycle.value.targetCohortYear, cycle: selectedCycle.value.label } : {}),
       ...(row.section ? { section: row.section } : {}),
     })))
     result.value = { created: imported.created, updated: imported.updated, invalid: summary.value.invalid }
@@ -237,7 +242,7 @@ const handleImport = async () => {
       <div class="grid gap-6 lg:grid-cols-[18rem_1fr]">
         <div>
           <UiSelect v-model="selectedType" :options="typeOptions" :placeholder="typeOptions.find(item => item.value === selectedType)?.label" label="ประเภทข้อมูล" />
-          <UiSelect v-if="selectedType === 'student'" v-model="selectedCohortYear" class="mt-4" :options="academicYearOptions" label="ปีการศึกษา" />
+          <UiSelect v-if="selectedType === 'student'" v-model="selectedCycleId" class="mt-4" :options="cycleOptions" label="รอบสหกิจศึกษา" placeholder="เลือกรอบสหกิจศึกษา" />
           <p class="mt-3 text-xs leading-5 text-muted">ระบบจะจับคู่ข้อมูลจากชื่อหัวคอลัมน์ ไม่ยึดตำแหน่งคอลัมน์ ไฟล์นักศึกษารองรับ {{ context.idLabel }}, คำนำหน้า, ชื่อ-นามสกุล, ตำแหน่งงาน และชื่อสถานประกอบการ โดยยังรองรับไฟล์รูปแบบเดิมที่แยกชื่อกับนามสกุล</p>
         </div>
         <div>
@@ -257,8 +262,8 @@ const handleImport = async () => {
         <UiCard><p class="text-sm text-muted">ไม่ถูกต้อง</p><p class="mt-2 text-3xl font-bold text-danger">{{ summary.invalid }}</p></UiCard>
       </div>
 
-      <UiAlert v-if="selectedType === 'student'" class="mb-5" tone="info" title="ปีการศึกษาที่เลือก">
-        นักศึกษาชุดนี้จะถูกบันทึกในปีการศึกษา {{ selectedCohortYear }}
+      <UiAlert v-if="selectedType === 'student'" class="mb-5" tone="info" title="รอบสหกิจศึกษาที่เลือก">
+        นักศึกษาชุดนี้จะถูกบันทึกใน {{ selectedCycle?.label }}
       </UiAlert>
 
       <UiAlert v-if="summary.update" class="mb-5" tone="info" title="พบรหัสเดิมในระบบ">
@@ -301,8 +306,8 @@ const handleImport = async () => {
 
     <UiCard v-else>
       <UiAlert tone="success" title="นำเข้าข้อมูลสำเร็จ">ระบบดำเนินการเฉพาะรายการที่ผ่านการตรวจ และคงรายการไม่ถูกต้องไว้นอกระบบ</UiAlert>
-      <UiAlert v-if="selectedType === 'student'" class="mt-4" tone="info" title="ปีการศึกษาที่นำเข้า">
-        บันทึกข้อมูลนักศึกษาในปีการศึกษา {{ selectedCohortYear }}
+      <UiAlert v-if="selectedType === 'student'" class="mt-4" tone="info" title="รอบสหกิจศึกษาที่นำเข้า">
+        บันทึกข้อมูลนักศึกษาใน {{ selectedCycle?.label }}
       </UiAlert>
       <UiAlert v-if="duplicateIds.length" class="mt-4" tone="info" title="พบรหัสที่มีบัญชีอยู่แล้ว">
         ข้ามการสร้างบัญชีซ้ำ {{ duplicateIds.length }} รายการ และคงรหัสผ่านเดิมไว้: {{ duplicateIds.join(', ') }}
@@ -314,7 +319,7 @@ const handleImport = async () => {
       <div class="mt-6 flex flex-wrap gap-2"><UiButton @click="navigateTo(`/staff/${context.route}`)">ดูข้อมูล{{ context.plural }}</UiButton><UiButton v-if="credentials.length" variant="secondary" :icon="FileSpreadsheet" @click="handleDownloadCredentials">ดาวน์โหลดรหัสผ่านชั่วคราว (Excel)</UiButton><UiButton variant="secondary" @click="resetImport">นำเข้าไฟล์อื่น</UiButton><UiButton v-if="result.invalid" variant="secondary" :icon="Download" @click="handleDownloadErrors">ดาวน์โหลดรายการไม่สำเร็จ</UiButton></div>
     </UiCard>
 
-    <UiDialog v-model:open="confirmOpen" title="ยืนยันการนำเข้าข้อมูล" :description="`ระบบจะดำเนินการ ${importableRows.length} รายการ${selectedType === 'student' ? ` ในปีการศึกษา ${selectedCohortYear}` : ''} และไม่นำเข้ารายการที่ไม่ถูกต้อง ${summary.invalid} รายการ`" :close-on-confirm="false">
+    <UiDialog v-model:open="confirmOpen" title="ยืนยันการนำเข้าข้อมูล" :description="`ระบบจะดำเนินการ ${importableRows.length} รายการ${selectedType === 'student' ? ` ใน${selectedCycle?.label ?? 'รอบสหกิจศึกษาที่เลือก'}` : ''} และไม่นำเข้ารายการที่ไม่ถูกต้อง ${summary.invalid} รายการ`" :close-on-confirm="false">
       <UiAlert v-if="summary.update" tone="info" title="มีข้อมูลเดิมที่ต้องอัปเดต">{{ summary.update }} รายการจะอัปเดตข้อมูลบุคคล โดยคงบัญชีและรหัสผ่านเดิม</UiAlert>
       <template #cancel><UiButton variant="ghost">กลับไปตรวจสอบ</UiButton></template>
       <template #confirm><UiButton :loading="isImporting" :disabled="!importableRows.length" @click="handleImport">ยืนยันนำเข้า</UiButton></template>

@@ -130,11 +130,14 @@ const clearFilters = () => {
     studentSemester.value = selectableCoopSemester
   }
 }
-const resetTable = () => {
+const resetTable = async () => {
   clearFilters()
   sortDirection.value = 'asc'
   pageSize.value = '10'
   currentPage.value = 1
+  scenario.value.forceError = false
+  scenario.value.viewState = 'data'
+  await refreshPeople()
 }
 const retry = () => {
   scenario.value.forceError = false
@@ -161,6 +164,7 @@ const handlePeopleUpdated = async () => { await refreshPeople() }
 
 <template>
   <div>
+    <StaffMasterDataTabs />
     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div>
         <h2 class="text-2xl font-bold tracking-tight text-ink sm:text-3xl">{{ context.title }}</h2>

@@ -37,6 +37,7 @@ const prisma = {
   user: { findMany: vi.fn(async () => [{ id: staff.id }]) },
   cycleEnrollment: { findFirst: vi.fn(async () => ({ id: 'ENROLLMENT-001' })) },
   placementRequest: {
+    findFirst: vi.fn(async () => ({ requestNo: 'RE00007' })),
     create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: 'REQUEST-001', ...data })),
   },
   placementRequestStatusHistory: { create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => data) },
@@ -145,7 +146,7 @@ describe('student application API', () => {
     request.body = { status: 'completed' }
     await expect(updateApplication(event)).resolves.toMatchObject({ status: 'completed' })
     expect(prisma.placementRequest.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ enrollmentId: 'ENROLLMENT-001', status: 'SUBMITTED' }),
+      data: expect.objectContaining({ requestNo: 'RE00008', enrollmentId: 'ENROLLMENT-001', status: 'SUBMITTED' }),
     }))
     expect(prisma.notification.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({

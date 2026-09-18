@@ -1,6 +1,5 @@
-import type { SupervisionAppointmentStatus, SupervisionPeriod, SupervisionRound } from '@prisma/client'
+import type { SupervisionAppointmentStatus, SupervisionPeriod } from '@prisma/client'
 
-const roundFromPrisma: Record<SupervisionRound, 1 | 2> = { ROUND_1: 1, ROUND_2: 2 }
 const periodFromPrisma: Record<SupervisionPeriod, 'morning' | 'afternoon'> = { MORNING: 'morning', AFTERNOON: 'afternoon' }
 const statusFromPrisma: Record<SupervisionAppointmentStatus, 'draft' | 'published' | 'postponed' | 'completed' | 'cancelled'> = {
   DRAFT: 'draft',
@@ -24,7 +23,7 @@ interface PersistedAppointment {
   companyRequirements: string | null
   createdAt: Date
   groupCompany: {
-    groupId: string, cycleId: string, round: SupervisionRound, companySiteId: string
+    groupId: string, cycleId: string, round: number, companySiteId: string
     group?: { name: string }
     companySite?: { branchName: string, address: string, province: { nameTh: string }, company: { legalName: string } }
   }
@@ -36,7 +35,7 @@ export const toSupervisionAppointmentDto = (appointment: PersistedAppointment) =
   id: appointment.id,
   appointmentNo: appointment.appointmentNo,
   cycleId: appointment.groupCompany.cycleId,
-  round: roundFromPrisma[appointment.groupCompany.round],
+  round: appointment.groupCompany.round,
   groupId: appointment.groupCompany.groupId,
   companyId: appointment.groupCompany.companySiteId,
   studentIds: appointment.students.map(student => student.placementRequest.enrollment.student.username),

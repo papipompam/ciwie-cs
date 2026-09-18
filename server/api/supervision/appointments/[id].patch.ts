@@ -101,7 +101,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 409, statusMessage: 'SUPERVISION_APPOINTMENT_NOT_COMPLETABLE' })
   }
   const actualLecturerIds = [...new Set(parsed.data.actualLecturerIds)]
-  if (actualLecturerIds.length !== parsed.data.actualLecturerIds.length || actualLecturerIds.some(id => !plannedLecturerIds.has(id))) {
+  if (actualLecturerIds.length !== parsed.data.actualLecturerIds.length || actualLecturerIds.some(id => !assignedLecturerIds.has(id))) {
     throw createError({ statusCode: 400, statusMessage: 'ACTUAL_LECTURERS_INVALID' })
   }
   const completedAt = new Date()
@@ -109,6 +109,15 @@ export default defineEventHandler(async (event) => {
     await transaction.supervisionAppointmentLecturer.updateMany({
       where: { appointmentId: appointment.id },
       data: { isActual: false },
+    })
+    await transaction.supervisionAppointmentLecturer.createMany({
+      data: actualLecturerIds.map(lecturerId => ({
+        appointmentId: appointment.id,
+        lecturerId,
+        source: 'GROUP' as const,
+        role: 'PARTICIPANT' as const,
+      })),
+      skipDuplicates: true,
     })
     await transaction.supervisionAppointmentLecturer.updateMany({
       where: { appointmentId: appointment.id, lecturerId: { in: actualLecturerIds } },

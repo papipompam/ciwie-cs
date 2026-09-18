@@ -6,8 +6,8 @@ const {
   cycleId,
   roundModel,
   cycleOptions,
-  roundOptions,
   selectedCycleLabel,
+  selectedRoundLabel,
 } = useSupervisionContext()
 const {
   studentCohort,
@@ -57,7 +57,7 @@ watchEffect(() => {
         <div class="min-w-0">
           <p class="text-xs font-medium text-muted">{{ contextLabel }}</p>
           <p class="truncate text-sm font-semibold text-ink">
-            <template v-if="showsStudentCohort">{{ selectedStudentCohortLabel }} · {{ selectedStudentSectionLabel }} · {{ selectedStudentSemesterLabel }}</template><template v-else>{{ selectedCycleLabel }}<template v-if="showsSupervisionRound"> · {{ roundOptions.find(option => option.value === roundModel)?.label }}</template></template>
+            <template v-if="showsStudentCohort">{{ selectedStudentCohortLabel }} · {{ selectedStudentSectionLabel }} · {{ selectedStudentSemesterLabel }}</template><template v-else>{{ selectedCycleLabel }}<template v-if="showsSupervisionRound"> · {{ selectedRoundLabel }}</template></template>
           </p>
         </div>
       </div>
@@ -104,11 +104,13 @@ watchEffect(() => {
           label="รอบสหกิจศึกษา"
           :label-visible="false"
         />
-        <UiSelect
+        <UiInput
           v-if="showsSupervisionRound"
           v-model="roundModel"
-          :options="roundOptions"
-          :placeholder="roundOptions.find(option => option.value === roundModel)?.label"
+          type="number"
+          :min="1"
+          :max="99"
+          :step="1"
           label="ครั้งที่นิเทศ"
           :label-visible="false"
         />

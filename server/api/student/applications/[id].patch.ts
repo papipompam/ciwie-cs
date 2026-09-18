@@ -64,9 +64,16 @@ export default defineEventHandler(async (event) => {
         if (selected.count !== 1) throw createError({ statusCode: 409, statusMessage: 'APPLICATION_STATUS_CHANGED' })
 
         const now = new Date()
+        const latestRequest = await transaction.placementRequest.findFirst({
+          where: { requestNo: { startsWith: 'RE' } },
+          orderBy: { requestNo: 'desc' },
+          select: { requestNo: true },
+        })
+        const nextRequestNumber = Number(latestRequest?.requestNo.slice(2) ?? 0) + 1
+        if (nextRequestNumber > 99999) throw createError({ statusCode: 409, statusMessage: 'REQUEST_NUMBER_LIMIT_REACHED' })
         const request = await transaction.placementRequest.create({
           data: {
-            requestNo: `REQ-${application.id}`,
+            requestNo: `RE${String(nextRequestNumber).padStart(5, '0')}`,
             studentApplicationId: application.id,
             enrollmentId: application.enrollmentId,
             companySiteId: application.companySiteId,

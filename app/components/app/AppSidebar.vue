@@ -6,6 +6,7 @@ import {
   Building2,
   Calculator,
   CalendarDays,
+  CalendarRange,
   ClipboardCheck,
   FileCheck2,
   GraduationCap,
@@ -45,10 +46,14 @@ const navigationGroups = computed<NavigationGroup[]>(() => [
         {
           label: "ข้อมูลและคำร้อง",
           items: [
-            { label: "ข้อมูลนักศึกษา", to: "/staff/students", icon: GraduationCap, exact: false },
-            { label: "ข้อมูลอาจารย์", to: "/staff/lecturers", icon: Presentation, exact: false },
-            { label: "ข้อมูลสถานประกอบการ", to: "/staff/companies", icon: Building2, exact: false },
-            { label: "ข้อมูลการสมัครสหกิจ", to: "/staff/applications", icon: BriefcaseBusiness, exact: false },
+            { label: "รอบสหกิจและการสมัคร", to: "/staff/coop-cycles", icon: CalendarRange, exact: true },
+            ...(import.meta.dev
+              ? [{ label: "ข้อมูลพื้นฐาน", to: "/staff", icon: Blocks, exact: true }]
+              : [
+                  { label: "ข้อมูลนักศึกษา", to: "/staff/students", icon: GraduationCap, exact: false },
+                  { label: "ข้อมูลอาจารย์", to: "/staff/lecturers", icon: Presentation, exact: false },
+                  { label: "ข้อมูลสถานประกอบการ", to: "/staff/companies", icon: Building2, exact: false },
+                ]),
             { label: "คำร้องและหนังสือ", to: "/staff/requests", icon: FileCheck2, exact: false },
           ],
         },

@@ -12,6 +12,10 @@ interface Props {
   error?: string
   required?: boolean
   disabled?: boolean
+  labelVisible?: boolean
+  min?: number
+  max?: number
+  step?: number
   inputClass?: string
 }
 
@@ -25,6 +29,10 @@ const props = withDefaults(defineProps<Props>(), {
   error: undefined,
   required: false,
   disabled: false,
+  labelVisible: true,
+  min: undefined,
+  max: undefined,
+  step: undefined,
   inputClass: undefined,
 })
 
@@ -38,7 +46,7 @@ const describedBy = computed(() => [helpId.value, errorId.value].filter(Boolean)
 </script>
 
 <template>
-  <label :for="id" class="block text-sm font-semibold text-ink">
+  <label :for="id" class="block text-sm font-semibold text-ink" :class="labelVisible ? '' : 'sr-only'">
     {{ label }} <span v-if="required" class="text-danger" aria-hidden="true">*</span>
   </label>
   <div class="relative mt-1.5">
@@ -51,6 +59,9 @@ const describedBy = computed(() => [helpId.value, errorId.value].filter(Boolean)
       :placeholder="placeholder"
       :required="required"
       :disabled="disabled"
+      :min="min"
+      :max="max"
+      :step="step"
       :aria-invalid="Boolean(error)"
       :aria-describedby="describedBy"
       :class="[error ? 'border-danger' : 'border-divider hover:border-gray-300', props.type === 'password' ? 'pr-11' : '', inputClass]"

@@ -4,7 +4,7 @@ import type { CoopCycle } from '~/composables/useCoopCycles'
 import type { PlacementStatus } from '#shared/placement-requests'
 
 const props = defineProps<{
-  cycle: CoopCycle
+  cycle?: CoopCycle
   status?: PlacementStatus
   requestId?: string
   companyName?: string
@@ -29,8 +29,9 @@ const statusStep: Record<PlacementStatus, number> = {
 }
 const currentStep = computed(() => props.status ? statusStep[props.status] : 0)
 const currentLabel = computed(() => steps[currentStep.value])
-const semesterLabel = computed(() => props.cycle.semester.replace('ภาคเรียนที่ ', 'ภาคเรียน '))
-const formatRange = (start: string, end: string) => {
+const semesterLabel = computed(() => props.cycle?.semester.replace('ภาคเรียนที่ ', 'ภาคเรียน ') ?? '-')
+const formatRange = (start?: string, end?: string) => {
+  if (!start || !end) return 'ยังไม่กำหนด'
   const formatter = new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })
   return `${formatter.format(new Date(`${start}T00:00:00+07:00`))} – ${formatter.format(new Date(`${end}T00:00:00+07:00`))}`
 }
@@ -54,7 +55,7 @@ const formatRange = (start: string, end: string) => {
       <UiBadge :tone="status === 'confirmed' ? 'success' : 'info'">{{ currentLabel }}</UiBadge>
     </div>
 
-    <dl class="mt-5 grid gap-x-8 gap-y-4 text-sm sm:grid-cols-2 xl:grid-cols-4">
+    <dl v-if="cycle" class="mt-5 grid gap-x-6 gap-y-4 text-sm sm:grid-cols-[8rem_minmax(12rem,auto)] xl:grid-cols-[8rem_12rem_minmax(15rem,1fr)_minmax(15rem,1fr)]">
       <div>
         <dt class="text-xs text-muted">ปีการศึกษา</dt>
         <dd class="mt-1 font-semibold text-ink">{{ cycle.academicYear }}</dd>

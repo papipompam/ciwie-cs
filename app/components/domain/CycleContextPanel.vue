@@ -4,14 +4,14 @@ import type { CoopCycle } from "~/composables/useCoopCycles";
 
 const props = defineProps<{ cycle: CoopCycle }>();
 const orderedStatuses = [
-  "draft",
   "open",
   "closed_to_requests",
   "training",
   "closed",
 ] as const;
 const currentIndex = computed(() => orderedStatuses.indexOf(props.cycle.status));
-const formatRange = (start: string, end: string) => {
+const formatRange = (start?: string, end?: string) => {
+  if (!start || !end) return 'ยังไม่กำหนด'
   const formatter = new Intl.DateTimeFormat("th-TH", {
     day: "numeric",
     month: "short",
@@ -65,7 +65,7 @@ const formatRange = (start: string, end: string) => {
 
     <div class="mt-5 overflow-x-auto pb-1">
       <ol
-        class="grid min-w-[42rem] grid-cols-5"
+        class="grid min-w-[36rem] grid-cols-4"
         aria-label="ลำดับสถานะรอบสหกิจศึกษา"
       >
       <li
@@ -95,7 +95,7 @@ const formatRange = (start: string, end: string) => {
           class="mt-2 text-xs font-medium"
           :class="index <= currentIndex ? 'text-ink' : 'text-muted'"
         >
-          <template v-if="status !== 'open'">{{ cycleStatusMeta[status].label }}</template>
+          {{ cycleStatusMeta[status].label }}
         </span>
       </li>
       </ol>

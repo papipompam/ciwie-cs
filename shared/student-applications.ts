@@ -37,6 +37,8 @@ export const getStudentApplicationStatusGroup = (status: TrackedApplicationStatu
 export interface StudentApplicationRecord {
   id: string
   placementRequestId?: string
+  cycleId?: string
+  cycleLabel?: string
   studentId: string
   companyName: string
   position: string

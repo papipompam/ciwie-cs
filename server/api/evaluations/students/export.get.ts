@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { supervisionRoundSchema } from '#shared/supervision-groups'
 import writeExcelFile from 'write-excel-file/node'
 import { requireUserSession } from '../../../utils/session'
 import { buildPersistedStudentEvaluationRows, rowsToCsv } from '../../../utils/studentEvaluationExport'
@@ -6,7 +7,7 @@ import { buildPersistedStudentEvaluationRows, rowsToCsv } from '../../../utils/s
 const querySchema = z.object({
   format: z.enum(['csv', 'xlsx']).default('csv'),
   cycleId: z.string().trim().min(1).max(30).optional(),
-  round: z.coerce.number().int().refine(value => value === 1 || value === 2).optional(),
+  round: supervisionRoundSchema.optional(),
 }).strict()
 
 export default defineEventHandler(async (event) => {
@@ -24,7 +25,7 @@ export default defineEventHandler(async (event) => {
                 groupCompany: {
                   group: {
                     ...(parsed.data.cycleId ? { cycleId: parsed.data.cycleId } : {}),
-                    ...(parsed.data.round ? { round: parsed.data.round === 1 ? 'ROUND_1' as const : 'ROUND_2' as const } : {}),
+          ...(parsed.data.round ? { round: parsed.data.round } : {}),
                   },
                 },
               },

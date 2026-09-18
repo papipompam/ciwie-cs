@@ -19,7 +19,7 @@ interface PersistedExpense {
   lecturerSnapshot: unknown
   createdAt: Date
   updatedAt: Date
-  group: { id: string, name: string, cycleId: string, round: 'ROUND_1' | 'ROUND_2', companies?: unknown[] | { _count?: number } }
+  group: { id: string, name: string, cycleId: string, round: number, companies?: unknown[] | { _count?: number } }
   createdBy: { namePrefix: string, firstName: string, lastName: string }
 }
 
@@ -36,7 +36,7 @@ export const toSupervisionExpenseRecord = (expense: PersistedExpense): Supervisi
     groupId: expense.group.id,
     groupName: expense.group.name,
     cycleId: expense.group.cycleId,
-    round: expense.group.round === 'ROUND_1' ? 1 : 2,
+    round: expense.group.round,
     companyCount,
     fuel: Number(expense.fuelAmount),
     roomRate: Number(expense.roomRate),

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const supervisionRoundSchema = z.coerce.number().int().refine(value => value === 1 || value === 2, 'รอบนิเทศไม่ถูกต้อง')
+export const supervisionRoundSchema = z.coerce.number().int().min(1, 'ครั้งที่นิเทศต้องเริ่มจาก 1').max(99, 'ครั้งที่นิเทศต้องไม่เกิน 99')
 
 export const supervisionContextSchema = z.object({
   cycleId: z.string().trim().min(1).max(30),
@@ -23,7 +23,7 @@ export const assignGroupLecturersSchema = z.object({
   lecturerIds: z.array(z.string().trim().min(1).max(30)).min(1).max(20),
 }).strict()
 
-export type SupervisionRoundNumber = 1 | 2
+export type SupervisionRoundNumber = number
 
 export interface SupervisionCompanyDto {
   id: string

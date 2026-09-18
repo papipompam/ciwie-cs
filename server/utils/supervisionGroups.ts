@@ -1,8 +1,8 @@
-import type { Prisma, SupervisionRound } from '@prisma/client'
+import type { Prisma } from '@prisma/client'
 import type { SupervisionCompanyDto, SupervisionGroupDto, SupervisionRoundNumber } from '#shared/supervision-groups'
 
-export const roundToPrisma = (round: SupervisionRoundNumber): SupervisionRound => round === 1 ? 'ROUND_1' : 'ROUND_2'
-export const roundFromPrisma = (round: SupervisionRound): SupervisionRoundNumber => round === 'ROUND_1' ? 1 : 2
+export const roundToPrisma = (round: SupervisionRoundNumber) => round
+export const roundFromPrisma = (round: number): SupervisionRoundNumber => round
 
 const regionLabels = {
   NORTH: 'ภาคเหนือ',

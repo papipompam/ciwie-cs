@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { supervisionRoundSchema } from './supervision-groups'
 
 export const expenseFields = ['fuel', 'accommodation', 'allowance'] as const
 export type ExpenseField = typeof expenseFields[number]
@@ -13,7 +14,7 @@ export type ExpenseAmounts = z.infer<typeof expenseAmountsSchema>
 
 export interface ExpenseReference {
   cycleId: string
-  round: 1 | 2
+  round: number
 }
 
 export interface ExpenseCalculation {
@@ -62,7 +63,7 @@ export interface SupervisionLineExpenseResult {
 
 export const supervisionExpenseContextSchema = z.object({
   cycleId: z.string().trim().min(1).max(30),
-  round: z.coerce.number().int().refine(value => value === 1 || value === 2),
+  round: supervisionRoundSchema,
 }).strict()
 
 export interface SupervisionExpenseLecturerSnapshot extends SupervisionExpenseLecturer {
@@ -74,7 +75,7 @@ export interface SupervisionExpenseRecord extends SupervisionLineExpenseResult, 
   groupId: string
   groupName: string
   cycleId: string
-  round: 1 | 2
+  round: number
   companyCount: number
   lecturers: SupervisionExpenseLecturerSnapshot[]
   createdBy: string
@@ -86,7 +87,7 @@ export interface SupervisionExpenseGroup {
   id: string
   name: string
   cycleId: string
-  round: 1 | 2
+  round: number
   companyCount: number
   lecturers: SupervisionExpenseLecturerSnapshot[]
 }

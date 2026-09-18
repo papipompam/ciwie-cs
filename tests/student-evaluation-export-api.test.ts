@@ -45,6 +45,14 @@ describe('student evaluation export API', () => {
     }))
   })
 
+  it('exports student evaluations from the third supervision occurrence', async () => {
+    query = { format: 'csv', cycleId: 'CYCLE-1', round: '3' }
+    await exportStudentEvaluations({} as Parameters<typeof exportStudentEvaluations>[0])
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ appointmentStudent: { appointment: { groupCompany: { group: expect.objectContaining({ round: 3 }) } } } }),
+    }))
+  })
+
   it('returns a valid XLSX archive when Excel is requested', async () => {
     query = { format: 'xlsx' }
     const result = await exportStudentEvaluations({} as Parameters<typeof exportStudentEvaluations>[0])

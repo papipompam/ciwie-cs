@@ -13,8 +13,7 @@ export const cycleStatusMeta: Record<
   CoopCycleStatus,
   { label: string; tone: "neutral" | "warning" | "info" | "success" }
 > = {
-  draft: { label: "ฉบับร่าง", tone: "neutral" },
-  open: { label: "เปิดรอบสหกิจศึกษา", tone: "success" },
+  open: { label: "เปิดรับคำร้อง", tone: "success" },
   closed_to_requests: { label: "ปิดรับคำร้องใหม่", tone: "warning" },
   training: { label: "กำลังฝึกงาน", tone: "info" },
   closed: { label: "ปิดรอบ", tone: "neutral" },
@@ -53,8 +52,10 @@ export const useCoopCycles = () => {
       error.value = cause instanceof Error ? cause.message : 'ไม่สามารถโหลดรอบสหกิจได้'
     }
   }
-  if (status.value === 'idle') void refresh()
+  onMounted(() => {
+    if (status.value === 'idle') void refresh()
+  })
   const selectedCycle = computed(() => cycles.value.find(cycle => cycle.id === selectedCycleId.value) ?? null)
 
-  return { cycles: cycles.value, cycleCatalog: cycles.value, selectedCycle, status, error, refresh };
+  return { cycles: cycles.value, cycleCatalog: cycles.value, selectedCycle, selectedCycleId, status, error, refresh };
 };

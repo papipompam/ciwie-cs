@@ -33,17 +33,17 @@ const prisma = {
   },
   supervisionGroup: {
     findMany: vi.fn(async () => [{
-      id: 'GROUP-1', cycleId: 'CYCLE-1', round: 'ROUND_1', name: 'กลุ่มนิเทศ 1', createdAt,
+      id: 'GROUP-1', cycleId: 'CYCLE-1', round: 1, name: 'กลุ่มนิเทศ 1', createdAt,
       lecturers: [], companies: [{ companySiteId: 'SITE-1' }],
     }]),
     count: vi.fn(async () => 0),
-    create: vi.fn(async ({ data }: { data: { cycleId: string, round: 'ROUND_1', name: string, companies: { create: Array<{ companySiteId: string }> } } }) => ({
+    create: vi.fn(async ({ data }: { data: { cycleId: string, round: number, name: string, companies: { create: Array<{ companySiteId: string }> } } }) => ({
       id: 'GROUP-NEW', cycleId: data.cycleId, round: data.round, name: data.name, createdAt,
       lecturers: [], companies: data.companies.create,
     })),
-    findUnique: vi.fn(async () => ({ id: 'GROUP-1', cycleId: 'CYCLE-1', round: 'ROUND_1', name: 'กลุ่มนิเทศ 1' })),
+    findUnique: vi.fn(async () => ({ id: 'GROUP-1', cycleId: 'CYCLE-1', round: 1, name: 'กลุ่มนิเทศ 1' })),
     findUniqueOrThrow: vi.fn(async () => ({
-      id: 'GROUP-1', cycleId: 'CYCLE-1', round: 'ROUND_1', name: 'กลุ่มนิเทศ 1', createdAt,
+      id: 'GROUP-1', cycleId: 'CYCLE-1', round: 1, name: 'กลุ่มนิเทศ 1', createdAt,
       lecturers: [{ lecturerId: 'lecturer-001' }], companies: [{ companySiteId: 'SITE-1' }],
     })),
   },
@@ -95,12 +95,20 @@ describe('staff supervision group API', () => {
     expect(prisma.supervisionGroup.create).toHaveBeenCalledOnce()
   })
 
+  it('persists a group for the third supervision occurrence', async () => {
+    body = { cycleId: 'CYCLE-1', round: 3, groups: [{ name: 'กลุ่มนิเทศครั้งที่ 3', companyIds: ['SITE-1'] }] }
+    await createGroups({} as Parameters<typeof createGroups>[0])
+    expect(prisma.supervisionGroup.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ cycleId: 'CYCLE-1', round: 3 }),
+    }))
+  })
+
   it('assigns only an active lecturer after the group exists', async () => {
     body = { lecturerIds: ['lecturer-001'] }
     const result = await assignLecturers({} as Parameters<typeof assignLecturers>[0])
     expect(result.lecturerIds).toEqual(['lecturer-001'])
     expect(prisma.supervisionGroupLecturer.createMany).toHaveBeenCalledWith({
-      data: [{ groupId: 'GROUP-1', cycleId: 'CYCLE-1', round: 'ROUND_1', lecturerId: 'lecturer-001' }],
+      data: [{ groupId: 'GROUP-1', cycleId: 'CYCLE-1', round: 1, lecturerId: 'lecturer-001' }],
     })
     expect(prisma.notification.create).toHaveBeenCalledOnce()
   })

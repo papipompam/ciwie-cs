@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { supervisionContextSchema } from './supervision-groups'
+import { supervisionContextSchema, supervisionRoundSchema } from './supervision-groups'
 
 const resultFields = {
   summary: z.string().trim().max(10_000).default(''),
@@ -8,7 +8,7 @@ const resultFields = {
   companyRequirements: z.string().trim().max(10_000).default(''),
 }
 
-export const supervisionAppointmentsQuerySchema = supervisionContextSchema
+export const supervisionAppointmentsQuerySchema = supervisionContextSchema.partial({ round: true })
 
 export const supervisionAppointmentIdSchema = z.string().trim().min(1).max(30)
 
@@ -16,7 +16,7 @@ export const supervisionAppointmentSchema = z.object({
   id: z.string(),
   appointmentNo: z.string().regex(/^SV\d{4}$/),
   cycleId: z.string(),
-  round: z.union([z.literal(1), z.literal(2)]),
+  round: supervisionRoundSchema,
   groupId: z.string(),
   companyId: z.string(),
   studentIds: z.array(z.string()),

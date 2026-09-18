@@ -6,7 +6,7 @@ const evaluation = {
   studentSupportScore: 5, environmentScore: 4, safetyScore: 5, resourceReadinessScore: 4,
   allowanceScore: 3, transportationScore: 4, publicTransportScore: 3, nearbyAccommodationScore: 4, universityCoordinationScore: 5,
   evaluator: { namePrefix: 'อ.', firstName: 'ทดสอบ', lastName: 'ระบบ' },
-  appointment: { appointmentNo: 'SV0001', scheduledDate: new Date('2026-09-14'), groupCompany: { group: { cycleId: 'CYCLE-1', round: 'ROUND_1' }, companySite: { branchName: 'สำนักงานใหญ่', company: { legalName: 'บริษัททดสอบ' } } } },
+  appointment: { appointmentNo: 'SV0001', scheduledDate: new Date('2026-09-14'), groupCompany: { group: { cycleId: 'CYCLE-1', round: 1 }, companySite: { branchName: 'สำนักงานใหญ่', company: { legalName: 'บริษัททดสอบ' } } } },
 }
 
 vi.mock('../server/utils/session', () => ({ requireUserSession: vi.fn(async () => ({ id: 'staff-001', role: 'staff' })) }))
@@ -41,5 +41,13 @@ describe('company evaluation export API', () => {
     query = { format: 'xlsx' }
     const result = await exportCompanyEvaluations({} as Parameters<typeof exportCompanyEvaluations>[0])
     expect(result.subarray(0, 2).toString('ascii')).toBe('PK')
+  })
+
+  it('exports company evaluations from the third supervision occurrence', async () => {
+    query = { format: 'csv', cycleId: 'CYCLE-1', round: '3' }
+    await exportCompanyEvaluations({} as Parameters<typeof exportCompanyEvaluations>[0])
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ appointment: { groupCompany: { group: expect.objectContaining({ round: 3 }) } } }),
+    }))
   })
 })

@@ -2,7 +2,7 @@
 // หน้าหลักเลือก dashboard ตาม role และรวบรวมข้อมูลสรุปจากแต่ละโมดูล
 import { ArrowDown, ArrowRight, ArrowUp, BriefcaseBusiness, Building2, CalendarDays, ChevronLeft, ChevronRight, ClipboardCheck, ClipboardList, FileCheck2, GraduationCap, RotateCcw, Search, Users, UsersRound, X } from '@lucide/vue'
 import type { Component } from 'vue'
-import { requestStatusMeta, studentRequestStatusMeta } from '#shared/placement-requests'
+import { requestStatusMeta } from '#shared/placement-requests'
 import type { PlacementRequestPreview, PlacementStatus } from '#shared/placement-requests'
 import { getPageCount, paginateItems } from '~/utils/table'
 import { summarizeStudentPlacements } from '~/utils/studentPlacementSummary'
@@ -66,8 +66,8 @@ const quickActions = computed<QuickAction[]>(() => ({
   student: [
     {
       label: studentRequest.value ? 'เปิดคำร้องปัจจุบัน' : 'แจ้งข้อมูลที่ฝึกงาน',
-      description: studentRequest.value ? studentRequestStatusMeta[studentRequest.value.status].description : 'เริ่มส่งข้อมูลสถานประกอบการ',
-      to: '/student/applications',
+      description: studentRequest.value ? 'ดูสถานะและขั้นตอนถัดไปของคำร้อง' : 'เริ่มส่งข้อมูลสถานประกอบการ',
+      to: studentRequest.value ? `/student/placements/${studentRequest.value.id}` : '/student/placements/new',
       icon: ClipboardList,
       primary: true,
     },
@@ -105,6 +105,8 @@ const currentCycleDashboard: { staff: DashboardData, lecturer: DashboardData, st
     summary: [
       { label: 'สถานะคำร้อง', value: 'ยังไม่มี', hint: 'ยังไม่ได้ส่งคำร้องสถานประกอบการ', icon: ClipboardCheck },
       { label: 'สถานที่ฝึกงาน', value: 'ยังไม่มี', hint: 'ยังไม่ได้ยืนยันสถานประกอบการ', icon: Building2 },
+      { label: 'สถานะการปฏิบัติงาน', value: 'ยังไม่มี', hint: 'จะแสดงเมื่อมีข้อมูลการปฏิบัติงาน', icon: Users },
+      { label: 'นัดนิเทศถัดไป', value: 'ยังไม่มี', hint: 'จะแสดงเมื่ออาจารย์เผยแพร่ตารางนิเทศ', icon: CalendarDays },
     ],
     recentTitle: 'ความคืบหน้าของฉัน',
     primaryLabel: 'รายการ',
@@ -144,7 +146,7 @@ const loadStaffDashboard = async () => {
 }
 const loadLecturerDashboard = async () => {
   if (scenario.value.role !== 'lecturer' || !dashboardCycleId.value) return
-  await Promise.all([1, 2].map(round => loadPersistedAppointments(dashboardCycleId.value, round as 1 | 2)))
+  await loadPersistedAppointments(dashboardCycleId.value)
   const completedIds = appointments.value
     .filter(appointment => appointment.cycleId === dashboardCycleId.value && appointment.status === 'completed')
     .map(appointment => appointment.id)
@@ -159,7 +161,7 @@ watch(() => selectedCycle.value?.id, (selectedId) => {
 watch([() => scenario.value.role, dashboardCycleId], () => { if (import.meta.client) void loadDashboard() })
 onMounted(loadDashboard)
 const dashboard = computed<DashboardData>(() => {
-  if (scenario.value.role === 'student') return studentDashboard.value
+  if (scenario.value.role === 'student') return currentCycleDashboard.student
   if (scenario.value.role === 'staff') return staffDashboard.value
   return lecturerDashboard.value
 })
@@ -194,27 +196,6 @@ const staffDashboard = computed<DashboardData>(() => ({
   secondaryLabel: 'สถานประกอบการ',
   recentItems: staffRequestItems.value,
 }))
-const studentDashboard = computed<DashboardData>(() => {
-  const request = studentRequest.value
-  if (!request) return currentCycleDashboard.student
-  const status = studentRequestStatusMeta[request.status]
-  return {
-    ...currentCycleDashboard.student,
-    summary: [
-      { label: 'สถานะคำร้อง', value: status.label, hint: status.description, icon: ClipboardCheck },
-      { label: 'สถานที่ฝึกงาน', value: request.application.companyName, hint: request.application.position, icon: Building2 },
-    ],
-    recentItems: [{
-      id: request.id,
-      primary: request.application.companyName,
-      secondary: request.application.position,
-      status: status.label,
-      tone: status.tone,
-      updatedAt: request.updatedAt,
-      to: '/student/applications',
-    }],
-  }
-})
 const lecturerAppointments = computed(() => appointments.value
   .filter(appointment => appointment.cycleId === dashboardCycle.value?.id)
   .filter((appointment) => {
@@ -248,7 +229,7 @@ const lecturerDashboard = computed<DashboardData>(() => ({
   secondaryLabel: '',
   recentItems: [],
 }))
-const summaryGridClass = computed(() => scenario.value.role === 'student' ? 'sm:grid-cols-2 xl:grid-cols-2' : 'sm:grid-cols-2 xl:grid-cols-4')
+const summaryGridClass = 'sm:grid-cols-2 xl:grid-cols-4'
 const effectiveViewState = computed(() => {
   if (scenario.value.forceError || (scenario.value.role === 'student' && studentRequestFetchError.value)) return 'error'
   if (scenario.value.role === 'student' && studentRequestFetchStatus.value === 'pending') return 'loading'
@@ -386,9 +367,9 @@ onBeforeUnmount(() => {
     </div>
 
     <StudentPlacementProgress
-      v-if="scenario.role === 'student' && effectiveViewState === 'data' && dashboardCycle"
+      v-if="scenario.role === 'student' && effectiveViewState === 'data'"
       class="mb-6"
-      :cycle="dashboardCycle"
+      :cycle="dashboardCycle ?? undefined"
       :status="studentProgressStatus"
       :request-id="studentRequest?.id"
       :company-name="studentRequest?.application.companyName"

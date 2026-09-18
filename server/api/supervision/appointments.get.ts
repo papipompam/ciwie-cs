@@ -10,10 +10,11 @@ export default defineEventHandler(async (event) => {
     where: {
       groupCompany: {
         cycleId: parsed.data.cycleId,
-        round: parsed.data.round === 1 ? 'ROUND_1' : 'ROUND_2',
+        ...(parsed.data.round ? { round: parsed.data.round } : {}),
       },
       ...(user.role === 'lecturer'
         ? {
+            status: { not: 'DRAFT' as const },
             OR: [
               { lecturers: { some: { lecturerId: user.id } } },
               { groupCompany: { group: { lecturers: { some: { lecturerId: user.id } } } } },

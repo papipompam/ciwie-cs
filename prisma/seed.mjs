@@ -326,7 +326,7 @@ try {
       const enrollmentId = `ENROLLMENT-DEMO-${String(index + 2).padStart(3, '0')}`
       const requestId = `WORKBOOK-REQ-${requestNumber}`
       const requestData = {
-        requestNo: `REQ-2569-WB-${requestNumber}`,
+        requestNo: `RE${String(index + 1).padStart(5, '0')}`,
         studentApplicationId: applicationId,
         enrollmentId,
         companySiteId: company.siteId,
@@ -357,18 +357,18 @@ try {
     for (const group of workbookSupervisionGroups) {
       await transaction.supervisionGroup.upsert({
         where: { id: group.id },
-        update: { code: group.code, cycleId: 'CYCLE-2569-2', round: 'ROUND_1', name: group.name, createdById: 'staff-001' },
-        create: { id: group.id, code: group.code, cycleId: 'CYCLE-2569-2', round: 'ROUND_1', name: group.name, createdById: 'staff-001' },
+        update: { code: group.code, cycleId: 'CYCLE-2569-2', round: 1, name: group.name, createdById: 'staff-001' },
+        create: { id: group.id, code: group.code, cycleId: 'CYCLE-2569-2', round: 1, name: group.name, createdById: 'staff-001' },
       })
       await transaction.supervisionGroupCompany.upsert({
         where: { id: `WORKBOOK-GROUP-COMP-${group.id.slice(-3)}` },
-        update: { groupId: group.id, cycleId: 'CYCLE-2569-2', round: 'ROUND_1', companySiteId: group.companySiteId },
-        create: { id: `WORKBOOK-GROUP-COMP-${group.id.slice(-3)}`, groupId: group.id, cycleId: 'CYCLE-2569-2', round: 'ROUND_1', companySiteId: group.companySiteId },
+        update: { groupId: group.id, cycleId: 'CYCLE-2569-2', round: 1, companySiteId: group.companySiteId },
+        create: { id: `WORKBOOK-GROUP-COMP-${group.id.slice(-3)}`, groupId: group.id, cycleId: 'CYCLE-2569-2', round: 1, companySiteId: group.companySiteId },
       })
       await transaction.supervisionGroupLecturer.upsert({
         where: { id: `WORKBOOK-GROUP-LECT-${group.id.slice(-3)}` },
-        update: { groupId: group.id, cycleId: 'CYCLE-2569-2', round: 'ROUND_1', lecturerId: group.lecturerId },
-        create: { id: `WORKBOOK-GROUP-LECT-${group.id.slice(-3)}`, groupId: group.id, cycleId: 'CYCLE-2569-2', round: 'ROUND_1', lecturerId: group.lecturerId },
+        update: { groupId: group.id, cycleId: 'CYCLE-2569-2', round: 1, lecturerId: group.lecturerId },
+        create: { id: `WORKBOOK-GROUP-LECT-${group.id.slice(-3)}`, groupId: group.id, cycleId: 'CYCLE-2569-2', round: 1, lecturerId: group.lecturerId },
       })
     }
     // Additional confirmed requests provide enough placements for a useful
@@ -380,7 +380,7 @@ try {
       const enrollmentId = `ENROLLMENT-DEMO-${String(index + 2).padStart(3, '0')}`
       const requestId = `WORKBOOK-REQ-${requestNumber}`
       const requestData = {
-        requestNo: `REQ-2569-WB-${requestNumber}`,
+        requestNo: `RE${String(index + 1).padStart(5, '0')}`,
         studentApplicationId: applicationId,
         enrollmentId,
         companySiteId: company.siteId,
@@ -407,7 +407,7 @@ try {
     await transaction.placementRequest.upsert({
     where: { id: demoPlacementRequest.id },
     update: {
-      requestNo: demoPlacementRequest.requestNo,
+      requestNo: 'RE00011',
       studentApplicationId: demoApplication.id,
       enrollmentId: demoPlacementRequest.enrollmentId,
       companySiteId: demoCompany.companySiteId,
@@ -426,7 +426,7 @@ try {
     },
     create: {
       id: demoPlacementRequest.id,
-      requestNo: demoPlacementRequest.requestNo,
+      requestNo: 'RE00011',
       studentApplicationId: demoApplication.id,
       enrollmentId: demoPlacementRequest.enrollmentId,
       companySiteId: demoCompany.companySiteId,
@@ -452,21 +452,21 @@ try {
     for (const group of supervisionGroups) {
       await transaction.supervisionGroup.upsert({
         where: { id: group.id },
-        update: { code: group.code, cycleId: 'CYCLE-2569-2', round: 'ROUND_1', name: group.name, createdById: 'staff-001' },
-        create: { id: group.id, code: group.code, cycleId: 'CYCLE-2569-2', round: 'ROUND_1', name: group.name, createdById: 'staff-001' },
+        update: { code: group.code, cycleId: 'CYCLE-2569-2', round: 1, name: group.name, createdById: 'staff-001' },
+        create: { id: group.id, code: group.code, cycleId: 'CYCLE-2569-2', round: 1, name: group.name, createdById: 'staff-001' },
       })
       for (const lecturerId of group.lecturerIds) {
         await transaction.supervisionGroupLecturer.upsert({
-          where: { cycleId_round_lecturerId: { cycleId: 'CYCLE-2569-2', round: 'ROUND_1', lecturerId } },
+          where: { cycleId_round_lecturerId: { cycleId: 'CYCLE-2569-2', round: 1, lecturerId } },
           update: { groupId: group.id },
-          create: { groupId: group.id, cycleId: 'CYCLE-2569-2', round: 'ROUND_1', lecturerId },
+          create: { groupId: group.id, cycleId: 'CYCLE-2569-2', round: 1, lecturerId },
         })
       }
       for (const [companyIndex, companySiteId] of group.companySiteIds.entries()) {
         await transaction.supervisionGroupCompany.upsert({
-          where: { cycleId_round_companySiteId: { cycleId: 'CYCLE-2569-2', round: 'ROUND_1', companySiteId } },
+          where: { cycleId_round_companySiteId: { cycleId: 'CYCLE-2569-2', round: 1, companySiteId } },
           update: { groupId: group.id },
-          create: { id: `${group.id}-COMPANY-${companyIndex + 1}`, groupId: group.id, cycleId: 'CYCLE-2569-2', round: 'ROUND_1', companySiteId },
+          create: { id: `${group.id}-COMPANY-${companyIndex + 1}`, groupId: group.id, cycleId: 'CYCLE-2569-2', round: 1, companySiteId },
         })
       }
     }
@@ -485,19 +485,19 @@ try {
       const groupId = `WORKBOOK-GROUP-${String(item.number).padStart(3, '0')}`
       await transaction.supervisionGroup.upsert({
         where: { id: groupId },
-        update: { code: `SG-WB-${String(item.number).padStart(3, '0')}`, cycleId: 'CYCLE-2569-2', round: 'ROUND_1', name: `กลุ่มนิเทศ ${item.number}`, createdById: 'staff-001' },
-        create: { id: groupId, code: `SG-WB-${String(item.number).padStart(3, '0')}`, cycleId: 'CYCLE-2569-2', round: 'ROUND_1', name: `กลุ่มนิเทศ ${item.number}`, createdById: 'staff-001' },
+        update: { code: `SG-WB-${String(item.number).padStart(3, '0')}`, cycleId: 'CYCLE-2569-2', round: 1, name: `กลุ่มนิเทศ ${item.number}`, createdById: 'staff-001' },
+        create: { id: groupId, code: `SG-WB-${String(item.number).padStart(3, '0')}`, cycleId: 'CYCLE-2569-2', round: 1, name: `กลุ่มนิเทศ ${item.number}`, createdById: 'staff-001' },
       })
       await transaction.supervisionGroupLecturer.upsert({
-        where: { cycleId_round_lecturerId: { cycleId: 'CYCLE-2569-2', round: 'ROUND_1', lecturerId: item.lecturerId } },
+        where: { cycleId_round_lecturerId: { cycleId: 'CYCLE-2569-2', round: 1, lecturerId: item.lecturerId } },
         update: { groupId },
-        create: { groupId, cycleId: 'CYCLE-2569-2', round: 'ROUND_1', lecturerId: item.lecturerId },
+        create: { groupId, cycleId: 'CYCLE-2569-2', round: 1, lecturerId: item.lecturerId },
       })
       if (item.siteId) {
         await transaction.supervisionGroupCompany.upsert({
-          where: { cycleId_round_companySiteId: { cycleId: 'CYCLE-2569-2', round: 'ROUND_1', companySiteId: item.siteId } },
+          where: { cycleId_round_companySiteId: { cycleId: 'CYCLE-2569-2', round: 1, companySiteId: item.siteId } },
           update: { groupId },
-          create: { id: `${groupId}-COMPANY`, groupId, cycleId: 'CYCLE-2569-2', round: 'ROUND_1', companySiteId: item.siteId },
+          create: { id: `${groupId}-COMPANY`, groupId, cycleId: 'CYCLE-2569-2', round: 1, companySiteId: item.siteId },
         })
       }
     }
@@ -539,7 +539,7 @@ try {
     ]
     for (const appointment of supervisionAppointments) {
       const groupCompany = await transaction.supervisionGroupCompany.findUnique({
-        where: { cycleId_round_companySiteId: { cycleId: 'CYCLE-2569-2', round: 'ROUND_1', companySiteId: appointment.companySiteId } },
+        where: { cycleId_round_companySiteId: { cycleId: 'CYCLE-2569-2', round: 1, companySiteId: appointment.companySiteId } },
         select: { id: true },
       })
       if (!groupCompany) continue
@@ -667,7 +667,7 @@ try {
       const template = evaluationAppointmentTemplates[(index - 5) % evaluationAppointmentTemplates.length]
       const appointmentId = `WORKBOOK-APPOINTMENT-${sequence}`
       const groupCompany = await transaction.supervisionGroupCompany.findUnique({
-        where: { cycleId_round_companySiteId: { cycleId: 'CYCLE-2569-2', round: 'ROUND_1', companySiteId: template.companySiteId } },
+        where: { cycleId_round_companySiteId: { cycleId: 'CYCLE-2569-2', round: 1, companySiteId: template.companySiteId } },
         select: { id: true },
       })
       if (!groupCompany) continue

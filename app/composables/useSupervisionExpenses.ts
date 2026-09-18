@@ -5,7 +5,7 @@ export const useSupervisionExpenses = () => {
   const groups = useState<SupervisionExpensesResponse['groups']>('supervision-expense-groups', () => [])
   const records = useState<SupervisionExpenseRecord[]>('supervision-expense-records-v2', () => [])
 
-  const loadExpenses = async (cycleId: string, round: 1 | 2) => {
+  const loadExpenses = async (cycleId: string, round: number) => {
     // โหลดกลุ่มและงบประมาณจริงสำหรับหน้าสรุปงบประมาณ
     const response = await requestAwareFetch('/api/staff/expenses', { query: { cycleId, round } }) as SupervisionExpensesResponse
     groups.value = response.groups

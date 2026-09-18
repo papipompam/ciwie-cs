@@ -3,17 +3,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 let user = { id: 'lecturer-001', role: 'lecturer' as 'lecturer' | 'staff' | 'student' }
 let body: Record<string, unknown> = {}
 let assigned = true
+let query: Record<string, unknown> = { cycleId: 'CYCLE-1', round: '1' }
 
 vi.mock('../server/utils/session', () => ({ requireUserSession: vi.fn(async () => user) }))
 vi.stubGlobal('defineEventHandler', (handler: unknown) => handler)
 vi.stubGlobal('getRouterParam', () => 'APPOINTMENT-1')
 vi.stubGlobal('readBody', async () => body)
-vi.stubGlobal('getQuery', () => ({ cycleId: 'CYCLE-1', round: '1' }))
+vi.stubGlobal('getQuery', () => query)
 vi.stubGlobal('createError', (details: { statusCode: number, statusMessage: string }) => Object.assign(new Error(details.statusMessage), details))
 vi.stubGlobal('setResponseStatus', vi.fn())
 
 const updateAppointment = vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: 'APPOINTMENT-1', ...data }))
 const updateManyLecturers = vi.fn(async () => ({ count: 2 }))
+const createManyLecturers = vi.fn(async () => ({ count: 1 }))
 const findUnique = vi.fn(async () => ({
   id: 'APPOINTMENT-1', status: 'PUBLISHED',
   groupCompany: {
@@ -27,7 +29,7 @@ const findMany = vi.fn(async () => ([{
   resultSummary: 'เรียบร้อย', resultIssues: null, resultSuggestions: null, companyRequirements: null,
   createdAt: new Date('2026-09-01T00:00:00.000Z'),
   groupCompany: {
-    groupId: 'GROUP-1', cycleId: 'CYCLE-1', round: 'ROUND_1', companySiteId: 'SITE-1',
+    groupId: 'GROUP-1', cycleId: 'CYCLE-1', round: 1, companySiteId: 'SITE-1',
     group: { name: 'กลุ่มนิเทศ 1', lecturers: [{ lecturerId: 'lecturer-001' }] },
     companySite: { branchName: 'สำนักงานใหญ่', address: '123 ถนนตัวอย่าง', province: { nameTh: 'บุรีรัมย์' }, company: { legalName: 'บริษัท ตัวอย่าง จำกัด' } },
   },
@@ -45,10 +47,10 @@ vi.stubGlobal('usePrisma', () => ({
   supervisionGroupCompany: { findFirst: findGroupCompany },
   user: { findMany: findLecturers },
   placementRequest: { findMany: findPlacementRequests },
-  supervisionAppointmentLecturer: { updateMany: updateManyLecturers },
+  supervisionAppointmentLecturer: { createMany: createManyLecturers, updateMany: updateManyLecturers },
   $transaction: vi.fn(async (callback: (transaction: unknown) => unknown) => callback({
     supervisionAppointment: { update: updateAppointment },
-    supervisionAppointmentLecturer: { updateMany: updateManyLecturers },
+    supervisionAppointmentLecturer: { createMany: createManyLecturers, updateMany: updateManyLecturers },
   })),
 }))
 
@@ -60,6 +62,7 @@ const { default: createSupervisionAppointment } = await import('../server/api/st
 beforeEach(() => {
   user = { id: 'lecturer-001', role: 'lecturer' }
   assigned = true
+  query = { cycleId: 'CYCLE-1', round: '1' }
   body = {
     action: 'complete',
     summary: ' เรียบร้อย ', issues: '', suggestions: '', companyRequirements: '',
@@ -73,7 +76,8 @@ describe('supervision appointment APIs', () => {
     const result = await listAppointments({} as Parameters<typeof listAppointments>[0])
     expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({
-        groupCompany: expect.objectContaining({ cycleId: 'CYCLE-1', round: 'ROUND_1' }),
+        groupCompany: expect.objectContaining({ cycleId: 'CYCLE-1', round: 1 }),
+        status: { not: 'DRAFT' },
         OR: expect.any(Array),
       }),
     }))
@@ -87,6 +91,22 @@ describe('supervision appointment APIs', () => {
         students: [{ id: '66123456701', name: 'นายธนกฤต พูนทรัพย์', position: 'นักพัฒนาซอฟต์แวร์' }],
       },
     })
+  })
+
+  it('filters appointments by the third supervision occurrence', async () => {
+    query = { cycleId: 'CYCLE-1', round: '3' }
+    await listAppointments({} as Parameters<typeof listAppointments>[0])
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ groupCompany: expect.objectContaining({ cycleId: 'CYCLE-1', round: 3 }) }),
+    }))
+  })
+
+  it('lists every supervision occurrence when no occurrence is requested', async () => {
+    query = { cycleId: 'CYCLE-1' }
+    await listAppointments({} as Parameters<typeof listAppointments>[0])
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ groupCompany: { cycleId: 'CYCLE-1' } }),
+    }))
   })
 
   it('limits a student list to their own published appointments', async () => {
@@ -112,6 +132,20 @@ describe('supervision appointment APIs', () => {
     expect(updateManyLecturers).toHaveBeenCalledWith(expect.objectContaining({ data: { isActual: false } }))
     expect(updateAppointment).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ status: 'COMPLETED', resultSummary: 'เรียบร้อย', resultRecordedById: 'lecturer-001' }),
+    }))
+  })
+
+  it('records the assigned group lecturer as the actual evaluator', async () => {
+    findUnique.mockResolvedValueOnce({
+      id: 'APPOINTMENT-1', status: 'PUBLISHED',
+      groupCompany: { group: { lecturers: [{ lecturerId: 'lecturer-001' }] } },
+      lecturers: [{ lecturerId: 'lecturer-002' }],
+    })
+    body.actualLecturerIds = ['lecturer-001']
+
+    await expect(updateResult({} as Parameters<typeof updateResult>[0])).resolves.toMatchObject({ status: 'completed' })
+    expect(updateManyLecturers).toHaveBeenLastCalledWith(expect.objectContaining({
+      where: { appointmentId: 'APPOINTMENT-1', lecturerId: { in: ['lecturer-001'] } },
     }))
   })
 
@@ -183,7 +217,7 @@ describe('supervision appointment APIs', () => {
   it('lets staff create and publish an appointment for confirmed students', async () => {
     user = { id: 'staff-001', role: 'staff' }
     body = {
-      cycleId: 'CYCLE-1', round: 1, groupId: 'GROUP-1', companyId: 'SITE-1',
+      cycleId: 'CYCLE-1', round: 3, groupId: 'GROUP-1', companyId: 'SITE-1',
       studentIds: ['66123456701'], date: '2026-09-20', period: 'morning',
       lecturerIds: ['lecturer-001'], publish: true,
     }
@@ -206,6 +240,9 @@ describe('supervision appointment APIs', () => {
         lecturers: { create: [{ lecturerId: 'lecturer-001', source: 'MANUAL', role: 'LEAD' }] },
         students: { create: [{ placementRequestId: 'REQUEST-1' }] },
       }),
+    }))
+    expect(findGroupCompany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ cycleId: 'CYCLE-1', round: 3 }),
     }))
   })
 

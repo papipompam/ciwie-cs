@@ -1,4 +1,4 @@
-import { peopleImportResponseSchema, peopleResponseSchema, personRecordSchema } from '#shared/people'
+import { peopleImportResponseSchema, peopleResponseSchema, personCreateResponseSchema, personRecordSchema } from '#shared/people'
 import { requestAwareFetch } from '../utils/requestAwareFetch'
 import type { PeopleImportCredential } from './usePeopleImport'
 
@@ -70,6 +70,8 @@ export const personPrefixOptions: Record<PersonType, Array<{ value: PersonPrefix
   student: ['นาย', 'นางสาว', 'นาง'].map(value => ({ value: value as PersonPrefix, label: value })),
   lecturer: ['นาย', 'นางสาว', 'นาง', 'อาจารย์', 'ดร.', 'ผศ.', 'ผศ.ดร.', 'รศ.', 'รศ.ดร.', 'ศ.', 'ศ.ดร.'].map(value => ({ value: value as PersonPrefix, label: value })),
 }
+
+export type PersonCreateResponse = PersonRecord & { temporaryPassword?: string }
 
 export const getPersonFullName = (person: Pick<PersonRecord, 'prefix' | 'firstName' | 'lastName'>) => `${person.prefix}${person.firstName} ${person.lastName}`
 export const getPersonAccountId = (person: Pick<PersonRecord, 'id' | 'accountId'>) => person.accountId ?? person.id
@@ -198,7 +200,7 @@ export const usePeopleDirectory = () => {
 
   const persistCreatePerson = async (type: PersonType, input: PersonInput) => {
     // การสร้างจริงใช้ API ฝั่งเจ้าหน้าที่ ส่วน state จะอัปเดตเมื่อ server ตอบกลับสำเร็จ
-    const person = personRecordSchema.parse(await requestAwareFetch('/api/staff/people', { method: 'POST', body: { type, ...input } }))
+    const person = personCreateResponseSchema.parse(await requestAwareFetch('/api/staff/people', { method: 'POST', body: { type, ...input } }))
     people.value.unshift(person)
     return person
   }

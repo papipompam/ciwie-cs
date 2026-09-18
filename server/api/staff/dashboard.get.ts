@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
       select: { companySiteId: true }, distinct: ['companySiteId'], take: 5001,
     }),
     prisma.supervisionGroupCompany.findMany({
-      where: { cycleId, round: 'ROUND_1' }, select: { companySiteId: true }, take: 5001,
+      where: { cycleId, round: 1 }, select: { companySiteId: true }, take: 5001,
     }),
     prisma.supervisionAppointment.count({ where: { groupCompany: { cycleId }, status: 'PUBLISHED' } }),
   ])

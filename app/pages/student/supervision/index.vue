@@ -31,11 +31,14 @@ const effectiveViewState = computed(() => scenario.value.forceError || appointme
   : appointmentsLoading.value ? 'loading' : scenario.value.viewState)
 const companies = computed(() => selectedCycle.value ? getCompanies(selectedCycle.value.id) : [])
 const visibleStatuses: SupervisionAppointmentStatus[] = ['published', 'postponed', 'completed', 'cancelled']
-const roundOptions = [
+const roundOptions = computed(() => [
   { value: 'all', label: 'ทุกครั้งที่นิเทศ' },
-  { value: '1', label: 'นิเทศครั้งที่ 1' },
-  { value: '2', label: 'นิเทศครั้งที่ 2' },
-]
+  ...[...new Set(appointments.value
+    .filter(item => item.cycleId === selectedCycleId.value && item.studentIds.includes(currentStudentId.value))
+    .map(item => item.round))]
+    .sort((a, b) => a - b)
+    .map(round => ({ value: String(round), label: `นิเทศครั้งที่ ${round}` })),
+])
 const statusOptions = [
   { value: 'all', label: 'ทุกสถานะ' },
   { value: 'published', label: supervisionAppointmentStatusMeta.published.label },
@@ -139,8 +142,7 @@ const loadAppointments = async (silent = false) => {
   if (!silent) appointmentsLoading.value = true
   appointmentsLoadError.value = false
   try {
-    await loadPersistedAppointments(cycleId, 1)
-    await loadPersistedAppointments(cycleId, 2)
+    await loadPersistedAppointments(cycleId)
   }
   catch { appointmentsLoadError.value = true }
   finally {

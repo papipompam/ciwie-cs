@@ -1,0 +1,8 @@
+ALTER TYPE "CoopCycleStatus" ADD VALUE IF NOT EXISTS 'DRAFT';
+
+UPDATE "coop_cycles"
+SET "status" = 'OPEN_FOR_REQUESTS'
+WHERE "status" = 'DRAFT';
+
+ALTER TABLE "coop_cycles" ALTER COLUMN "status" DROP DEFAULT;
+ALTER TABLE "coop_cycles" ALTER COLUMN "status" SET DEFAULT 'OPEN_FOR_REQUESTS';

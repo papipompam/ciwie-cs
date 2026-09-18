@@ -7,7 +7,7 @@ export default defineEventHandler(async (event): Promise<SupervisionExpensesResp
   await requireUserSession(event, ['staff'])
   const parsed = supervisionExpenseContextSchema.safeParse(getQuery(event))
   if (!parsed.success) throw createError({ statusCode: 400, statusMessage: 'SUPERVISION_CONTEXT_INVALID' })
-  const round = parsed.data.round === 1 ? 'ROUND_1' as const : 'ROUND_2' as const
+  const round = parsed.data.round
   const prisma = usePrisma()
   const [groups, records] = await Promise.all([
     prisma.supervisionGroup.findMany({
@@ -35,7 +35,7 @@ export default defineEventHandler(async (event): Promise<SupervisionExpensesResp
       id: group.id,
       name: group.name,
       cycleId: group.cycleId,
-      round: group.round === 'ROUND_1' ? 1 : 2,
+      round: group.round,
       companyCount: group.companies.length,
       lecturers: group.lecturers.map(({ lecturer }) => ({
         id: lecturer.id,

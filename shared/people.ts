@@ -73,4 +73,9 @@ export const personRecordSchema = personInputSchema.extend({
   activities: z.array(personActivitySchema),
 })
 
+// การสร้างบัญชีอาจคืนรหัสผ่านชั่วคราวแบบครั้งเดียวเมื่อไม่ได้ตั้งรหัสผ่านกลาง
+export const personCreateResponseSchema = personRecordSchema.extend({
+  temporaryPassword: z.string().min(8).optional(),
+})
+
 export const peopleResponseSchema = z.object({ people: z.array(personRecordSchema).max(10_000) })

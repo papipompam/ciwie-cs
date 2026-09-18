@@ -63,7 +63,9 @@ const submit = async () => {
   isSubmitting.value = true
   try {
     const person = await persistCreatePerson(personType.value, result.data)
-    showToast({ title: `เพิ่ม${context.value.singular}แล้ว`, description: `สร้างบัญชี ${person.id} และรอเข้าสู่ระบบครั้งแรก` })
+    showToast({ title: `เพิ่ม${context.value.singular}แล้ว`, description: person.temporaryPassword
+      ? `สร้างบัญชี ${person.id} แล้ว รหัสผ่านชั่วคราว: ${person.temporaryPassword}`
+      : `สร้างบัญชี ${person.id} และรอเข้าสู่ระบบครั้งแรก` })
     await navigateTo(`/staff/${route.params.type}/${person.id}`)
   } catch (error) {
     if (error instanceof Error && error.message === 'duplicate-id') errors.id = `${context.value.idLabel}นี้มีอยู่ในระบบแล้ว`

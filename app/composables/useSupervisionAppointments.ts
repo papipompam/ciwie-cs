@@ -172,13 +172,13 @@ export const useSupervisionAppointments = () => {
     return appointment
   }
 
-  const loadPersistedAppointments = async (cycleId: string, round: SupervisionRound) => {
+  const loadPersistedAppointments = async (cycleId: string, round?: SupervisionRound) => {
     // อ่านตารางนิเทศจริงของรอบที่เลือก แล้วแทนที่ข้อมูลเก่าใน state
     const response = supervisionAppointmentsResponseSchema.parse(await requestAwareFetch('/api/supervision/appointments', {
-      query: { cycleId, round },
+      query: { cycleId, ...(round ? { round } : {}) },
     }))
     appointments.value = [
-      ...appointments.value.filter(item => item.cycleId !== cycleId || item.round !== round),
+      ...appointments.value.filter(item => item.cycleId !== cycleId || (round !== undefined && item.round !== round)),
       ...response.appointments,
     ]
     return response.appointments

@@ -1,11 +1,12 @@
 import type { PersonPrefix, StudentSection } from './usePeopleDirectory'
 import { z } from 'zod'
+import { supervisionRoundSchema } from '#shared/supervision-groups'
 import type { PlacementRequestPreview } from '#shared/placement-requests'
 import type { SupervisionCompanyDto, SupervisionGroupDto, SupervisionLecturerDto } from '#shared/supervision-groups'
 import { companiesResponseSchema, companyRecordSchema } from '#shared/companies'
 import { requestAwareFetch } from '../utils/requestAwareFetch'
 
-export type SupervisionRound = 1 | 2
+export type SupervisionRound = number
 export type CompanyRecordStatus = 'active' | 'inactive'
 
 export interface CompanyRecord {
@@ -233,7 +234,7 @@ export const useSupervisionGroups = () => {
 
   const createGroup = (input: SupervisionGroupInput) => {
     requireStaff()
-    z.object({ name: z.string().trim().min(1), cycleId: z.string().min(1), round: z.union([z.literal(1), z.literal(2)]), lecturerIds: z.array(z.string()), companyIds: z.array(z.string()).min(1) }).parse(input)
+    z.object({ name: z.string().trim().min(1), cycleId: z.string().min(1), round: supervisionRoundSchema, lecturerIds: z.array(z.string()), companyIds: z.array(z.string()).min(1) }).parse(input)
     const selectedCompanies = getCompanies(input.cycleId).filter(company => input.companyIds.includes(company.id))
     const assignedCompanyIds = getAssignedCompanyIds(input.cycleId, input.round)
     const assignedLecturerIds = getAssignedLecturerIds(input.cycleId, input.round)

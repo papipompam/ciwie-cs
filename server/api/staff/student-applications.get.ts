@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
   const prisma = usePrisma()
   const [applications, total] = await prisma.$transaction([
     prisma.studentApplication.findMany({
-      include: { enrollment: { select: { student: { select: { username: true } } } }, placementRequest: { select: { id: true } } },
+      include: { enrollment: { select: { student: { select: { username: true } }, cycle: { select: { id: true, label: true } } } }, placementRequest: { select: { id: true } } },
       orderBy: [{ appliedDate: 'desc' }, { updatedAt: 'desc' }, { id: 'desc' }],
       skip: (query.data.page - 1) * query.data.pageSize,
       take: query.data.pageSize,
@@ -26,5 +26,9 @@ export default defineEventHandler(async (event) => {
     'x-page': String(query.data.page),
     'x-page-size': String(query.data.pageSize),
   })
-  return applications.map(application => toStudentApplicationRecord(application, application.enrollment.student.username, application.placementRequest?.id))
+  return applications.map(application => ({
+    ...toStudentApplicationRecord(application, application.enrollment.student.username, application.placementRequest?.id),
+    cycleId: application.enrollment.cycle?.id,
+    cycleLabel: application.enrollment.cycle?.label,
+  }))
 })

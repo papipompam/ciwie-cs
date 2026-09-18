@@ -78,6 +78,7 @@ const handleCreate = async (input: CompanyInput) => {
 
 <template>
   <div>
+    <StaffMasterDataTabs v-if="$route.path.startsWith('/staff')" />
     <header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div><p class="text-sm font-semibold text-primary">ข้อมูลกลาง</p><h2 class="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-3xl">ข้อมูลสถานประกอบการ</h2><p class="mt-1 text-sm leading-6 text-muted">จัดการข้อมูลติดต่อและเปิดดูประวัตินักศึกษาฝึกงานในแต่ละแห่ง</p></div>
       <UiDialog v-model:open="createDialogOpen" title="เพิ่มสถานประกอบการ" description="กรอกข้อมูลเพื่อเพิ่มรายการใหม่สำหรับคำร้องและการจัดกลุ่มนิเทศ" size="xl">

@@ -33,7 +33,7 @@ export const demoCompany = {
 
 export const demoPlacementRequest = {
   id: 'DEMO-REQ-001',
-  requestNo: 'REQ-DEMO-0001',
+  requestNo: 'RE00011',
   studentApplicationId: demoStudentApplication.id,
   enrollmentId: demoStudentApplication.enrollmentId,
   companyNameSnapshot: demoStudentApplication.companyNameSnapshot,
