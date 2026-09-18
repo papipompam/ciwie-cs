@@ -57,6 +57,7 @@ const { default: updatePerson } = await import('../server/api/staff/people/[id].
 const { default: lecturerUpdateStudent } = await import('../server/api/people/[id].patch')
 const { default: listSharedPeople } = await import('../server/api/people.get')
 const { default: importPeople } = await import('../server/api/staff/people/import.post')
+const { hashPassword } = await import('../server/utils/password')
 
 beforeEach(() => {
   body = {}
@@ -135,13 +136,25 @@ describe('people APIs', () => {
     expect(createUser).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ role: 'LECTURER', gender: 'FEMALE' }) }))
   })
 
-  it('creates a lecturer with a one-time password when the production default is missing', async () => {
+  it('uses the lecturer username as the initial password', async () => {
     runtimeConfig = { initialAccountPassword: '' }
     body = { type: 'lecturer', id: 'new-lecturer', prefix: 'อาจารย์', firstName: 'ทดสอบ', lastName: 'ระบบ', gender: 'male' }
     const result = await createPerson({} as Parameters<typeof createPerson>[0])
-    expect(result).toMatchObject({ temporaryPassword: expect.any(String) })
-    expect(result.temporaryPassword).toHaveLength(16)
+    expect(hashPassword).toHaveBeenCalledWith('new-lecturer')
+    expect(result).not.toHaveProperty('temporaryPassword')
     expect(createUser).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ role: 'LECTURER', status: 'FIRST_LOGIN' }) }))
+  })
+
+  it('uses each imported lecturer username as the initial password', async () => {
+    body = {
+      type: 'lecturer',
+      people: [{ id: 'new-lecturer', prefix: 'อาจารย์', firstName: 'นำเข้า', lastName: 'ทดสอบ' }],
+    }
+    const result = await importPeople({} as Parameters<typeof importPeople>[0])
+    expect(hashPassword).toHaveBeenCalledWith('new-lecturer')
+    expect(result.credentials).toEqual([expect.objectContaining({
+      username: 'new-lecturer', temporaryPassword: 'new-lecturer',
+    })])
   })
 
   it('transfers an existing active enrollment before moving a student to another cycle', async () => {

@@ -1,7 +1,6 @@
 import { Prisma } from '@prisma/client'
 import { genderFromPersonPrefix, lecturerPersonPrefixes, peopleImportRequestSchema, studentPersonPrefixes } from '#shared/people'
 import { hashPassword } from '../../../utils/password'
-import { generateTemporaryPassword } from '../../../utils/temporaryPassword'
 import { requireUserSession } from '../../../utils/session'
 
 export default defineEventHandler(async (event) => {
@@ -84,7 +83,7 @@ export default defineEventHandler(async (event) => {
         continue
       }
 
-      const temporaryPassword = type === 'student' ? person.id : generateTemporaryPassword()
+      const temporaryPassword = person.id
       const gender = genderFromPersonPrefix(person.prefix) ?? person.gender
       const account = await transaction.user.create({
         data: {

@@ -1,10 +1,8 @@
 import { Prisma } from '@prisma/client'
-import { z } from 'zod'
 import { genderFromPersonPrefix, lecturerPersonPrefixes, personInputSchema, personTypeSchema, studentPersonPrefixes } from '#shared/people'
 import { hashPassword } from '../../utils/password'
 import { personAuditSelect, personSelect, toPersonRecord } from '../../utils/people'
 import { requireUserSession } from '../../utils/session'
-import { generateTemporaryPassword } from '../../utils/temporaryPassword'
 
 // Endpoint นี้ใช้สำหรับเจ้าหน้าที่สร้างบัญชีบุคคลใหม่พร้อมข้อมูลโปรไฟล์
 const createSchema = personInputSchema.extend({ type: personTypeSchema })
@@ -19,15 +17,7 @@ export default defineEventHandler(async (event) => {
   const allowedPrefixes: readonly string[] = input.type === 'student' ? studentPersonPrefixes : lecturerPersonPrefixes
   if (!allowedPrefixes.includes(input.prefix)) throw createError({ statusCode: 400, statusMessage: 'PERSON_PREFIX_INVALID' })
   const gender = genderFromPersonPrefix(input.prefix) ?? input.gender
-  const config = useRuntimeConfig(event)
-  const initialPassword = z.string().min(8).safeParse(config.initialAccountPassword)
-  // Student IDs are already unique and known to staff, so use the ID as the
-  // initial temporary password for student accounts. Other account types keep
-  // using the configured initial password.
-  const temporaryPassword = input.type === 'student'
-    ? input.id
-    : initialPassword.success ? initialPassword.data : generateTemporaryPassword()
-  const passwordHash = await hashPassword(temporaryPassword)
+  const passwordHash = await hashPassword(input.id)
   const prisma = usePrisma()
   if (await prisma.user.findUnique({ where: { username: input.id }, select: { id: true } })) {
     throw createError({ statusCode: 409, statusMessage: 'PERSON_USERNAME_EXISTS' })
@@ -72,9 +62,5 @@ export default defineEventHandler(async (event) => {
     return { person, logs }
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
   setResponseStatus(event, 201)
-  return {
-    ...toPersonRecord(person.person, person.logs),
-    // ส่งกลับเฉพาะกรณี fallback และแสดงให้เจ้าหน้าที่บันทึกไว้ครั้งเดียว
-    ...(input.type === 'lecturer' && !initialPassword.success ? { temporaryPassword } : {}),
-  }
+  return toPersonRecord(person.person, person.logs)
 })
